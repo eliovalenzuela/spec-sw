@@ -12,7 +12,7 @@
 #include <linux/pci.h>
 #include <linux/workqueue.h>
 #include <linux/firmware.h>
-#include <linux/atomic.h>
+#include <asm/atomic.h>
 #include <linux/list.h>
 
 #define PCI_VENDOR_ID_CERN	0x10dc
