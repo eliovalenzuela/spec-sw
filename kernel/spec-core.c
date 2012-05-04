@@ -162,7 +162,7 @@ int spec_load_lm32(struct spec_dev *dev)
 		dev->names[SPEC_NAME_PROG], fw->size, fw->size);
 
 	/* Reset the LM32 */
-	writel(0x1deadbee, dev->remap[0] + 0xA0400);
+	writel(0x1deadbee, dev->remap[0] + spec_lm32_addr + 0x20400);
 
 	/* Copy stuff over */
 	for (off = 0; off < fw->size; off += 4) {
@@ -172,7 +172,7 @@ int spec_load_lm32(struct spec_dev *dev)
 		writel(datum, dev->remap[0] + spec_lm32_addr + off);
 	}
 	/* Unreset the LM32 */
-	writel(0xdeadbee, dev->remap[0] + 0xA0400);
+	writel(0xdeadbee, dev->remap[0] + spec_lm32_addr + 0x20400);
 
 	/* MSC */
 	pr_info("LM32 has been restarted\n");
