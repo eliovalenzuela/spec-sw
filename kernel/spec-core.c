@@ -26,6 +26,9 @@
 static char *spec_name = "%b";
 module_param_named(name, spec_name, charp, 0444);
 
+static int spec_lm32_addr = -1;
+module_param_named(lm32, spec_lm32_addr, int, 0444);
+
 /*
  * A procedure to build the names associated with the device.  This
  * copies the spec_name. With "spec-" prefix, expanding %P
@@ -142,6 +145,15 @@ int spec_load_lm32(struct spec_dev *dev)
 	const struct firmware *fw;
 	int err, off;
 
+	if (spec_lm32_addr < 0) {
+		/* Not loading lm32 code unless we get the parameter */
+		return 0;
+	}
+	if (spec_lm32_addr == 1) {
+		/* "insmod lm32=1" loads at the default address */
+		spec_lm32_addr = SPEC_DEFAULT_LM32_ADDR;
+	}
+
 	err = request_firmware(&fw, dev->names[SPEC_NAME_PROG],
 			       &dev->pdev->dev);
 	if (err < 0)
@@ -157,7 +169,7 @@ int spec_load_lm32(struct spec_dev *dev)
 		uint32_t datum;
 
 		datum = get_unaligned_be32(fw->data + off);
-		writel(datum, dev->remap[0] + 0x80000 + off);
+		writel(datum, dev->remap[0] + spec_lm32_addr + off);
 	}
 	/* Unreset the LM32 */
 	writel(0xdeadbee, dev->remap[0] + 0xA0400);
