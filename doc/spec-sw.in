@@ -142,7 +142,7 @@ turn perform the following actions:
 
 @itemize @bullet
 @item Program a @i{firmware} (or @i{gateware}) file in the FPGA
-@item Load program code for the internal CPU (if any)
+@item Load program code for the internal CPU (if any and if requested)
 @item Load a sub-module for driving the FMC card (if any).
 @end itemize
 
@@ -151,6 +151,13 @@ steps are expected to fail (you may not run a CPU in the FPGA or you
 may have its program already included in the @i{gateware} file);
 similarly you may not need a sub-driver, because the card is
 stand-alone and needs no Linux driver.
+
+Please note that the CPU program file is not loaded by default any
+more: you must explicitely request it to be loaded with a module
+parameter.  If you pass ``lm32=1'' as a parameter, it will try to load
+at the default address (0x80000). IF you you pass a different value
+than 1, it will be used as the load address (for example:
+``@code{insmod lm32=0xc0000}'').
 
 @b{Note:} all three files are looked-for in @i{/lib/firmware/fmc},
 because our own installations share firmware for COTS peripherals

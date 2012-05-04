@@ -20,6 +20,8 @@
 #define PCI_VENDOR_ID_GENNUM	0x1a39
 #define PCI_DEVICE_ID_GN4124		0x0004
 
+#define SPEC_DEFAULT_LM32_ADDR 0x80000 /* used if "1" is passed */
+
 #define SPEC_MAX_BOARDS 8
 
 enum spec_names {
