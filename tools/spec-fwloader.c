@@ -24,16 +24,13 @@ int main(int argc, char **argv)
 	int bus = -1, dev_fn = -1, i, c;
 	struct stat stbuf;
 	unsigned char *buf;
-	unsigned int *ibuf;
-	volatile uint32_t *p;
 	void *map_base;
 	char *fname;
-	uint32_t lm32_base = 0x80000;
 	
 	FILE *f;
 	
 
-	while ((c = getopt (argc, argv, "b:d:c:")) != -1)
+	while ((c = getopt (argc, argv, "b:d:")) != -1)
 	{
 		switch(c)
 		{
@@ -43,14 +40,11 @@ int main(int argc, char **argv)
 		case 'd':
 			sscanf(optarg, "%i", &dev_fn);
 			break;
-		case 'c':
-			sscanf(optarg, "%i", &lm32_base);
-			break;
 		default:
 			fprintf(stderr,
 				"Use: \"%s [-b bus] [-d devfn] <fpga_bitstream.bin>\"\n", argv[0]);
 			fprintf(stderr,
-				"By default, the first available SPEC is used and the LM32 is assumet at 0x%x.\n", lm32_base);
+				"By default, the first available SPEC is used.\n");
 			exit(1);
 		}
 	}
@@ -96,40 +90,14 @@ int main(int argc, char **argv)
 		exit(1);
 	}
 
-	map_base = spec_map_area(bus, dev_fn, BASE_BAR0, 0x100000);
+	map_base = spec_map_area(bus, dev_fn, BASE_BAR4, 0x1000);
 	if(!map_base)
 	{
 		fprintf(stderr, "%s: can't map the SPEC @ %02x:%02x\n", argv[0], bus, dev_fn);
 		exit(1);
 	}
 
-	ibuf = (void *)buf;
+	loader_low_level(0, map_base, buf, stbuf.st_size);
 
-	/* Phew... we are there, finally */
-	*(volatile uint32_t *)(map_base + lm32_base + 0x20400) = 0x1deadbee;
-	while ( !((*(volatile uint32_t *)(map_base + lm32_base + 0x20400)) & (1<<28)) )
-		;
-
-	p = map_base + lm32_base;
-	for (i = 0; i < (stbuf.st_size + 3) / 4; i++) {
-		p[i] = htonl(ibuf[i]); /* big endian */
-	}
-
-	sync();
-
-	for (i = 0; i < (stbuf.st_size + 3) / 4; i++) {
-		if (p[i] != htonl(ibuf[i]))
-			fprintf(stderr, "programming error at %x "
-				"(expected %08x, found %08x)\n", i*4,
-				htonl(ibuf[i]), p[i]);
-	}
-
-	sync();
-
-	*(volatile uint32_t *)(map_base + lm32_base + 0x20400) = 0x0deadbee;
-
-	if (getenv("VERBOSE"))
-		printf("%s: Wrote %li bytes at offset 0x%x\n", argv[0],
-		       (long)stbuf.st_size, lm32_base);
 	exit (0);
 }
