@@ -1,3 +1,6 @@
+/* A simple console for accessing the SPEC virtual UART (i.e. for communicating with the WR Core shell
+   from a Linux terminal. */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -9,28 +12,11 @@
 #include <getopt.h>
 #include <errno.h>
 
-#include "spec-tools.h"
-#include "wb_uart.h"
+#include "speclib.h"
 
-void *vuart_regs;
+static void *card;
 
-int vc_rx(void *ptr)
-{
-	int csr ;
-	csr = *(int *)(ptr + UART_REG_HOST_RDR);
-	if(csr & UART_HOST_RDR_RDY)
-		return UART_HOST_RDR_DATA_R(csr);
-	else
-		return -1;
-}
-
-void vc_tx(void *ptr, int c)
-{
-	while( *(int *)(ptr + UART_REG_SR) & UART_SR_RX_RDY);
-	*(int *)(ptr + UART_REG_HOST_TDR) = UART_HOST_TDR_DATA_W(c);
-}
-
-int transfer_byte(int from, int is_control, void *ptr) {
+static int transfer_byte(int from, int is_control) {
 	char c;
 	int ret;
 	do {
@@ -42,7 +28,7 @@ int transfer_byte(int from, int is_control, void *ptr) {
 				return -1;
 			} 
 		}
-		vc_tx(ptr, c);
+		spec_vuart_tx(card, &c, 1);
 	} else {
 		fprintf(stderr, "\nnothing to read. probably port disconnected.\n");
 		return -2;
@@ -71,7 +57,8 @@ void term_main(int keep_term)
 	}
 	while(!need_exit) {
 		fd_set fds;
-		int ret, rx;
+		int ret;
+		char rx;
 		struct timeval tv = {0, 10000};
 		
 		FD_ZERO(&fds);
@@ -82,12 +69,12 @@ void term_main(int keep_term)
 			perror("select");
 		} else if (ret > 0) {
 			if(FD_ISSET(STDIN_FILENO, &fds)) {
-				need_exit = transfer_byte(STDIN_FILENO, 1, vuart_regs);
+				need_exit = transfer_byte(STDIN_FILENO, 1);
 			}
 		}
 
-		while((rx = vc_rx(vuart_regs)) >= 0)
-			fprintf(stderr,"%c", (char)rx);
+		while((spec_vuart_rx(card, &rx, 1)) == 1)
+			fprintf(stderr,"%c", rx);
 
 	}
 
@@ -99,7 +86,6 @@ int main(int argc, char **argv)
 {
 	int bus = -1, dev_fn = -1, c;
 	uint32_t vuart_base = 0xe0500;
-	void *map_base;
 	int keep_term = 0;
 
 	while ((c = getopt (argc, argv, "b:d:u:k")) != -1)
@@ -128,14 +114,16 @@ int main(int argc, char **argv)
 		}
 	}
 
-	map_base = spec_map_area(bus, dev_fn, BASE_BAR0, 0x100000);
-	if(!map_base)
+    card = spec_open(bus, dev_fn);
+	if(!card)
 	{
-		fprintf(stderr, "%s: can't map the SPEC @ %02x:%02x\n", argv[0], bus, dev_fn);
-		exit(1);
+	 	fprintf(stderr, "Can't detect a SPEC card under the given adress. Make sure a SPEC card is present in your PC and the driver is loaded.\n");
+	 	exit(1);
 	}
 
-	vuart_regs = map_base + vuart_base;
+	spec_vuart_init(card, vuart_base);
 	term_main(keep_term);
+	spec_close(card);
+
 	return 0;
 }
