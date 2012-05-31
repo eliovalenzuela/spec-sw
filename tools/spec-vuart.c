@@ -26,6 +26,7 @@ int vc_rx(void *ptr)
 
 void vc_tx(void *ptr, int c)
 {
+	while( *(int *)(ptr + UART_REG_SR) & UART_SR_RX_RDY);
 	*(int *)(ptr + UART_REG_HOST_TDR) = UART_HOST_TDR_DATA_W(c);
 }
 
