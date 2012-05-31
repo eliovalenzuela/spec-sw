@@ -85,6 +85,7 @@
 #define UART_HOST_RDR_COUNT_W(value)          WBGEN2_GEN_WRITE(value, 9, 16)
 #define UART_HOST_RDR_COUNT_R(reg)            WBGEN2_GEN_READ(reg, 9, 16)
 
+#define UART_REG_SR 0x0
 #define UART_REG_HOST_TDR 0x10
 #define UART_REG_HOST_RDR 0x14
 
