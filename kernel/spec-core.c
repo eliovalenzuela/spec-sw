@@ -168,7 +168,9 @@ int spec_load_lm32(struct spec_dev *dev)
 	for (off = 0; off < fw->size; off += 4) {
 		uint32_t datum;
 
-		datum = get_unaligned_be32(fw->data + off);
+		/* This was "get_unaligned_be32", missing in 2.6.24 */
+		datum = get_unaligned(fw->data + off);
+		datum = be32_to_cpu(datum);
 		writel(datum, dev->remap[0] + spec_lm32_addr + off);
 	}
 	/* Unreset the LM32 */
