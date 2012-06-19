@@ -229,7 +229,7 @@ static int spec_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	dev->pdev = pdev;
 
 	pci_enable_device(pdev);
-	if ( (i = pci_enable_msi_block(pdev, 1)) < 0)
+	if ( (i = pci_enable_msi(pdev)) < 0)
 		pr_err("%s: enable ms block: %i\n", __func__, i);
 
 
