@@ -45,8 +45,8 @@ static int spec_build_names(struct spec_dev *dev)
 	char *si, *so;
 	int i;
 	static char *templates[] = {
-		[SPEC_NAME_FW] = "spec-%s.bin",
-		[SPEC_NAME_PROG] = "spec-%s-cpu.bin", /* will be .elf */
+		[SPEC_NAME_FW] = "fmc/spec-%s.bin",
+		[SPEC_NAME_PROG] = "fmc/spec-%s-cpu.bin", /* will be .elf */
 		[SPEC_NAME_SUBMOD] = "spec-%s", /* .ko added by modprobe */
 	};
 
