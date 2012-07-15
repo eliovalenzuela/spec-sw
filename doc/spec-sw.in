@@ -159,27 +159,35 @@ at the default address (0x80000). IF you you pass a different value
 than 1, it will be used as the load address (for example:
 ``@code{insmod lm32=0xc0000}'').
 
+@b{Note:} all three files are looked-for in @i{/lib/firmware/fmc},
+because our own installations share firmware for COTS peripherals
+but mount a host-specific NFS subdirectory.  This is incompatible
+with previous versions of this package, but the error message should
+be clear enough for our users to sort the problem out. (Actually, I
+tried to add a backward-compatible second choice, but it would have
+messed up the code quite a lot).
+
 The three files being looked for are named like this, assuming here
 the card is seen under PCIe bus number 2:
 
 @table @code
 
-@item spec-B0002.bin
+@item fmc/spec-B0002.bin
 
 	This is the name of the @i{gateware} file, which is looked-for
         in @code{/lib/firmware} by the @i{hotplug} or @i{udev} program.
 
-@item spec-B0002-cpu.bin
+@item fmc/spec-B0002-cpu.bin
 
 	This is the program code for the embedded CPU. Again, it must
-        live in @code{/lib/firmware}
+        live in @code{/lib/firmware}.
 
-@item spec-B0002.ko
+@item fmc/spec-B0002.ko
 
 	The kernel sub-module. It is loaded using @i{modprobe}, so
         it should live in the same place where @code{spec.ko} is found.
         Also, please run ``@code{depmod -a}'' after copying or renaming
-        the file
+        the file.
 
 @end table
 

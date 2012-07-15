@@ -50,7 +50,7 @@ static int spec_build_names(struct spec_dev *dev)
 	static char *templates[] = {
 		[SPEC_NAME_FW] = "fmc/spec-%s.bin",
 		[SPEC_NAME_PROG] = "fmc/spec-%s-cpu.bin", /* will be .elf */
-		[SPEC_NAME_SUBMOD] = "spec-%s", /* .ko added by modprobe */
+		[SPEC_NAME_SUBMOD] = "fmc/spec-%s", /* .ko added by modprobe */
 	};
 
 	for (si = spec_name, so = basename; *si ; si++) {
