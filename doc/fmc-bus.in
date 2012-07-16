@@ -1,0 +1,98 @@
+\input texinfo    @c -*-texinfo-*-
+%
+% fmc-bus.in - main file for the documentation
+%
+%%%%
+
+%------------------------------------------------------------------------------
+%
+%                         NOTE FOR THE UNAWARE USER
+%                         =========================
+%
+%    This file is a texinfo source. It isn't the binary file of some strange
+%    editor of mine. If you want ASCII, you should "make fmc-bus.txt".
+%
+%------------------------------------------------------------------------------
+
+%
+% This is not a conventional info file...
+% I use three extra features:
+%   - The '%' as a comment marker, if at beginning of line ("\%" -> "%")
+%   - leading blanks are allowed (this is something I can't live without)
+%   - braces are automatically escaped when they appear in example blocks
+%
+
+@comment %**start of header
+@documentlanguage en
+@setfilename fmc-bus.info
+@settitle fmc-bus
+@iftex
+@afourpaper
+@end iftex
+@paragraphindent none
+@comment %**end of header
+
+@setchapternewpage off
+
+@set update-month July 2012
+
+@finalout
+
+@titlepage
+@title FMC Bus Abstraction for Linux
+@subtitle @value{update-month}
+@subtitle Implementing a bus abstraction for fmc mezzanines
+@author Alessandro Rubini for CERN (BE-CO-HT)
+@end titlepage
+@headings single
+
+@c ##########################################################################
+@iftex
+@contents
+@end iftex
+
+@c ##########################################################################
+@node Top
+@top Introduction
+
+This document describes the implementation of the @i{fmc} bus for
+Linux.  FMC (FPGA Mezzanine Carrier) is the standard we use for our
+I/O devices, in the context of White Rabbit and related hardware.
+
+In our I/O environments we need to write drivers for each mezzanine
+card, and such drivers must work independent of the carrier being used.
+To achieve this, we abstract the FMC interface
+
+We have a carrier for PCI-E called @i{SPEC} and one for VME called
+@i{SVEC}, but more are planned.  Also, we support stand-alone devices
+(usually plugged on a SPEC card), controlled through Etherbone,
+developed by GSI.
+
+Currently, code and documentation for the FMC bus is part of the
+@i{spec-sw} project at @code{ohwr.org}.
+
+@menu
+* The Core Driver::             
+@end menu
+
+@c ##########################################################################
+@node What is a Linux Bus
+@chapter What is a Linux Bus
+
+@c ##########################################################################
+@node FMC Device
+@chapter FMC Device
+
+@c ##########################################################################
+@node FMC Driver
+@chapter FMC Driver
+
+@c ##########################################################################
+@node The API Offered by Carriers
+@chapter The API Offered by Carriers
+
+
+@bye
+@c  LocalWords:  gnudd titlepage iftex texinfo CERN documentlanguage settitle
+@c  LocalWords:  documentencoding setfilename afourpaper paragraphindent
+@c  LocalWords:  setchapternewpage finalout
