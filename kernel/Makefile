@@ -1,8 +1,11 @@
 
 LINUX ?= /lib/modules/$(shell uname -r)/build
 
-obj-m = spec.o
-obj-m += spec-wr-nic.o
+ccflags-y = -I$M/include
+
+obj-m = fmc-core.o
+obj-m += spec.o
+obj-m += wr-nic.o
 
 spec-objs = spec-core.o loader-ll.o
 
