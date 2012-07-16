@@ -1,5 +1,5 @@
 /*
- * A tool to program our soft-core (LM32) within the SPEC.
+ * A tool to program the FPGA within the SPEC.
  *
  * Alessandro Rubini 2012 for CERN, GPLv2 or later.
  */
@@ -14,11 +14,9 @@
 int main(int argc, char **argv)
 {
 	int bus = -1, dev_fn = -1, c;
-	uint32_t lm32_base = 0x80000;
 	void *card;
 
-
-	while ((c = getopt (argc, argv, "b:d:c:")) != -1)
+	while ((c = getopt (argc, argv, "b:d:")) != -1)
 	{
 		switch(c)
 		{
@@ -28,14 +26,11 @@ int main(int argc, char **argv)
 		case 'd':
 			sscanf(optarg, "%i", &dev_fn);
 			break;
-		case 'c':
-			sscanf(optarg, "%i", &lm32_base);
-			break;
 		default:
 			fprintf(stderr,
-				"Use: \"%s [-b bus] [-d devfn] [-c lm32 base address] <lm32_program.bin>\"\n", argv[0]);
+				"Use: \"%s [-b bus] [-d devfn] <fpga_bitstream.bin>\"\n", argv[0]);
 			fprintf(stderr,
-				"By default, the first available SPEC is used and the LM32 is assumed at 0x%x.\n", lm32_base);
+				"By default, the first available SPEC is used.\n");
 			exit(1);
 		}
 	}
@@ -52,7 +47,7 @@ int main(int argc, char **argv)
 	 	exit(1);
 	}
 
-	if(spec_load_lm32(card, argv[optind], lm32_base) < 0)
+	if(spec_load_bitstream(card, argv[optind]) < 0)
 	{
 	 	fprintf(stderr, "Loader failure.\n");
 	 	exit(1);

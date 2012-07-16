@@ -6,8 +6,13 @@
 
 #define __LOADER_LL_C__ /* Callers won't define this symbol */
 
+#ifdef __KERNEL__
 #include "spec.h"
 #include "loader-ll.h"
+#else
+#include "loader-userspace.h"
+#endif
+
 
 /* These must be set to choose the FPGA configuration mode */
 #define GPIO_BOOTSEL0 15
