@@ -72,27 +72,176 @@ Currently, code and documentation for the FMC bus is part of the
 @i{spec-sw} project at @code{ohwr.org}.
 
 @menu
-* The Core Driver::             
+* What is a Linux Bus::         
+* FMC Device::                  
+* FMC Driver::                  
+* The API Offered by Carriers::  
 @end menu
 
 @c ##########################################################################
 @node What is a Linux Bus
 @chapter What is a Linux Bus
 
+Within the Linux kernel, a @i{bus} is a data structure with a few
+methods.  It's main role is registering a list of devices and a list
+of drivers, offering a @i{match} function that compares the respective
+identifiers (in a bus-specific way) to assign drivers to devices.
+
+Activation and deactivation of devices happens through the @i{probe}
+and @i{remove} functions of the respective driver; an advanced user
+can also use @i{sysfs} to change the binding of drivers to devices
+(for example, if more than one driver can drive the same device you
+may want to force the choice).
+
 @c ##########################################################################
 @node FMC Device
 @chapter FMC Device
+
+Within this framework, the FMC device is created and registered by the
+carrier driver. For example, the PCI driver for the SPEC card fills a
+data structure for each SPEC that it drivers, and registers an
+associated FMC device.  The SVEC driver can do exactly the same for
+the VME carrier (actually, it should do it twice, because the SVEC
+carries two FMC mezzanines.  Similarly, an Etherbone driver will be
+able to register its own FMC devices, offering communication primitives
+through frame exchange.
+
+The contents of the EEPROM within the FMC will be used for
+identification purposes, i.e. for matching the device with its own
+driver. For this reason the device structure includes a complete copy
+of the EEPROM (actually, the carrier driver may choose to only return
+the leading part of it).
+
+This is the current structure defining a device. Please note that stuff
+is still being defined as I write this, so the structures are going to
+change (if in doubt, please check the header file in the repository rather
+than this document):
+
+@smallexample
+struct fmc_device {
+        struct fmc_device_id id;        /* for the match function */
+        struct fmc_operations *op;      /* carrier-provided */
+        int irq;                        /* according to host bus. 0 == none */
+        int eeprom_len;                 /* Usually 8kB, may be less */
+        uint8_t *eeprom;                /* Full contents or leading part */
+        char *carrier_name;             /* "SPEC" or similar, for special use */
+        void *carrier_data;             /* "struct spec *" or equivalent */
+        __iomem void *base;             /* May be NULL (Etherbone) */
+        struct device dev;              /* For Linux use */
+};
+@end smallexample
 
 @c ##########################################################################
 @node FMC Driver
 @chapter FMC Driver
 
+Within this framework the FMC driver is expected to be independent of
+the carrier being used.  The matching between device and driver is
+only based on the content of the EEPROM (as mandated by the FMC
+standard) and the driver will perform I/O accesses only by means of
+carrier-provided functions.
+
+In some special cases it is possible for a driver to directly access
+FPGA registers, by means of the @code{base} field of the device
+structure. This is needed for high-bandwidth peripherals like fast ADC
+cards. The @code{base} pointer is NULL for remote devices, and the driver
+will refuse to work with them if it needs direct access.
+
+In even more special cases, the driver may access carrier-specific
+functionality: the @code{carrier_name} string allows the driver to
+check which is the current carrier and make use of the
+@code{carrier_data} pointer.  We chose to use carrier names rather
+than numeric identifiers for greater flexibility, but also to avoid a
+central registry within the @code{fmc.h} file -- we hope other users
+will exploit our framework with their own carriers.
+
+@c ##########################################################################
+@node Functions Exported by the Core
+@chapter Functions Exported by the Core
+
+The FMC core exports the usual 4 functions that are needed for a bus
+to work:
+
+@smallexample
+   int fmc_driver_register(struct fmc_driver *drv);
+   void fmc_driver_unregister(struct fmc_driver *drv);
+   int fmc_device_register(struct fmc_device *tdev);
+   void fmc_device_unregister(struct fmc_device *tdev);
+@end smallexample
+
+They should be self-explicative, so nothing is added here.
+
 @c ##########################################################################
 @node The API Offered by Carriers
 @chapter The API Offered by Carriers
 
+The carrier provides a number of methods by means of the
+@code{fmc_operations} structure, which currently is defined like this
+(again, it is a moving target, please refer to the header rather than
+this document):
+
+@smallexample
+struct fmc_operations {
+        uint32_t (*readl)(struct fmc_device *d, int offset);
+        void (*writel)(struct fmc_device *d, int offset, uint32_t value);
+        int (*reprogram)(struct fmc_device *d, void *data, int len);
+        void (*irq_ack)(struct fmc_device *d);
+        int (*read_ee)(struct fmc_device *d, int pos, void *data, int len);
+        int (*write_ee)(struct fmc_device *d, int pos, void *data, int len);
+};
+@end smallexample
+
+They perform the following tasks:
+
+@table @code
+@item readl
+@itemx writel
+
+	These functions access FPGA registers by whatever means the
+        carrier offers. They are not expected to fail, as most of the time
+        they will just make a memory access to the host bus. While
+        calling a function is slower than making direct access with macros,
+        flexibility requires this approach. Drivers may use the @code{base}
+        pointer at their own risk, or maybe later specifications will mandate
+        @code{base} to be equivalent to @i{readl}/@i{writel} if not NULL.
+        For Etherbone, or other non-local carriers,
+        error-management is still to be defined.
+
+@item reprogram
+
+	The carrier enumerates FMC devices by loading a standard (or
+        @i{golden} FPGA binary that allows EEPROM access. Each driver, then,
+        will need to reprogram the FPGA for its own use by calling this
+        function.  If @i{reprogram} is called with NULL argumentes, the
+        carrier will reprogram the golden binary -- which will happen
+        after @i{remove} time in any case.
+
+@item irq_ack
+
+	Interrupt acknowledge is carrier-specific, so it is abstracted
+        as an operation. Interrupts on the other hand are expected to be
+        reported by normal host means, at the IRQ number stated in the
+        device structure.
+
+@item read_ee
+@itemx write_ee
+
+	Read or write the EEPROM. The functions are expected to be only
+        called before reprogramming and the carrier will refuse them
+        with @code{ENODEV} after reprogramming.  The offset is limited
+        to 8kB but addresses up to 1MB are reserved to fit bigger I2C
+        devices in the future. Carriers may offer
+        access to other internal flash memories using these same methods:
+        for example the SPEC driver may define that its own I2C memory
+        is seen at offset 1M and the internal SPI flash is seen at offset
+        16M.  This is carrier-specific and should only be used by the
+        driver after checking the @code{carrier_name} field.
+
+@end table
+
+
 
 @bye
 @c  LocalWords:  gnudd titlepage iftex texinfo CERN documentlanguage settitle
-@c  LocalWords:  documentencoding setfilename afourpaper paragraphindent
-@c  LocalWords:  setchapternewpage finalout
+@c  LocalWords:  documentencoding setfilename afourpaper paragraphindent SVEC
+@c  LocalWords:  setchapternewpage finalout Etherbone EEPROM
