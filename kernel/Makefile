@@ -7,7 +7,9 @@ obj-m = fmc-core.o
 obj-m += spec.o
 obj-m += wr-nic.o
 
-spec-objs = spec-core.o loader-ll.o
+spec-objs = spec-pci.o
+spec-objs += spec-i2c.o
+spec-objs += loader-ll.o
 
 all modules:
 	$(MAKE) -C $(LINUX) M=$(shell /bin/pwd) modules
