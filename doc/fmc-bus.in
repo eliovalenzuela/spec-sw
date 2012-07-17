@@ -191,7 +191,7 @@ struct fmc_operations {
 };
 @end smallexample
 
-They perform the following tasks:
+The individual methods perform the following tasks:
 
 @table @code
 @item readl
@@ -212,7 +212,7 @@ They perform the following tasks:
 	The carrier enumerates FMC devices by loading a standard (or
         @i{golden} FPGA binary that allows EEPROM access. Each driver, then,
         will need to reprogram the FPGA for its own use by calling this
-        function.  If @i{reprogram} is called with NULL argumentes, the
+        function.  If @i{reprogram} is called with NULL arguments, the
         carrier will reprogram the golden binary -- which will happen
         after @i{remove} time in any case.
 
