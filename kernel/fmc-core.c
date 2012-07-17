@@ -16,9 +16,9 @@
 
 static int fmc_match(struct device *dev, struct device_driver *drv)
 {
-	struct fmc_driver *fdrv = to_fmc_driver(drv);
-	struct fmc_device *fdev = to_fmc_device(dev);
-	const struct fmc_device_id *t = fdrv->id_table;
+	//struct fmc_driver *fdrv = to_fmc_driver(drv);
+	//struct fmc_device *fdev = to_fmc_device(dev);
+	//const struct fmc_device_id *t = fdrv->id_table;
 
 	/* Currently, return 1 every time, until we define policies */
 	return 1;
@@ -26,7 +26,7 @@ static int fmc_match(struct device *dev, struct device_driver *drv)
 
 static int fmc_uevent(struct device *dev, struct kobj_uevent_env *env)
 {
-	struct fmc_device *fdev = to_fmc_device(dev);
+	//struct fmc_device *fdev = to_fmc_device(dev);
 
 	/* FIXME: The MODALIAS */
 	add_uevent_var(env, "MODALIAS=%s", "fmc");

@@ -14,6 +14,7 @@
 #include <linux/firmware.h>
 #include <linux/atomic.h>
 #include <linux/list.h>
+#include <linux/fmc.h>
 
 #define PCI_VENDOR_ID_CERN	0x10dc
 #define PCI_DEVICE_ID_SPEC		0x018d
@@ -22,21 +23,11 @@
 
 #define SPEC_DEFAULT_LM32_ADDR 0x80000 /* used if "1" is passed */
 
-#define SPEC_MAX_BOARDS 8
-
-enum spec_names {
-	SPEC_NAME_FW,
-	SPEC_NAME_PROG,
-	SPEC_NAME_SUBMOD,
-	SPEC_NAMES,
-};
-
 /* Our device structure */
 struct spec_dev {
 	struct pci_dev		*pdev;
 	struct resource		*area[3];	/* bar 0, 2, 4 */
 	void			*remap[3];	/* ioremap of bar 0, 2, 4 */
-	char			*names[SPEC_NAMES];
 	char			*submod_name;
 	struct work_struct	work;
 	const struct firmware	*fw;
@@ -44,11 +35,8 @@ struct spec_dev {
 	unsigned long		irqcount;
 	atomic_t		has_submod;
 	void			*sub_priv;
+	struct fmc_device	*fmc;
 };
-
-/* Used by sub-modules */
-extern struct list_head spec_list;
-
 
 /* Registers from the gennum header files */
 enum {
@@ -76,5 +64,14 @@ enum {
 	FCL_FIFO	= 0xE00,
 	PCI_SYS_CFG_SYSTEM = 0x800
 };
+
+/* Functions in spec-fmc.c, used by spec-pci.c */
+extern int spec_fmc_create(struct spec_dev *spec);
+extern void spec_fmc_destroy(struct spec_dev *spec);
+
+/* Function in spec-i2c.c, used by spec-fmc.c */
+extern int spec_i2c_init(struct fmc_device *fmc);
+extern void spec_i2c_exit(struct fmc_device *fmc);
+
 
 #endif /* __SPEC_H__ */

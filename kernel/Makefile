@@ -8,6 +8,7 @@ obj-m += spec.o
 obj-m += wr-nic.o
 
 spec-objs = spec-pci.o
+spec-objs += spec-fmc.o
 spec-objs += spec-i2c.o
 spec-objs += loader-ll.o
 

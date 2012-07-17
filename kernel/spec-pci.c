@@ -19,7 +19,6 @@
 #include <linux/delay.h>
 #include <linux/pci.h>
 #include <linux/io.h>
-#include <linux/fmc.h>
 #include <asm/unaligned.h>
 
 #include "spec.h"
@@ -38,8 +37,10 @@ static int spec_load_fpga(struct spec_dev *spec)
 	char *name = spec_fw_name; /* FIXME: temporary hack */
 
 	err = request_firmware(&fw, name, dev);
-	if (err < 0)
+	if (err < 0) {
+		dev_err(dev, "request firmware \"%s\": error %i\n", name, err);
 		return err;
+	}
 	dev_info(dev, "got file \"%s\", %i (0x%x) bytes\n",
 		 spec_fw_name, fw->size, fw->size);
 
@@ -74,7 +75,8 @@ out:
         return err;
 }
 
-static int spec_probe(struct pci_dev *pdev, const struct pci_device_id *id)
+static int __devinit spec_probe(struct pci_dev *pdev,
+				const struct pci_device_id *id)
 {
 	struct spec_dev *spec;
 	int i, ret;
@@ -91,40 +93,64 @@ static int spec_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		return -ENOMEM;
 	spec->pdev = pdev;
 
-	if ( (i = pci_enable_msi_block(pdev, 1)) < 0)
-		pr_err("%s: enable ms block: %i\n", __func__, i);
+	if ( (ret = pci_enable_msi_block(pdev, 1)) < 0)
+		dev_err(&pdev->dev, "enable msi block: error %i\n", ret);
 
 	/* Remap our 3 bars */
-	for (i = 0; i < 3; i++) {
+	for (i = ret = 0; i < 3; i++) {
 		struct resource *r = pdev->resource + (2 * i);
 		if (!r->start)
 			continue;
 		spec->area[i] = r;
-		if (r->flags & IORESOURCE_MEM)
+		if (r->flags & IORESOURCE_MEM) {
 			spec->remap[i] = ioremap(r->start,
 						r->end + 1 - r->start);
+			if (!spec->remap[i])
+				ret = -ENOMEM;
+		}
 	}
+	if (ret)
+		goto out_unmap;
 
-	pci_set_drvdata(pdev, spec);
 
 	/* Load the golden FPGA binary to read the eeprom */
-	spec_load_fpga(spec);
+	ret = spec_load_fpga(spec);
+	if (ret)
+		goto out_unmap;
 
-	/* FIXME: eeprom */
+	ret = spec_fmc_create(spec);
+	if (ret)
+		goto out_unmap;
 
 	/* Done */
+	pci_set_drvdata(pdev, spec);
 	return 0;
+
+out_unmap:
+	for (i = 0; i < 3; i++) {
+		if (spec->remap[i])
+			iounmap(spec->remap[i]);
+		spec->remap[i] = NULL;
+		spec->area[i] = NULL;
+	}
+	pci_set_drvdata(pdev, NULL);
+	pci_disable_msi(pdev);
+	pci_disable_device(pdev);
+	kfree(spec);
+	return ret;
 }
 
-static void spec_remove(struct pci_dev *pdev)
+static void __devexit spec_remove(struct pci_dev *pdev)
 {
 	struct spec_dev *spec = pci_get_drvdata(pdev);
 	int i;
 
 	dev_info(&pdev->dev, "remove\n");
 
+	spec_fmc_destroy(spec);
 	for (i = 0; i < 3; i++) {
-		iounmap(spec->remap[i]);
+		if (spec->remap[i])
+			iounmap(spec->remap[i]);
 		spec->remap[i] = NULL;
 		spec->area[i] = NULL;
 	}
@@ -149,13 +175,12 @@ static struct pci_driver spec_driver = {
 	.remove = spec_remove,
 };
 
-static int spec_init(void)
+static int __init spec_init(void)
 {
-	INIT_LIST_HEAD(&spec_list);
 	return pci_register_driver(&spec_driver);
 }
 
-static void spec_exit(void)
+static void __exit spec_exit(void)
 {
 	pci_unregister_driver(&spec_driver);
 
