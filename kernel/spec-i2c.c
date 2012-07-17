@@ -15,27 +15,21 @@
 #include <linux/time.h>
 #include <linux/pci.h>
 #include <linux/slab.h>
-#include <linux/random.h>
-#include <linux/firmware.h>
-#include <linux/jhash.h>
 #include "spec.h"
-#include "fine-delay.h"
 #include "hw/fd_main_regs.h"
 
-/* The eeprom is at address 0x50, and the structure lives at 6kB */
+/* The eeprom is at address 0x50 */
 #define I2C_ADDR 0x50
-#define I2C_OFFSET (6*1024)
+#define I2C_SIZE (8 * 1024)
 
-/* At factory config time, it's possible to load a file and/or write eeprom */
-static char *calibration_load;
-static int calibration_save;
-static int calibration_check;
-static int calibration_default;
-
-module_param(calibration_load, charp, 0444);
-module_param(calibration_default, int, 0444);
-module_param(calibration_save, int, 0444);
-module_param(calibration_check, int, 0444);
+static inline uint32_t spec_readl(struct spec_dev *spec, int off)
+{
+	return readl(spec->remap[0] + 0x80000 + off);
+}
+static inline void spec_writel(struct spec_dev *spec, uint32_t val, int off)
+{
+	writel(val, spec->remap[0] + 0x80000 + off);
+}
 
 /* Stupid dumping tool */
 static void dumpstruct(char *name, void *ptr, int size)
@@ -53,111 +47,111 @@ static void dumpstruct(char *name, void *ptr, int size)
 		printk("\n");
 }
 
-static void set_sda(struct spec_fd *fd, int val)
+static void set_sda(struct spec_dev *spec, int val)
 {
 	uint32_t reg;
 
-	reg = fd_readl(fd, FD_REG_I2CR) & ~FD_I2CR_SDA_OUT;
+	reg = spec_readl(spec, FD_REG_I2CR) & ~FD_I2CR_SDA_OUT;
 	if (val)
 		reg |= FD_I2CR_SDA_OUT;
-	fd_writel(fd, reg, FD_REG_I2CR);
+	spec_writel(spec, reg, FD_REG_I2CR);
 }
 
-static void set_scl(struct spec_fd *fd, int val)
+static void set_scl(struct spec_dev *spec, int val)
 {
 	uint32_t reg;
 
-	reg = fd_readl(fd, FD_REG_I2CR) & ~FD_I2CR_SCL_OUT;
+	reg = spec_readl(spec, FD_REG_I2CR) & ~FD_I2CR_SCL_OUT;
 	if (val)
 		reg |= FD_I2CR_SCL_OUT;
-	fd_writel(fd, reg, FD_REG_I2CR);
+	spec_writel(spec, reg, FD_REG_I2CR);
 }
 
-static int get_sda(struct spec_fd *fd)
+static int get_sda(struct spec_dev *spec)
 {
-	return fd_readl(fd, FD_REG_I2CR) & FD_I2CR_SDA_IN ? 1 : 0;
+	return spec_readl(spec, FD_REG_I2CR) & FD_I2CR_SDA_IN ? 1 : 0;
 };
 
-static void mi2c_start(struct spec_fd *fd)
+static void mi2c_start(struct spec_dev *spec)
 {
-	set_sda(fd, 0);
-	set_scl(fd, 0);
+	set_sda(spec, 0);
+	set_scl(spec, 0);
 }
 
-static void mi2c_stop(struct spec_fd *fd)
+static void mi2c_stop(struct spec_dev *spec)
 {
-	set_sda(fd, 0);
-	set_scl(fd, 1);
-	set_sda(fd, 1);
+	set_sda(spec, 0);
+	set_scl(spec, 1);
+	set_sda(spec, 1);
 }
 
-int mi2c_put_byte(struct spec_fd *fd, int data)
+int mi2c_put_byte(struct spec_dev *spec, int data)
 {
 	int i;
 	int ack;
 
 	for (i = 0; i < 8; i++, data<<=1) {
-		set_sda(fd, data & 0x80);
-		set_scl(fd, 1);
-		set_scl(fd, 0);
+		set_sda(spec, data & 0x80);
+		set_scl(spec, 1);
+		set_scl(spec, 0);
 	}
 
-	set_sda(fd, 1);
-	set_scl(fd, 1);
+	set_sda(spec, 1);
+	set_scl(spec, 1);
 
-	ack = get_sda(fd);
+	ack = get_sda(spec);
 
-	set_scl(fd, 0);
-	set_sda(fd, 0);
+	set_scl(spec, 0);
+	set_sda(spec, 0);
 
 	return ack ? -EIO : 0; /* ack low == success */
 }
 
-int mi2c_get_byte(struct spec_fd *fd, unsigned char *data, int sendack)
+int mi2c_get_byte(struct spec_dev *spec, unsigned char *data, int sendack)
 {
 	int i;
 	int indata = 0;
 
 	/* assert: scl is low */
-	set_scl(fd, 0);
-	set_sda(fd, 1);
+	set_scl(spec, 0);
+	set_sda(spec, 1);
 	for (i = 0; i < 8; i++) {
-		set_scl(fd, 1);
+		set_scl(spec, 1);
 		indata <<= 1;
-		if (get_sda(fd))
+		if (get_sda(spec))
 			indata |= 0x01;
-		set_scl(fd, 0);
+		set_scl(spec, 0);
 	}
 
-	set_sda(fd, (sendack ? 0 : 1));
-	set_scl(fd, 1);
-	set_scl(fd, 0);
-	set_sda(fd, 0);
+	set_sda(spec, (sendack ? 0 : 1));
+	set_scl(spec, 1);
+	set_scl(spec, 0);
+	set_sda(spec, 0);
 
 	*data= indata;
 	return 0;
 }
 
-void mi2c_init(struct spec_fd *fd)
+void mi2c_init(struct spec_dev *spec)
 {
-	set_scl(fd, 1);
-	set_sda(fd, 1);
+	set_scl(spec, 1);
+	set_sda(spec, 1);
 }
 
-void mi2c_scan(struct spec_fd *fd)
+void mi2c_scan(struct spec_dev *spec)
 {
 	int i;
 	for(i = 0; i < 256; i += 2) {
-		mi2c_start(fd);
-		if(!mi2c_put_byte(fd, i))
+		mi2c_start(spec);
+		if(!mi2c_put_byte(spec, i))
 			pr_info("%s: Found i2c device at 0x%x\n",
 			       KBUILD_MODNAME, i >> 1);
-		mi2c_stop(fd);
+		mi2c_stop(spec);
 	}
 }
 
 /* FIXME: this is very inefficient: read several bytes in a row instead */
-int fd_eeprom_read(struct spec_fd *fd, int i2c_addr, uint32_t offset,
+int spec_eeprom_read(struct spec_dev *spec, int i2c_addr, uint32_t offset,
 		void *buf, size_t size)
 {
 	int i;
@@ -165,178 +159,84 @@ int fd_eeprom_read(struct spec_fd *fd, int i2c_addr, uint32_t offset,
 	unsigned char c;
 
 	for(i = 0; i < size; i++) {
-		mi2c_start(fd);
-		if(mi2c_put_byte(fd, i2c_addr << 1) < 0) {
-			mi2c_stop(fd);
+		mi2c_start(spec);
+		if(mi2c_put_byte(spec, i2c_addr << 1) < 0) {
+			mi2c_stop(spec);
 			return -EIO;
 		}
 
-		mi2c_put_byte(fd, (offset >> 8) & 0xff);
-		mi2c_put_byte(fd, offset & 0xff);
+		mi2c_put_byte(spec, (offset >> 8) & 0xff);
+		mi2c_put_byte(spec, offset & 0xff);
 		offset++;
-		mi2c_stop(fd);
-		mi2c_start(fd);
-		mi2c_put_byte(fd, (i2c_addr << 1) | 1);
-		mi2c_get_byte(fd, &c, 0);
+		mi2c_stop(spec);
+		mi2c_start(spec);
+		mi2c_put_byte(spec, (i2c_addr << 1) | 1);
+		mi2c_get_byte(spec, &c, 0);
 		*buf8++ = c;
-		mi2c_stop(fd);
+		mi2c_stop(spec);
 	}
 	return size;
 }
 
-int fd_eeprom_write(struct spec_fd *fd, int i2c_addr, uint32_t offset,
+int spec_eeprom_write(struct spec_dev *spec, int i2c_addr, uint32_t offset,
 		 void *buf, size_t size)
 {
 	int i, busy;
 	uint8_t *buf8 = buf;
 
 	for(i = 0; i < size; i++) {
-		mi2c_start(fd);
+		mi2c_start(spec);
 
-		if(mi2c_put_byte(fd, i2c_addr << 1) < 0) {
-			mi2c_stop(fd);
+		if(mi2c_put_byte(spec, i2c_addr << 1) < 0) {
+			mi2c_stop(spec);
 			return -1;
 		}
-		mi2c_put_byte(fd, (offset >> 8) & 0xff);
-		mi2c_put_byte(fd, offset & 0xff);
-		mi2c_put_byte(fd, *buf8++);
+		mi2c_put_byte(spec, (offset >> 8) & 0xff);
+		mi2c_put_byte(spec, offset & 0xff);
+		mi2c_put_byte(spec, *buf8++);
 		offset++;
-		mi2c_stop(fd);
+		mi2c_stop(spec);
 
 		do { /* wait until the chip becomes ready */
-			mi2c_start(fd);
-			busy = mi2c_put_byte(fd, i2c_addr << 1);
-			mi2c_stop(fd);
+			mi2c_start(spec);
+			busy = mi2c_put_byte(spec, i2c_addr << 1);
+			mi2c_stop(spec);
 		} while(busy);
 	}
 	return size;
 }
 
-/* The user requested to load the configuration from file */
-static void fd_i2c_load_calib(struct spec_fd *fd,
-			      struct fd_calib_on_eeprom *cal_ee)
+int spec_i2c_init(struct fmc_device *fmc)
 {
-	const struct firmware *fw;
-	struct pci_dev *pdev = fd->spec->pdev;
-	char *fwname, *newname = NULL;
-	int err;
-
-	/* the calibration_load string is known to be valid */
-
-	fwname = calibration_load;
-	err = request_firmware(&fw, calibration_load, &pdev->dev);
-	if (err < 0) {
-
-		dev_warn(&pdev->dev, "can't load \"%s\"\n",
-			    calibration_load);
-		newname = kasprintf(GFP_KERNEL, "%s-%02x%02x\n",
-				    calibration_load,
-				    pdev->bus->number, pdev->devfn);
-		err = request_firmware(&fw, newname, &pdev->dev);
-		if (err < 0) {
-			dev_warn(&pdev->dev, "can't load \"%s\"\n",
-				    newname);
-		}
-		fwname = newname;
-	}
-	if (err < 0) {
-		kfree(newname);
-		return;
-	}
-	if (fw->size != sizeof(cal_ee->calib)) {
-		dev_warn(&pdev->dev, "File \"%s\" has wrong size\n",
-			    fwname);
-	} else {
-		memcpy(&cal_ee->calib, fw->data, fw->size);
-		dev_info(&pdev->dev, "calibration data loaded from \"%s\"\n",
-			 fwname);
-	}
-	release_firmware(fw);
-	kfree(newname);
-	return;
-}
-
-
-int fd_i2c_init(struct spec_fd *fd)
-{
-	struct fd_calib_on_eeprom *cal_ee;
-	u32 hash;
+	struct spec_dev *spec = fmc->carrier_data;
+	void *buf;
 	int i;
 
-	mi2c_scan(fd);
+	mi2c_scan(spec);
 
-	if (0) {
-		/* Temporary - testing: read and write some stuff */
-		u8 buf[8];
-		int i;
-
-		fd_eeprom_read(fd, I2C_ADDR, I2C_OFFSET, buf, 8);
-		printk("read: ");
-		for (i = 0; i < 8; i++)
-			printk("%02x%c", buf[i], i==7 ? '\n' : ' ');
-
-		get_random_bytes(buf, 8);
-		printk("write: ");
-		for (i = 0; i < 8; i++)
-			printk("%02x%c", buf[i], i==7 ? '\n' : ' ');
-		fd_eeprom_write(fd, I2C_ADDR, I2C_OFFSET, buf, 8);
-	}
-
-	/* Retrieve and validate the calibration */
-	cal_ee = kzalloc(sizeof(*cal_ee), GFP_KERNEL);
-	if (!cal_ee)
+	buf = kmalloc(I2C_SIZE, GFP_KERNEL);
+	if (!buf)
 		return -ENOMEM;
-	i = fd_eeprom_read(fd, I2C_ADDR, I2C_OFFSET, cal_ee, sizeof(*cal_ee));
-	if (i != sizeof(*cal_ee)) {
-		pr_err("%s: cannot read_eeprom\n", __func__);
-		goto load;
+
+	i = spec_eeprom_read(spec, I2C_ADDR, 0, buf, I2C_SIZE);
+	if (i != I2C_SIZE) {
+		dev_err(&spec->pdev->dev, "EEPROM read error: retval is %i\n",
+			i);
+		kfree(buf);
+		return -EIO;
 	}
-	if (calibration_check)
-		dumpstruct("Calibration data from eeprom:", cal_ee,
-			   sizeof(*cal_ee));
+	fmc->eeprom = buf;
+	fmc->eeprom_len = I2C_SIZE;
 
-	hash = jhash(&cal_ee->calib, sizeof(cal_ee->calib), 0);
+	dumpstruct("eeprom", buf, I2C_SIZE);
 
-	/* FIXME: this is original-endian only (little endian I fear) */
-	if ((cal_ee->size != sizeof(cal_ee->calib))
-	    || (cal_ee->hash != hash)
-	    || (cal_ee->version != 1)) {
-		pr_err("%s: calibration on eeprom is invalid\n", __func__);
-		goto load;
-	}
-	if (!calibration_default)
-		fd->calib = cal_ee->calib; /* override compile-time default */
-
-load:
-	cal_ee->calib = fd->calib;
-
-	if (calibration_load)
-		fd_i2c_load_calib(fd, cal_ee);
-
-	/* Fix the local copy, for verification and maybe saving */
-	cal_ee->hash = jhash(&cal_ee->calib, sizeof(cal_ee->calib), 0);
-	cal_ee->size = sizeof(cal_ee->calib);
-	cal_ee->version = 1;
-
-	if (calibration_save) {
-		i = fd_eeprom_write(fd, I2C_ADDR, I2C_OFFSET, cal_ee,
-				    sizeof(*cal_ee));
-		if (i != sizeof(*cal_ee)) {
-			pr_err("%s: error in writing calibration to eeprom\n",
-			       __func__);
-		} else {
-			pr_info("%s: saved calibration to eeprom\n", __func__);
-		}
-	}
-	if (calibration_check)
-		dumpstruct("Current calibration data:", cal_ee,
-			   sizeof(*cal_ee));
-	kfree(cal_ee);
 	return 0;
 }
 
-void fd_i2c_exit(struct spec_fd *fd)
+void spec_i2c_exit(struct fmc_device *fmc)
 {
-	/* nothing to do */
+	kfree(fmc->eeprom);
+	fmc->eeprom = NULL;
+	fmc->eeprom_len = 0;
 }
 

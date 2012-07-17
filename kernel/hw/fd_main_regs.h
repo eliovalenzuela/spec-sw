@@ -14,8 +14,6 @@
 #ifndef __WBGEN2_REGDEFS_FD_MAIN_WISHBONE_SLAVE_WB
 #define __WBGEN2_REGDEFS_FD_MAIN_WISHBONE_SLAVE_WB
 
-#include <inttypes.h>
-
 #if defined( __GNUC__)
 #define PACKED __attribute__ ((packed))
 #else
