@@ -9,6 +9,8 @@
  */
 #ifndef __LINUX_FMC_H__
 #define __LINUX_FMC_H__
+#include <linux/types.h>
+#include <linux/device.h>
 
 struct fmc_device;
 struct fmc_driver;
@@ -31,21 +33,24 @@ struct fmc_driver {
 /* To be carrier-independent, we need to abstract hardware access */
 struct fmc_operations {
 	uint32_t (*readl)(struct fmc_device *d, int offset);
-	uint32_t (*writel)(struct fmc_device *d, int offset, uint32_t value);
+	void (*writel)(struct fmc_device *d, int offset, uint32_t value);
+	int (*reprogram)(struct fmc_device *d, void *data, int len);
 	void (*irq_ack)(struct fmc_device *d);
+	int (*read_ee)(struct fmc_device *d, int pos, void *data, int len);
+	int (*write_ee)(struct fmc_device *d, int pos, void *data, int len);
 };
 
 /* The device reports all information needed to access hw */
 struct fmc_device {
-	struct fmc_device_id id;
-	struct fmc_operations *op;
-	int irq;
-	int eeprom_len;
-	uint8_t *eeprom;
-	char *carrier_name;
-	void *carrier_data;
-	__iomem void *base;
-	struct device dev;
+	struct fmc_device_id id;	/* for the match function */
+	struct fmc_operations *op;	/* carrier-provided */
+	int irq;			/* according to host bus. 0 == none */
+	int eeprom_len;			/* Usually 8kB, may be less */
+	uint8_t *eeprom;		/* Full contents or leading part */
+	char *carrier_name;		/* "SPEC" or similar, for special use */
+	void *carrier_data;		/* "struct spec *" or equivalent */
+	__iomem void *base;		/* May be NULL (Etherbone) */
+	struct device dev;		/* For Linux use */
 };
 #define to_fmc_device(x) container_of((x), struct fmc_device, dev)
 
