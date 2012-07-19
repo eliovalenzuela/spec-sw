@@ -185,7 +185,10 @@ struct fmc_operations {
         uint32_t (*readl)(struct fmc_device *d, int offset);
         void (*writel)(struct fmc_device *d, int offset, uint32_t value);
         int (*reprogram)(struct fmc_device *d, void *data, int len);
+        int (*irq_request)(struct fmc_device *d, irq_handler_t h,
+                           char *name, int flags);
         void (*irq_ack)(struct fmc_device *d);
+        int (*irq_free)(struct fmc_device *d);
         int (*read_ee)(struct fmc_device *d, int pos, void *data, int len);
         int (*write_ee)(struct fmc_device *d, int pos, void *data, int len);
 };
@@ -216,12 +219,15 @@ The individual methods perform the following tasks:
         carrier will reprogram the golden binary -- which will happen
         after @i{remove} time in any case.
 
-@item irq_ack
+@item irq_request
+@itemx irq_ack
+@itemx irq_free
 
-	Interrupt acknowledge is carrier-specific, so it is abstracted
-        as an operation. Interrupts on the other hand are expected to be
-        reported by normal host means, at the IRQ number stated in the
-        device structure.
+	Interrupt management is carrier-specific, so it is abstracted
+        as operations. The interrupt number is listed in the device
+        structure, but it's only informative for the mezzanine driver.
+        The handler will receive the @i{fmc} pointer as @i{dev_id}; the
+        @i{flags} argument is still to be defined.
 
 @item read_ee
 @itemx write_ee

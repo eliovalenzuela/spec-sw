@@ -11,6 +11,7 @@
 #define __LINUX_FMC_H__
 #include <linux/types.h>
 #include <linux/device.h>
+#include <linux/interrupt.h>
 
 struct fmc_device;
 struct fmc_driver;
@@ -35,7 +36,10 @@ struct fmc_operations {
 	uint32_t (*readl)(struct fmc_device *d, int offset);
 	void (*writel)(struct fmc_device *d, int offset, uint32_t value);
 	int (*reprogram)(struct fmc_device *d, void *data, int len);
+	int (*irq_request)(struct fmc_device *d, irq_handler_t h,
+			   char *name, int flags);
 	void (*irq_ack)(struct fmc_device *d);
+	int (*irq_free)(struct fmc_device *d);
 	int (*read_ee)(struct fmc_device *d, int pos, void *data, int len);
 	int (*write_ee)(struct fmc_device *d, int pos, void *data, int len);
 };
