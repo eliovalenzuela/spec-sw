@@ -33,15 +33,15 @@ struct fmc_driver {
 
 /* To be carrier-independent, we need to abstract hardware access */
 struct fmc_operations {
-	uint32_t (*readl)(struct fmc_device *d, int offset);
-	void (*writel)(struct fmc_device *d, int offset, uint32_t value);
-	int (*reprogram)(struct fmc_device *d, void *data, int len);
-	int (*irq_request)(struct fmc_device *d, irq_handler_t h,
+	uint32_t (*readl)(struct fmc_device *fmc, int offset);
+	void (*writel)(struct fmc_device *fmc, int offset, uint32_t value);
+	int (*reprogram)(struct fmc_device *fmc, void *data, int len);
+	int (*irq_request)(struct fmc_device *fmc, irq_handler_t h,
 			   char *name, int flags);
-	void (*irq_ack)(struct fmc_device *d);
-	int (*irq_free)(struct fmc_device *d);
-	int (*read_ee)(struct fmc_device *d, int pos, void *data, int len);
-	int (*write_ee)(struct fmc_device *d, int pos, void *data, int len);
+	void (*irq_ack)(struct fmc_device *fmc);
+	int (*irq_free)(struct fmc_device *fmc);
+	int (*read_ee)(struct fmc_device *fmc, int pos, void *data, int len);
+	int (*write_ee)(struct fmc_device *fmc, int pos, void *data, int len);
 };
 
 /* The device reports all information needed to access hw */
