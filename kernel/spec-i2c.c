@@ -18,10 +18,14 @@
 #include "spec.h"
 #include "hw/fd_main_regs.h"
 
+static int spec_i2c_dump;
+module_param_named(i2c_dump, spec_i2c_dump, int, 0444);
+
 /* The eeprom is at address 0x50 */
 #define I2C_ADDR 0x50
 #define I2C_SIZE (8 * 1024)
 
+/* FIXME: this is a temporary hack: we should use the operations instead */
 static inline uint32_t spec_readl(struct spec_dev *spec, int off)
 {
 	return readl(spec->remap[0] + 0x80000 + off);
@@ -228,7 +232,8 @@ int spec_i2c_init(struct fmc_device *fmc)
 	fmc->eeprom = buf;
 	fmc->eeprom_len = I2C_SIZE;
 
-	dumpstruct("eeprom", buf, I2C_SIZE);
+	if (spec_i2c_dump)
+		dumpstruct("eeprom", buf, I2C_SIZE);
 
 	return 0;
 }
