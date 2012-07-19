@@ -7,10 +7,9 @@
 irqreturn_t t_handler(int irq, void *dev_id)
 {
 	struct fmc_device *fmc = dev_id;
-	struct spec_dev *spec = fmc->carrier_data;
-	/* FIXME: don't assume to be under spec */
 
-	dev_info(&spec->pdev->dev, "irq %i\n", irq);
+	fmc->op->irq_ack(fmc);
+	printk("%s: irq %i\n", __func__, irq);
 	return IRQ_HANDLED;
 }
 
@@ -18,17 +17,18 @@ int t_probe(struct fmc_device *fmc)
 {
 	int ret;
 
-	ret = request_irq(fmc->irq, t_handler, 0, "fmc-trivial", fmc);
+	ret = fmc->op->irq_request(fmc, t_handler, "fmc-trivial", 0);
 	return ret;
 }
 
 int t_remove(struct fmc_device *fmc)
 {
-	free_irq(fmc->irq, fmc);
+	fmc->op->irq_free(fmc);
 	return 0;
 }
 
 static struct fmc_driver t_drv = {
+	.driver.name = KBUILD_MODNAME,
 	.probe = t_probe,
 	.remove = t_remove,
 	/* no table, as the current match just matches everything */
