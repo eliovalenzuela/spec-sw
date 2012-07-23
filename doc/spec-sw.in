@@ -34,7 +34,7 @@
 
 @setchapternewpage off
 
-@set update-month March 2012
+@set update-month July 2012
 
 @finalout
 
@@ -62,6 +62,12 @@ associated software project, hosted at
 @url{http://www.ohwr.org/projects/spec-sw}, whose @i{git} repository
 hosts the latest version.
 
+@b{Warning}: this manual documents the setup we used for the first
+FMC mezzanine driver, the @i{fine-delay-sw} package, version 1.1.
+This @i{spec-sw} package is being completely redesigned to take advantage
+of the Linux bus abstraction. The current development is on the @i{fmc-bus}
+branch of the git repository, that will be merged to the master as soon
+as it is stable.
 
 @menu
 * The Core Driver::             
