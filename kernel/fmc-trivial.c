@@ -1,8 +1,13 @@
+/* A trivial fmc driver that can load a gateware file and reports interrupts */
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
+#include <linux/firmware.h>
 #include <linux/fmc.h>
 #include "spec.h"
+
+static char *t_filename;
+module_param_named(file, t_filename, charp, 0444);
 
 irqreturn_t t_handler(int irq, void *dev_id)
 {
@@ -16,8 +21,30 @@ irqreturn_t t_handler(int irq, void *dev_id)
 int t_probe(struct fmc_device *fmc)
 {
 	int ret;
+	struct device *dev = fmc->hwdev;
 
 	ret = fmc->op->irq_request(fmc, t_handler, "fmc-trivial", 0);
+	if (ret < 0)
+		return ret;
+
+	if (t_filename) {
+		const struct firmware *fw;
+
+		ret = request_firmware(&fw, t_filename, dev);
+		if (ret < 0) {
+			dev_warn(dev, "request firmware \"%s\": error %i\n",
+				t_filename, ret);
+			ret = 0; /* not fatal */
+		} else {
+			ret = fmc->op->reprogram(fmc, (void *)fw->data,
+						 fw->size);
+		}
+		if (ret <0) {
+			dev_err(dev, "write firmware \"%s\": error %i\n",
+				t_filename, ret);
+			ret = 0; /* not fatal, either (lazy me) */
+		}
+	}
 	return ret;
 }
 
@@ -49,3 +76,5 @@ static void t_exit(void)
 
 module_init(t_init);
 module_exit(t_exit);
+
+MODULE_LICENSE("GPL and additional rights"); /* public domain */
