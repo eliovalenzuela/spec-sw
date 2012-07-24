@@ -13,6 +13,7 @@
 #include <linux/firmware.h>
 #include <linux/completion.h>
 #include <linux/fmc.h>
+#include <linux/gpio.h>
 
 #define PCI_VENDOR_ID_CERN	0x10dc
 #define PCI_DEVICE_ID_SPEC		0x018d
@@ -35,6 +36,7 @@ struct spec_dev {
 	struct fmc_device	*fmc;
 	int			irq_count;	/* for mezzanine use too */
 	struct completion	compl;
+	struct gpio_chip	*gpio;
 };
 
 /* Registers for GN4124 access */
@@ -118,9 +120,13 @@ static inline void gennum_mask_val(struct spec_dev *spec,
 extern int spec_fmc_create(struct spec_dev *spec);
 extern void spec_fmc_destroy(struct spec_dev *spec);
 
-/* Function in spec-i2c.c, used by spec-fmc.c */
+/* Functions in spec-i2c.c, used by spec-fmc.c */
 extern int spec_i2c_init(struct fmc_device *fmc);
 extern void spec_i2c_exit(struct fmc_device *fmc);
+
+/* Functions in spec-gpio.c */
+extern int spec_gpio_init(struct fmc_device *fmc);
+extern void spec_gpio_exit(struct fmc_device *fmc);
 
 
 #endif /* __SPEC_H__ */

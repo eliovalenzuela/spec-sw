@@ -184,6 +184,7 @@ int spec_fmc_create(struct spec_dev *spec)
 	ret = fmc_device_register(fmc);
 	if (ret)
 		goto out_irq;
+	spec_gpio_init(fmc); /* May fail, we don't care */
 	return ret;
 
 out_irq:
@@ -196,6 +197,7 @@ out_free:
 
 void spec_fmc_destroy(struct spec_dev *spec)
 {
+	spec_gpio_exit(spec->fmc);
 	fmc_device_unregister(spec->fmc);
 	spec_irq_exit(spec->fmc);
 	spec_i2c_exit(spec->fmc);

@@ -8,10 +8,12 @@ obj-m += spec.o
 obj-m += fmc-trivial.o
 obj-m += wr-nic.o
 
-spec-objs = spec-pci.o
-spec-objs += spec-fmc.o
-spec-objs += spec-i2c.o
-spec-objs += loader-ll.o
+spec-y = spec-pci.o
+spec-y += spec-fmc.o
+spec-y += spec-i2c.o
+spec-y += loader-ll.o
+spec-y += spec-gpio-no.o
+spec-$(CONFIG_GPIOLIB) += spec-gpio.o
 
 all modules:
 	$(MAKE) -C $(LINUX) M=$(shell /bin/pwd) modules
