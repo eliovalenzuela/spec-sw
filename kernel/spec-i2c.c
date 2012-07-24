@@ -17,7 +17,7 @@
 #include <linux/slab.h>
 #include <linux/fmc.h>
 #include "spec.h"
-#include "hw/fd_main_regs.h"
+#include "hw/wrc_syscon_regs.h"
 
 
 static int spec_i2c_dump;
@@ -45,27 +45,23 @@ static void dumpstruct(char *name, void *ptr, int size)
 
 static void set_sda(struct fmc_device *fmc, int val)
 {
-	uint32_t reg;
-
-	reg = fmc_readl(fmc, FD_REG_I2CR) & ~FD_I2CR_SDA_OUT;
 	if (val)
-		reg |= FD_I2CR_SDA_OUT;
-	fmc_writel(fmc, reg, FD_REG_I2CR);
+		fmc_writel(fmc, SYSC_GPSR_FMC_SDA, SYSC_REG_GPSR);
+	else
+		fmc_writel(fmc, SYSC_GPCR_FMC_SDA, SYSC_REG_GPCR);
 }
 
 static void set_scl(struct fmc_device *fmc, int val)
 {
-	uint32_t reg;
-
-	reg = fmc_readl(fmc, FD_REG_I2CR) & ~FD_I2CR_SCL_OUT;
 	if (val)
-		reg |= FD_I2CR_SCL_OUT;
-	fmc_writel(fmc, reg, FD_REG_I2CR);
+		fmc_writel(fmc, SYSC_GPSR_FMC_SCL, SYSC_REG_GPSR);
+	else
+		fmc_writel(fmc, SYSC_GPCR_FMC_SCL, SYSC_REG_GPCR);
 }
 
 static int get_sda(struct fmc_device *fmc)
 {
-	return fmc_readl(fmc, FD_REG_I2CR) & FD_I2CR_SDA_IN ? 1 : 0;
+	return fmc_readl(fmc, SYSC_REG_GPSR) & SYSC_GPSR_FMC_SDA ? 1 : 0;
 };
 
 static void mi2c_start(struct fmc_device *fmc)
