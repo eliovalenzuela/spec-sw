@@ -202,11 +202,11 @@ The individual methods perform the following tasks:
 
 	These functions access FPGA registers by whatever means the
         carrier offers. They are not expected to fail, as most of the time
-        they will just make a memory access to the host bus. While
-        calling a function is slower than making direct access with macros,
-        flexibility requires this approach. Drivers may use the @code{base}
-        pointer at their own risk, or maybe later specifications will mandate
-        @code{base} to be equivalent to @i{readl}/@i{writel} if not NULL.
+        they will just make a memory access to the host bus. If the
+        carrier provided a @i{base} pointer, the driver may use direct
+        access through it instead. For this reason the header offers
+        the inline functions @i{fmc_readl} and @i{fmc_writel} that
+        access @i{base} if respective method is NULL.
         For Etherbone, or other non-local carriers,
         error-management is still to be defined.
 

@@ -73,7 +73,7 @@ static int spec_irq_free(struct fmc_device *fmc)
 }
 
 static struct fmc_operations spec_fmc_operations = {
-	/* FIXME: readl/writel */
+	/* no readl/writel because we have the base pointer */
 	/* FIXME: reprogram */
 	.irq_request =		spec_irq_request,
 	.irq_ack =		spec_irq_ack,
