@@ -206,8 +206,17 @@ you load will drive all SPEC cards found on the system.
 
 The simple module @i{fmc-trivial} is just a simple client that
 registers an interrupt handler. I use it to verify the basic mechanism
-of the FMC bus and how interrupts work.  It's worth reading, but it's not
-worth describing here.
+of the FMC bus and how interrupts work.
+
+Additionally, if you pass the @code{file=} module argument, it will
+load the file from @i{/lib/firmware} and reprogram the FPGA with the
+new binary. It is almost as useful as a user-space loader.
+
+I plan to add a simple char driver with a dreaded @i{ioctl}
+method to allow easy user-space access to FMC boards, irrespective
+of the carrier they are living on.
+
+This driver is worth reading, but it is not worth describing here.
 
 @c ##########################################################################
 @node fmc-write-eeprom.ko
