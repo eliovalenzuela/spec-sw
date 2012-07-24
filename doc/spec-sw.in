@@ -29,7 +29,7 @@
 @iftex
 @afourpaper
 @end iftex
-@paragraphindent none
+@paragraphindent 3mm
 @comment %**end of header
 
 @setchapternewpage off
@@ -149,7 +149,12 @@ following steps:
       a nee device in the @i{fmc} bus.
 @end itemize
 
-Failure of any of those steps is fatal.
+Failure of any of the above steps is fatal.
+
+The suggested @code{spec-init.bin} gateware binary is always available
+from the @i{files} area of the @i{spec-sw} project on @code{ohwr.org}.
+As I write this, the direct link is
+@url{http://www.ohwr.org/attachments/download/1454/spec-init.bin-2012-07-24}.
 
 The module can receive the following parameters to customize its operation:
 
