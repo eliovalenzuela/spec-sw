@@ -34,7 +34,7 @@ struct fmc_driver {
 /* To be carrier-independent, we need to abstract hardware access */
 struct fmc_operations {
 	uint32_t (*readl)(struct fmc_device *fmc, int offset);
-	void (*writel)(struct fmc_device *fmc, int offset, uint32_t value);
+	void (*writel)(struct fmc_device *fmc, uint32_t value, int offset);
 	int (*reprogram)(struct fmc_device *fmc, void *data, int len);
 	int (*irq_request)(struct fmc_device *fmc, irq_handler_t h,
 			   char *name, int flags);
