@@ -6,6 +6,7 @@ ccflags-y = -I$M/include
 obj-m = fmc-core.o
 obj-m += spec.o
 obj-m += fmc-trivial.o
+obj-m += fmc-write-eeprom.o
 obj-m += wr-nic.o
 
 spec-y = spec-pci.o
