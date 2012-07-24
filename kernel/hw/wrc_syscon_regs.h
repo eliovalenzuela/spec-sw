@@ -14,7 +14,6 @@
 #ifndef __WBGEN2_REGDEFS_WRC_SYSCON_WB_WB
 #define __WBGEN2_REGDEFS_WRC_SYSCON_WB_WB
 
-#include <inttypes.h>
 
 #if defined( __GNUC__)
 #define PACKED __attribute__ ((packed))
