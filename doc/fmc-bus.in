@@ -189,8 +189,8 @@ struct fmc_operations {
                            char *name, int flags);
         void (*irq_ack)(struct fmc_device *fmc);
         int (*irq_free)(struct fmc_device *fmc);
-        int (*read_ee)(struct fmc_device *fmc, int pos, void *data, int len);
-        int (*write_ee)(struct fmc_device *fmc, int pos, void *data, int len);
+        int (*read_ee)(struct fmc_device *fmc, int pos, void *d, int l);
+        int (*write_ee)(struct fmc_device *fmc, int pos, const void *d, int l);
 };
 @end smallexample
 

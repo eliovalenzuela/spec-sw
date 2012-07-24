@@ -167,10 +167,10 @@ int spec_eeprom_read(struct fmc_device *fmc, int i2c_addr, uint32_t offset,
 }
 
 int spec_eeprom_write(struct fmc_device *fmc, int i2c_addr, uint32_t offset,
-		 void *buf, size_t size)
+		 const void *buf, size_t size)
 {
 	int i, busy;
-	uint8_t *buf8 = buf;
+	const uint8_t *buf8 = buf;
 
 	for(i = 0; i < size; i++) {
 		mi2c_start((fmc));

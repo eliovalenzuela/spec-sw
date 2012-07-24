@@ -78,7 +78,8 @@ static int spec_read_ee(struct fmc_device *fmc, int pos, void *data, int len)
 	return spec_eeprom_read(fmc, SPEC_I2C_EEPROM_ADDR, pos, data, len);
 }
 
-static int spec_write_ee(struct fmc_device *fmc, int pos, void *data, int len)
+static int spec_write_ee(struct fmc_device *fmc, int pos,
+			 const void *data, int len)
 {
 	return spec_eeprom_write(fmc, SPEC_I2C_EEPROM_ADDR, pos, data, len);
 }
