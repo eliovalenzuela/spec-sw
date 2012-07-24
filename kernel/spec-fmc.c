@@ -21,7 +21,34 @@ module_param_named(test_irq, spec_test_irq, int, 0444);
 static int spec_irq_request(struct fmc_device *fmc, irq_handler_t handler,
 			    char *name, int flags)
 {
-	return request_irq(fmc->irq, handler, flags, name, fmc);
+	struct spec_dev *spec = fmc->carrier_data;
+	int ret;
+
+	ret = request_irq(fmc->irq, handler, flags, name, fmc);
+	if (ret) return ret;
+
+	/* Enable gpio interrupts:
+	 * gpio6: tp8: output low
+	 * gpio7: tp7: interrupt, raising edge
+	 * gpio8: IRQ1 from FPGA: interrupt, raising edge
+	 * gpio9: IRQ0 from FPGA: interrupt, raising edge
+	 * gpio10: tp6: output low
+	 * gpio11: tp5: interrupt, raising edge
+	 */
+
+	/* bypass = alternate function */
+	gennum_mask_val(spec, 0xfc, 0x00, GNGPIO_BYPASS_MODE);
+	/* direction 0 = output */
+	gennum_mask_val(spec, 0x44, 0x00, GNGPIO_DIRECTION_MODE);
+	gennum_mask_val(spec, 0xb8, 0xb8, GNGPIO_DIRECTION_MODE);
+	gennum_mask_val(spec, 0x44, 0x44, GNGPIO_OUTPUT_ENABLE);
+
+	gennum_mask_val(spec, 0xb8, 0x00, GNGPIO_INT_TYPE); /* 0 = edge */
+	gennum_mask_val(spec, 0xb8, 0xb8, GNGPIO_INT_VALUE); /* 1 = raising */
+	gennum_mask_val(spec, 0xb8, 0x00, GNGPIO_INT_ON_ANY);
+
+	gennum_writel(spec, 0xb8, GNGPIO_INT_MASK_CLR); /* enable */
+	return 0;
 }
 
 static void spec_irq_ack(struct fmc_device *fmc)
@@ -38,6 +65,9 @@ static void spec_irq_ack(struct fmc_device *fmc)
 
 static int spec_irq_free(struct fmc_device *fmc)
 {
+	struct spec_dev *spec = fmc->carrier_data;
+
+	gennum_writel(spec, 0xffff, GNGPIO_INT_MASK_SET); /* disable */
 	free_irq(fmc->irq, fmc);
 	return 0;
 }
@@ -68,6 +98,9 @@ static irqreturn_t spec_test_handler(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
+/*
+ * Finally, the real init and exit
+ */
 static int spec_irq_init(struct fmc_device *fmc)
 {
 	struct spec_dev *spec = fmc->carrier_data;

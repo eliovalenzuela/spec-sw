@@ -104,7 +104,14 @@ static inline void gennum_writel(struct spec_dev *spec, uint32_t val, int reg)
 {
 	writel(val, spec->remap[2] + reg);
 }
-
+static inline void gennum_mask_val(struct spec_dev *spec,
+				   uint32_t mask, uint32_t val, int reg)
+{
+	uint32_t v = gennum_readl(spec, reg);
+	v &= ~mask;
+	v |= val;
+	gennum_writel(spec, v, reg);
+}
 
 
 /* Functions in spec-fmc.c, used by spec-pci.c */
