@@ -213,9 +213,52 @@ worth describing here.
 @node fmc-write-eeprom.ko
 @chapter fmc-write-eeprom.ko
 
-This module, not yet written, will be able to load a binary file from
-@i{/lib/firmware/fmc} and write it to the internal EEPROM of the mezzanine.
-Partial writing is allowed by filling a simple TLV array of binary areas.
+This module is designed to load a binary file from @i{/lib/firmware}
+and to write it to the internal EEPROM of the mezzanine card.
+
+Overwriting the EEPROM is not something you should do daily, and is
+expected to only happen during manufacturing. For this reason, the
+module makes it unlikely for the random user to change a working eeprom.
+
+The module takes the following measures:
+
+@itemize @bullet
+
+@item It accepts a @code{file=} argument (within @i{/lib/firmware})
+and if no such argument is received, it doesn't write anything
+(i.e. there is no default file name)
+
+@item If the file name ends with @code{.bin} it is written verbatim
+starting at offset 0.
+
+@item If the file name ends with @code{.tlv} it is interpreted as
+type-length-value (i.e., it allows @i{writev(2)}-like operation).
+
+@item If the file name doesn't match any of the patterns above, it is
+ignored and no write is performed.
+
+@item Only one FMC card is written to, if more are there, they are
+ignored until the module is reloaded.
+
+@end itemize
+
+Each TLV tuple is formatted in this way: the header is 5 bytes,
+followed by data. The first byte is @code{w} for @i{write}, the
+next two bytes represent the address, in little-endian byte order, and
+the next two the datalength, in lttle-endian format. The length does
+not include the header (it is the actual number of bytes to be
+written).
+
+This is a real example: that writes 5 bytes at position 0x110:
+
+@smallexample
+   spusa.root# od -t x1 -Ax /lib/firmware/try.tlv
+   000000 77 10 01 05 00 30 31 32 33 34
+   00000a
+   spusa.root# insmod /tmp/fmc-write-eeprom.ko file=try.tlv
+   [19983.391498] spec 0000:03:00.0: write 5 bytes at 0x0110
+   [19983.414615] spec 0000:03:00.0: write_eeprom: success
+@end smallexample
 
 @c ##########################################################################
 @node The WR-NIC
