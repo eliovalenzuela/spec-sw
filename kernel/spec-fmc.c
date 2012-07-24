@@ -18,6 +18,13 @@ module_param_named(test_irq, spec_test_irq, int, 0444);
 
 /* The main role of this file is offering the fmc_operations for the spec */
 
+static int spec_reprogram(struct fmc_device *fmc, void *data, int len)
+{
+	struct spec_dev *spec = fmc->carrier_data;
+
+	return spec_load_fpga(spec, data, len); /* spec-pci.c */
+}
+
 static int spec_irq_request(struct fmc_device *fmc, irq_handler_t handler,
 			    char *name, int flags)
 {
@@ -86,7 +93,7 @@ static int spec_write_ee(struct fmc_device *fmc, int pos,
 
 static struct fmc_operations spec_fmc_operations = {
 	/* no readl/writel because we have the base pointer */
-	/* FIXME: reprogram */
+	.reprogram =		spec_reprogram,
 	.irq_request =		spec_irq_request,
 	.irq_ack =		spec_irq_ack,
 	.irq_free =		spec_irq_free,

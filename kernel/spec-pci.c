@@ -28,13 +28,43 @@ static char *spec_fw_name = "fmc/spec-init.bin";
 module_param_named(fw_name, spec_fw_name, charp, 0444);
 
 /* Load the FPGA. This bases on loader-ll.c, a kernel/user space thing */
-static int spec_load_fpga(struct spec_dev *spec)
+int spec_load_fpga(struct spec_dev *spec, const void *data, int size)
 {
-	const struct firmware *fw;
 	struct device *dev = &spec->pdev->dev;
+	int i, wrote;
 	unsigned long j;
-	int i, err = 0, wrote;
-	char *name = spec_fw_name; /* FIXME: temporary hack */
+
+	/* loader_low_level is designed to run from user space too */
+	wrote = loader_low_level(0 /* unused fd */,
+				 spec->remap[2], data, size);
+	j = jiffies + 2 * HZ;
+	/* Wait for DONE interrupt  */
+	while(1) {
+		udelay(100);
+		i = readl(spec->remap[2] + FCL_IRQ);
+		if (i & 0x8) {
+			dev_info(dev, "FPGA programming sucessful\n");
+			return 0;
+		}
+
+		if(i & 0x4) {
+			dev_err(dev, "FPGA program error after %i writes\n",
+				wrote);
+			return -ETIMEDOUT;
+		}
+
+		if (time_after(jiffies, j)) {
+			dev_err(dev, "FPGA timeout after %i writes\n", wrote);
+			return -ETIMEDOUT;
+		}
+	}
+}
+
+int spec_load_fpga_file(struct spec_dev *spec, char *name)
+{
+	struct device *dev = &spec->pdev->dev;
+	const struct firmware *fw;
+	int err = 0;
 
 	err = request_firmware(&fw, name, dev);
 	if (err < 0) {
@@ -44,33 +74,7 @@ static int spec_load_fpga(struct spec_dev *spec)
 	dev_info(dev, "got file \"%s\", %i (0x%x) bytes\n",
 		 spec_fw_name, fw->size, fw->size);
 
-	/* loader_low_level is designed to run from user space too */
-	wrote = loader_low_level(0 /* unused fd */,
-				 spec->remap[2], fw->data, fw->size);
-	j = jiffies + 2 * HZ;
-	/* Wait for DONE interrupt  */
-	while(1) {
-		udelay(100);
-		i = readl(spec->remap[2] + FCL_IRQ);
-		if (i & 0x8) {
-			dev_info(dev, "FPGA programming sucessful\n");
-			goto out;
-		}
-
-		if(i & 0x4) {
-			dev_err(dev, "FPGA program error after %i writes\n",
-				wrote);
-			err = -ETIMEDOUT;
-			goto out;
-		}
-
-		if (time_after(jiffies, j)) {
-			dev_err(dev, "FPGA timeout after %i writes\n", wrote);
-			err = -ETIMEDOUT;
-			goto out;
-		}
-	}
-out:
+	err = spec_load_fpga(spec, fw->data, fw->size);
 	release_firmware(fw);
         return err;
 }
@@ -114,7 +118,7 @@ static int __devinit spec_probe(struct pci_dev *pdev,
 
 
 	/* Load the golden FPGA binary to read the eeprom */
-	ret = spec_load_fpga(spec);
+	ret = spec_load_fpga_file(spec, spec_fw_name);
 	if (ret)
 		goto out_unmap;
 
