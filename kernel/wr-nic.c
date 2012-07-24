@@ -16,7 +16,6 @@
 #include <linux/sched.h>
 #include <linux/pci.h>
 #include <linux/io.h>
-#include <linux/atomic.h>
 #include <asm/unaligned.h>
 
 #include "spec.h"
