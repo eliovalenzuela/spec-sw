@@ -158,6 +158,32 @@ static void spec_irq_exit(struct fmc_device *fmc)
 	fmc->op->irq_ack(fmc); /* just to be safe */
 }
 
+static int check_golden(struct fmc_device *fmc)
+{
+	struct spec_dev *spec = fmc->carrier_data;
+
+	/* poor man's SDB */
+	if (fmc_readl(fmc, 0x100) != 0x5344422d) {
+		dev_err(&spec->pdev->dev, "Can't find SDB magic\n");
+		return -ENODEV;
+	}
+	/* Offset 4 is number of records, version, bus type */
+	if (fmc_readl(fmc, 0x104) != 0x00020100) {
+		dev_err(&spec->pdev->dev, "unsexpected content of SDB\n");
+		return -ENODEV;
+	}
+	if (fmc_readl(fmc, 0x15c) != 0x0000ce42) {
+		dev_err(&spec->pdev->dev, "unsexpected vendor in SDB\n");
+		return -ENODEV;
+	}
+	if (fmc_readl(fmc, 0x160) != 0xff07fc47) {
+		dev_err(&spec->pdev->dev, "unsexpected device in SDB\n");
+		return -ENODEV;
+	}
+	return 0;
+}
+
+
 int spec_fmc_create(struct spec_dev *spec)
 {
 	struct fmc_device *fmc;
@@ -174,6 +200,11 @@ int spec_fmc_create(struct spec_dev *spec)
 	fmc->irq = spec->pdev->irq;
 	fmc->op = &spec_fmc_operations;
 	spec->fmc = fmc;
+
+	/* Check that the golden binary is actually correct */
+	ret = check_golden(fmc);
+	if (ret)
+		goto out_free;
 
 	ret = spec_i2c_init(fmc);
 	if (ret)
