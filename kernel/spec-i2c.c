@@ -15,8 +15,10 @@
 #include <linux/time.h>
 #include <linux/pci.h>
 #include <linux/slab.h>
+#include <linux/fmc.h>
 #include "spec.h"
 #include "hw/fd_main_regs.h"
+
 
 static int spec_i2c_dump;
 module_param_named(i2c_dump, spec_i2c_dump, int, 0444);
@@ -24,16 +26,6 @@ module_param_named(i2c_dump, spec_i2c_dump, int, 0444);
 /* The eeprom is at address 0x50 */
 #define I2C_ADDR 0x50
 #define I2C_SIZE (8 * 1024)
-
-/* FIXME: this is a temporary hack: we should use the operations instead */
-static inline uint32_t spec_readl(struct spec_dev *spec, int off)
-{
-	return readl(spec->remap[0] + 0x80000 + off);
-}
-static inline void spec_writel(struct spec_dev *spec, uint32_t val, int off)
-{
-	writel(val, spec->remap[0] + 0x80000 + off);
-}
 
 /* Stupid dumping tool */
 static void dumpstruct(char *name, void *ptr, int size)
@@ -51,111 +43,111 @@ static void dumpstruct(char *name, void *ptr, int size)
 		printk("\n");
 }
 
-static void set_sda(struct spec_dev *spec, int val)
+static void set_sda(struct fmc_device *fmc, int val)
 {
 	uint32_t reg;
 
-	reg = spec_readl(spec, FD_REG_I2CR) & ~FD_I2CR_SDA_OUT;
+	reg = fmc_readl(fmc, FD_REG_I2CR) & ~FD_I2CR_SDA_OUT;
 	if (val)
 		reg |= FD_I2CR_SDA_OUT;
-	spec_writel(spec, reg, FD_REG_I2CR);
+	fmc_writel(fmc, reg, FD_REG_I2CR);
 }
 
-static void set_scl(struct spec_dev *spec, int val)
+static void set_scl(struct fmc_device *fmc, int val)
 {
 	uint32_t reg;
 
-	reg = spec_readl(spec, FD_REG_I2CR) & ~FD_I2CR_SCL_OUT;
+	reg = fmc_readl(fmc, FD_REG_I2CR) & ~FD_I2CR_SCL_OUT;
 	if (val)
 		reg |= FD_I2CR_SCL_OUT;
-	spec_writel(spec, reg, FD_REG_I2CR);
+	fmc_writel(fmc, reg, FD_REG_I2CR);
 }
 
-static int get_sda(struct spec_dev *spec)
+static int get_sda(struct fmc_device *fmc)
 {
-	return spec_readl(spec, FD_REG_I2CR) & FD_I2CR_SDA_IN ? 1 : 0;
+	return fmc_readl(fmc, FD_REG_I2CR) & FD_I2CR_SDA_IN ? 1 : 0;
 };
 
-static void mi2c_start(struct spec_dev *spec)
+static void mi2c_start(struct fmc_device *fmc)
 {
-	set_sda(spec, 0);
-	set_scl(spec, 0);
+	set_sda(fmc, 0);
+	set_scl(fmc, 0);
 }
 
-static void mi2c_stop(struct spec_dev *spec)
+static void mi2c_stop(struct fmc_device *fmc)
 {
-	set_sda(spec, 0);
-	set_scl(spec, 1);
-	set_sda(spec, 1);
+	set_sda(fmc, 0);
+	set_scl(fmc, 1);
+	set_sda(fmc, 1);
 }
 
-int mi2c_put_byte(struct spec_dev *spec, int data)
+int mi2c_put_byte(struct fmc_device *fmc, int data)
 {
 	int i;
 	int ack;
 
 	for (i = 0; i < 8; i++, data<<=1) {
-		set_sda(spec, data & 0x80);
-		set_scl(spec, 1);
-		set_scl(spec, 0);
+		set_sda(fmc, data & 0x80);
+		set_scl(fmc, 1);
+		set_scl(fmc, 0);
 	}
 
-	set_sda(spec, 1);
-	set_scl(spec, 1);
+	set_sda(fmc, 1);
+	set_scl(fmc, 1);
 
-	ack = get_sda(spec);
+	ack = get_sda(fmc);
 
-	set_scl(spec, 0);
-	set_sda(spec, 0);
+	set_scl(fmc, 0);
+	set_sda(fmc, 0);
 
 	return ack ? -EIO : 0; /* ack low == success */
 }
 
-int mi2c_get_byte(struct spec_dev *spec, unsigned char *data, int sendack)
+int mi2c_get_byte(struct fmc_device *fmc, unsigned char *data, int sendack)
 {
 	int i;
 	int indata = 0;
 
 	/* assert: scl is low */
-	set_scl(spec, 0);
-	set_sda(spec, 1);
+	set_scl(fmc, 0);
+	set_sda(fmc, 1);
 	for (i = 0; i < 8; i++) {
-		set_scl(spec, 1);
+		set_scl(fmc, 1);
 		indata <<= 1;
-		if (get_sda(spec))
+		if (get_sda(fmc))
 			indata |= 0x01;
-		set_scl(spec, 0);
+		set_scl(fmc, 0);
 	}
 
-	set_sda(spec, (sendack ? 0 : 1));
-	set_scl(spec, 1);
-	set_scl(spec, 0);
-	set_sda(spec, 0);
+	set_sda(fmc, (sendack ? 0 : 1));
+	set_scl(fmc, 1);
+	set_scl(fmc, 0);
+	set_sda(fmc, 0);
 
 	*data= indata;
 	return 0;
 }
 
-void mi2c_init(struct spec_dev *spec)
+void mi2c_init(struct fmc_device *fmc)
 {
-	set_scl(spec, 1);
-	set_sda(spec, 1);
+	set_scl(fmc, 1);
+	set_sda(fmc, 1);
 }
 
-void mi2c_scan(struct spec_dev *spec)
+void mi2c_scan(struct fmc_device *fmc)
 {
 	int i;
 	for(i = 0; i < 256; i += 2) {
-		mi2c_start(spec);
-		if(!mi2c_put_byte(spec, i))
+		mi2c_start(fmc);
+		if(!mi2c_put_byte(fmc, i))
 			pr_info("%s: Found i2c device at 0x%x\n",
 			       KBUILD_MODNAME, i >> 1);
-		mi2c_stop(spec);
+		mi2c_stop(fmc);
 	}
 }
 
 /* FIXME: this is very inefficient: read several bytes in a row instead */
-int spec_eeprom_read(struct spec_dev *spec, int i2c_addr, uint32_t offset,
+int spec_eeprom_read(struct fmc_device *fmc, int i2c_addr, uint32_t offset,
 		void *buf, size_t size)
 {
 	int i;
@@ -163,48 +155,48 @@ int spec_eeprom_read(struct spec_dev *spec, int i2c_addr, uint32_t offset,
 	unsigned char c;
 
 	for(i = 0; i < size; i++) {
-		mi2c_start(spec);
-		if(mi2c_put_byte(spec, i2c_addr << 1) < 0) {
-			mi2c_stop(spec);
+		mi2c_start(fmc);
+		if(mi2c_put_byte(fmc, i2c_addr << 1) < 0) {
+			mi2c_stop(fmc);
 			return -EIO;
 		}
 
-		mi2c_put_byte(spec, (offset >> 8) & 0xff);
-		mi2c_put_byte(spec, offset & 0xff);
+		mi2c_put_byte(fmc, (offset >> 8) & 0xff);
+		mi2c_put_byte(fmc, offset & 0xff);
 		offset++;
-		mi2c_stop(spec);
-		mi2c_start(spec);
-		mi2c_put_byte(spec, (i2c_addr << 1) | 1);
-		mi2c_get_byte(spec, &c, 0);
+		mi2c_stop(fmc);
+		mi2c_start(fmc);
+		mi2c_put_byte(fmc, (i2c_addr << 1) | 1);
+		mi2c_get_byte(fmc, &c, 0);
 		*buf8++ = c;
-		mi2c_stop(spec);
+		mi2c_stop(fmc);
 	}
 	return size;
 }
 
-int spec_eeprom_write(struct spec_dev *spec, int i2c_addr, uint32_t offset,
+int spec_eeprom_write(struct fmc_device *fmc, int i2c_addr, uint32_t offset,
 		 void *buf, size_t size)
 {
 	int i, busy;
 	uint8_t *buf8 = buf;
 
 	for(i = 0; i < size; i++) {
-		mi2c_start(spec);
+		mi2c_start((fmc));
 
-		if(mi2c_put_byte(spec, i2c_addr << 1) < 0) {
-			mi2c_stop(spec);
+		if(mi2c_put_byte(fmc, i2c_addr << 1) < 0) {
+			mi2c_stop(fmc);
 			return -1;
 		}
-		mi2c_put_byte(spec, (offset >> 8) & 0xff);
-		mi2c_put_byte(spec, offset & 0xff);
-		mi2c_put_byte(spec, *buf8++);
+		mi2c_put_byte(fmc, (offset >> 8) & 0xff);
+		mi2c_put_byte(fmc, offset & 0xff);
+		mi2c_put_byte(fmc, *buf8++);
 		offset++;
-		mi2c_stop(spec);
+		mi2c_stop(fmc);
 
 		do { /* wait until the chip becomes ready */
-			mi2c_start(spec);
-			busy = mi2c_put_byte(spec, i2c_addr << 1);
-			mi2c_stop(spec);
+			mi2c_start(fmc);
+			busy = mi2c_put_byte(fmc, i2c_addr << 1);
+			mi2c_stop(fmc);
 		} while(busy);
 	}
 	return size;
@@ -216,13 +208,13 @@ int spec_i2c_init(struct fmc_device *fmc)
 	void *buf;
 	int i;
 
-	mi2c_scan(spec);
+	mi2c_scan(fmc);
 
 	buf = kmalloc(I2C_SIZE, GFP_KERNEL);
 	if (!buf)
 		return -ENOMEM;
 
-	i = spec_eeprom_read(spec, I2C_ADDR, 0, buf, I2C_SIZE);
+	i = spec_eeprom_read(fmc, I2C_ADDR, 0, buf, I2C_SIZE);
 	if (i != I2C_SIZE) {
 		dev_err(&spec->pdev->dev, "EEPROM read error: retval is %i\n",
 			i);
