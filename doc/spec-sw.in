@@ -151,6 +151,29 @@ following steps:
 
 Failure of any of those steps is fatal.
 
+The module can receive the following parameters to customize its operation:
+
+@table @code
+
+@item test_irq
+
+	IF not zero, this parameter requests to self-test interrupt
+        generation, using the Gennum registers. This usually does not
+        work on my host, for yet unknown reasons (and that's why it is
+        disabled by default).
+
+@item i2c_dump
+
+	If not zero, this parameter requests to @i{printk} the content
+        of the FMC eeprom, for diagnostic purposes.
+
+@item fw_name
+
+	This string parameter can be used to override the default name
+        for the initialization binary file.
+
+@end table
+
 Any mezzanine-specific action must be performed by the driver for the
 specific FMC card, including reprograming the FPGA with the final
 gateware file.  Similarly, the @i{spec} driver is not concerned with
