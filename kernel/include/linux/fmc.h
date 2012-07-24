@@ -58,6 +58,21 @@ struct fmc_device {
 };
 #define to_fmc_device(x) container_of((x), struct fmc_device, dev)
 
+/* If the carrier offers no readl/writel, use base address */
+static inline uint32_t fmc_readl(struct fmc_device *fmc, int offset)
+{
+	if (unlikely(fmc->op->readl))
+		return fmc->op->readl(fmc, offset);
+	return readl(fmc->base + offset);
+}
+static inline void fmc_writel(struct fmc_device *fmc, uint32_t val, int off)
+{
+	if (unlikely(fmc->op->writel))
+		fmc->op->writel(fmc, val, off);
+	else
+		writel(val, fmc->base + off);
+}
+
 extern int fmc_driver_register(struct fmc_driver *drv);
 extern void fmc_driver_unregister(struct fmc_driver *drv);
 extern int fmc_device_register(struct fmc_device *tdev);
