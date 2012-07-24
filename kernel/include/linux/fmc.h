@@ -56,6 +56,7 @@ struct fmc_device {
 	void *carrier_data;		/* "struct spec *" or equivalent */
 	__iomem void *base;		/* May be NULL (Etherbone) */
 	struct device dev;		/* For Linux use */
+	struct device *hwdev;		/* The underlying hardware device */
 };
 #define to_fmc_device(x) container_of((x), struct fmc_device, dev)
 
