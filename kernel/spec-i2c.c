@@ -23,10 +23,6 @@
 static int spec_i2c_dump;
 module_param_named(i2c_dump, spec_i2c_dump, int, 0444);
 
-/* The eeprom is at address 0x50 */
-#define I2C_ADDR 0x50
-#define I2C_SIZE (8 * 1024)
-
 /* Stupid dumping tool */
 static void dumpstruct(char *name, void *ptr, int size)
 {
@@ -206,22 +202,23 @@ int spec_i2c_init(struct fmc_device *fmc)
 
 	mi2c_scan(fmc);
 
-	buf = kmalloc(I2C_SIZE, GFP_KERNEL);
+	buf = kmalloc(SPEC_I2C_EEPROM_SIZE, GFP_KERNEL);
 	if (!buf)
 		return -ENOMEM;
 
-	i = spec_eeprom_read(fmc, I2C_ADDR, 0, buf, I2C_SIZE);
-	if (i != I2C_SIZE) {
+	i = spec_eeprom_read(fmc, SPEC_I2C_EEPROM_ADDR, 0, buf,
+			     SPEC_I2C_EEPROM_SIZE);
+	if (i != SPEC_I2C_EEPROM_SIZE) {
 		dev_err(&spec->pdev->dev, "EEPROM read error: retval is %i\n",
 			i);
 		kfree(buf);
 		return -EIO;
 	}
 	fmc->eeprom = buf;
-	fmc->eeprom_len = I2C_SIZE;
+	fmc->eeprom_len = SPEC_I2C_EEPROM_SIZE;
 
 	if (spec_i2c_dump)
-		dumpstruct("eeprom", buf, I2C_SIZE);
+		dumpstruct("eeprom", buf, SPEC_I2C_EEPROM_SIZE);
 
 	return 0;
 }
