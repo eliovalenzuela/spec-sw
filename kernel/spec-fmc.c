@@ -10,7 +10,11 @@
 #include <linux/slab.h>
 #include <linux/fmc.h>
 #include <linux/interrupt.h>
+#include <linux/moduleparam.h>
 #include "spec.h"
+
+static int spec_test_irq;
+module_param_named(test_irq, spec_test_irq, int, 0444);
 
 /* The main role of this file is offering the fmc_operations for the spec */
 
@@ -90,7 +94,9 @@ static int spec_irq_init(struct fmc_device *fmc)
 		gennum_writel(spec, 0, GNINT_CFG(i));
 	gennum_writel(spec, 0x800c, GNINT_CFG(value & 0x03));
 
-	/* Finally, ensure we are able to receive it */
+	/* Finally, ensure we are able to receive it -- if the user asked to */
+	if (spec_test_irq == 0)
+		return 0;
 	spec->irq_count = 0;
 	init_completion(&spec->compl);
 	fmc->op->irq_request(fmc, spec_test_handler, "spec-test", 0);
