@@ -12,6 +12,7 @@
 #include <linux/firmware.h>
 #include <linux/init.h>
 #include <linux/fmc.h>
+#include <asm/unaligned.h>
 
 /*
  * This module uses the firmware loader to program the whole or part
@@ -21,10 +22,40 @@
 static char *fwe_file;
 module_param_named(file, fwe_file, charp, 444);
 
-static int fwe_run_tlv(struct fmc_device *fmc, const struct firmware *fw)
+static int fwe_run_tlv(struct fmc_device *fmc, const struct firmware *fw,
+	int write)
 {
-	dev_err(fmc->hwdev, "not implemented yet\n");
-	return -EOPNOTSUPP;
+	const uint8_t *p = fw->data;
+	int len = fw->size;
+	uint16_t thislen, thisaddr;
+	int err;
+
+	/* format is: 'w' addr16 len16 data... */
+	while (len > 5) {
+		thisaddr = get_unaligned_le16(p+1);
+		thislen = get_unaligned_le16(p+3);
+		if (p[0] != 'w' || thislen + 5 > len) {
+			dev_err(fmc->hwdev, "invalid tlv at offset %i\n",
+				p - fw->data);
+			return -EINVAL;
+		}
+		err = 0;
+		if (write) {
+			dev_info(fmc->hwdev, "write %i bytes at 0x%04x\n",
+				 thislen, thisaddr);
+			err = fmc->op->write_ee(fmc, thisaddr, p + 5, thislen);
+		}
+		if (err < 0) {
+			dev_err(fmc->hwdev, "write failure @0x%04x\n",
+				thisaddr);
+			return err;
+		}
+		p += 5 + thislen;
+		len -= 5 + thislen;
+	}
+	if (write)
+		dev_info(fmc->hwdev, "write_eeprom: success\n");
+	return 0;
 }
 
 static int fwe_run_bin(struct fmc_device *fmc, const struct firmware *fw)
@@ -37,17 +68,23 @@ static int fwe_run_bin(struct fmc_device *fmc, const struct firmware *fw)
 		dev_info(fmc->hwdev, "write_eeprom: error %i\n", ret);
 		return ret;
 	}
+	dev_info(fmc->hwdev, "write_eeprom: success\n");
 	return 0;
 }
 
 static int fwe_run(struct fmc_device *fmc, const struct firmware *fw)
 {
 	char *last4 = fwe_file + strlen(fwe_file) - 4;
+	int err;
 
-	if (!strcmp(last4,".tlv"))
-		return fwe_run_tlv(fmc, fw);
 	if (!strcmp(last4,".bin"))
 		return fwe_run_bin(fmc, fw);
+	if (!strcmp(last4,".tlv")) {
+		err = fwe_run_tlv(fmc, fw, 0);
+		if (!err)
+			err = fwe_run_tlv(fmc, fw, 1);
+		return err;
+	}
 	dev_err(fmc->hwdev, "invalid file name \"%s\"\n", fwe_file);
 	return -EINVAL;
 }
