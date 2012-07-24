@@ -72,13 +72,25 @@ static int spec_irq_free(struct fmc_device *fmc)
 	return 0;
 }
 
+/* The engines for this live in spec-i2c.c, we only shape arguments */
+static int spec_read_ee(struct fmc_device *fmc, int pos, void *data, int len)
+{
+	return spec_eeprom_read(fmc, SPEC_I2C_EEPROM_ADDR, pos, data, len);
+}
+
+static int spec_write_ee(struct fmc_device *fmc, int pos, void *data, int len)
+{
+	return spec_eeprom_write(fmc, SPEC_I2C_EEPROM_ADDR, pos, data, len);
+}
+
 static struct fmc_operations spec_fmc_operations = {
 	/* no readl/writel because we have the base pointer */
 	/* FIXME: reprogram */
 	.irq_request =		spec_irq_request,
 	.irq_ack =		spec_irq_ack,
 	.irq_free =		spec_irq_free,
-	/* FIXME: eeprom */
+	.read_ee =		spec_read_ee,
+	.write_ee =		spec_write_ee,
 };
 
 /*
@@ -199,6 +211,7 @@ int spec_fmc_create(struct spec_dev *spec)
 	fmc->base = spec->remap[0] + 0x80000; /* 512k window at 512k offset */
 	fmc->irq = spec->pdev->irq;
 	fmc->op = &spec_fmc_operations;
+	fmc->hwdev = &spec->pdev->dev; /* for messages */
 	spec->fmc = fmc;
 
 	/* Check that the golden binary is actually correct */
