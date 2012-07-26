@@ -6,7 +6,8 @@
 
 int spec_gpio_init(struct fmc_device *fmc)
 {
-	printk("%%s - %s\n", __FILE__, __func__);
+	printk("%s - %s\n", __FILE__, __func__);
+	return 0;
 }
 
 void spec_gpio_exit(struct fmc_device *fmc)
