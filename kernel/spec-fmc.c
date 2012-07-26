@@ -30,9 +30,17 @@ static int spec_irq_request(struct fmc_device *fmc, irq_handler_t handler,
 {
 	struct spec_dev *spec = fmc->carrier_data;
 	int ret;
+	u32 value;
 
 	ret = request_irq(fmc->irq, handler, flags, name, fmc);
 	if (ret) return ret;
+
+	value = gennum_readl(spec, GNPPCI_MSI_CONTROL);
+	if ((value & 0x810000) != 0x810000)
+		dev_err(&spec->pdev->dev, "invalid msi control: 0x%08x\n",
+			value);
+	value = 0xa50000 | (value & 0xffff);
+	gennum_writel(spec, value, GNPPCI_MSI_CONTROL);
 
 	/* Enable gpio interrupts:
 	 * gpio6: tp8: output low
