@@ -16,6 +16,11 @@ spec-y += loader-ll.o
 spec-y += spec-gpio-no.o
 spec-$(CONFIG_GPIOLIB) += spec-gpio.o
 
+wr-nic-y = wr-nic-core.o
+wr-nic-y += wr-nic-eth.o
+wr-nic-$(CONFIG_GPIOLIB) += wr-nic-gpio.o
+
+
 all modules:
 	$(MAKE) -C $(LINUX) M=$(shell /bin/pwd) modules
 
