@@ -44,6 +44,7 @@ int t_probe(struct fmc_device *fmc)
 				t_filename, ret);
 			ret = 0; /* not fatal, either (lazy me) */
 		}
+		release_firmware(fw);
 	}
 	return ret;
 }
