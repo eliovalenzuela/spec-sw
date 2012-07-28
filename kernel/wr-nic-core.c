@@ -15,7 +15,7 @@
 #include "wr-nic.h"
 #include "spec.h"
 
-static char *wrn_filename = "wr_nic_dio.bin";
+static char *wrn_filename = WRN_GATEWARE_DEFAULT_NAME;
 module_param_named(file, wrn_filename, charp, 0444);
 
 irqreturn_t wrn_handler(int irq, void *dev_id)
@@ -58,11 +58,12 @@ int wrn_probe(struct fmc_device *fmc)
 	}
 
 	/* Verify that we have SDB at offset 0x30000 */
-	if (fmc_readl(fmc, 0x30000) != 0x5344422d) {
+	if (fmc_readl(fmc, 0x63000) != 0x5344422d) {
 		dev_err(dev, "Can't find SDB magic\n");
 		ret = -ENODEV;
 		goto out_fw;
 	}
+	dev_info(dev, "Gateware successfully loaded\n");
 
 	/* Register the gpio stuff,  if we have kernel support */
 	ret = wrn_gpio_init(fmc);
