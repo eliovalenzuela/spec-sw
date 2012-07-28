@@ -32,6 +32,13 @@ int wrn_probe(struct fmc_device *fmc)
 	int ret;
 	struct device *dev = fmc->hwdev;
 	const struct firmware *fw;
+	struct wrn_drvdata *dd;
+
+	/* Driver data */
+	dd = devm_kzalloc(&fmc->dev, sizeof(*dd), GFP_KERNEL);
+	if (!dd)
+		return -ENOMEM;
+	fmc_set_drvdata(fmc, dd);
 
 	/* We first write a new binary within the spec */
 	if (wrn_filename) {
@@ -119,7 +126,7 @@ module_exit(wrn_exit);
 /* If no gpio lib is there, this weak applies */
 int __weak wrn_gpio_init(struct fmc_device *fmc)
 {
-        return 0;
+	return 0;
 }
 void __weak wrn_gpio_exit(struct fmc_device *fmc)
 {
