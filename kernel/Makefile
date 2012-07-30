@@ -3,11 +3,14 @@ LINUX ?= /lib/modules/$(shell uname -r)/build
 
 ccflags-y = -I$M/include
 
-obj-m = fmc-core.o
+obj-m = fmc.o
 obj-m += spec.o
 obj-m += fmc-trivial.o
 obj-m += fmc-write-eeprom.o
 obj-m += wr-nic.o
+
+fmc-y = fmc-core.o
+fmc-y += fmc-sdb.o
 
 spec-y = spec-pci.o
 spec-y += spec-fmc.o
