@@ -57,6 +57,7 @@ struct fmc_device {
 	__iomem void *base;		/* May be NULL (Etherbone) */
 	struct device dev;		/* For Linux use */
 	struct device *hwdev;		/* The underlying hardware device */
+	struct sdb_array *sdb;
 };
 #define to_fmc_device(x) container_of((x), struct fmc_device, dev)
 
