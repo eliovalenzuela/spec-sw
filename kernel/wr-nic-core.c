@@ -12,6 +12,7 @@
 #include <linux/interrupt.h>
 #include <linux/firmware.h>
 #include <linux/fmc.h>
+#include <linux/fmc-sdb.h>
 #include "wr-nic.h"
 #include "spec.h"
 
@@ -29,7 +30,7 @@ irqreturn_t wrn_handler(int irq, void *dev_id)
 
 int wrn_probe(struct fmc_device *fmc)
 {
-	int ret;
+	int ret = 0;
 	struct device *dev = fmc->hwdev;
 	const struct firmware *fw;
 	struct wrn_drvdata *dd;
@@ -57,13 +58,19 @@ int wrn_probe(struct fmc_device *fmc)
 		}
 	}
 
-	/* Verify that we have SDB at offset 0x30000 */
+	/* Verify that we have SDB at offset 0x63000 */
 	if (fmc_readl(fmc, 0x63000) != 0x5344422d) {
 		dev_err(dev, "Can't find SDB magic\n");
 		ret = -ENODEV;
 		goto out_fw;
 	}
 	dev_info(dev, "Gateware successfully loaded\n");
+
+	if ( (ret = fmc_scan_sdb_tree(fmc, 0x63000)) < 0) {
+		dev_err(dev, "scan fmc failed %i\n", ret);
+		goto out_fw;
+	}
+	fmc_show_sdb_tree(fmc);
 
 	/* Register the gpio stuff,  if we have kernel support */
 	ret = wrn_gpio_init(fmc);
