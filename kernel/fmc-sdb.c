@@ -191,7 +191,33 @@ void fmc_show_sdb_tree(struct fmc_device *fmc)
 }
 EXPORT_SYMBOL(fmc_show_sdb_tree);
 
-unsigned long fmc_find_sdb_device(struct sdb_array *tree)
+signed long fmc_find_sdb_device(struct sdb_array *tree,
+				uint64_t vid, uint32_t did)
 {
-	return 0;
+	signed long res = -ENODEV;
+	union  sdb_record *r;
+	struct sdb_product *p;
+	struct sdb_component *c;
+	int i, n = tree->len;
+
+	/* FIXME: what if the first interconnect is not at zero? */
+	for (i = 0; i < n; i++) {
+		r = &tree->record[i];
+		c = &r->dev.sdb_component;
+		p = &c->product;
+
+		if (!IS_ERR(tree->subtree[i]))
+			res = fmc_find_sdb_device(tree->subtree[i], vid, did);
+		if (res > 0)
+			return res + tree->baseaddr;
+		if (r->empty.record_type != sdb_type_device)
+			continue;
+		if (__be64_to_cpu(p->vendor_id) != vid)
+			continue;
+		if (__be32_to_cpu(p->device_id) != did)
+			continue;
+		return __be64_to_cpu(c->addr_first);
+	}
+	return res;
 }
+EXPORT_SYMBOL(fmc_find_sdb_device);

@@ -31,5 +31,6 @@ struct sdb_array {
 
 extern int fmc_scan_sdb_tree(struct fmc_device *fmc, unsigned long address);
 extern void fmc_show_sdb_tree(struct fmc_device *fmc);
-extern unsigned long fmc_find_sdb_device(struct sdb_array *tree);
+extern signed long fmc_find_sdb_device(struct sdb_array *tree,
+				       uint64_t vendor, uint32_t device);
 extern int fmc_free_sdb_tree(struct fmc_device *fmc);
