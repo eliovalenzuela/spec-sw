@@ -18,11 +18,36 @@ module_param_named(test_irq, spec_test_irq, int, 0444);
 
 /* The main role of this file is offering the fmc_operations for the spec */
 
-static int spec_reprogram(struct fmc_device *fmc, void *data, int len)
+static int spec_reprogram(struct fmc_device *fmc, char *gw)
 {
 	struct spec_dev *spec = fmc->carrier_data;
+	const struct firmware *fw;
+	struct device *dev = fmc->hwdev;
+	int ret;
 
-	return spec_load_fpga(spec, data, len); /* spec-pci.c */
+	if (!gw)
+		return 0;
+
+	if (!strlen(gw)) {
+		/* FIXME: use module parameters */
+		return 0;
+	}
+
+	ret = request_firmware(&fw, gw, dev);
+	if (ret < 0) {
+		dev_warn(dev, "request firmware \"%s\": error %i\n", gw, ret);
+		goto out;
+	}
+	ret = spec_load_fpga(spec, fw->data, fw->size);
+	if (ret <0) {
+		dev_err(dev, "write firmware \"%s\": error %i\n", gw, ret);
+		goto out;
+	}
+
+	/* FIXME: load lm32 */
+out:
+	release_firmware(fw);
+	return ret;
 }
 
 static int spec_irq_request(struct fmc_device *fmc, irq_handler_t handler,

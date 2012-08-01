@@ -36,7 +36,7 @@ struct fmc_driver {
 struct fmc_operations {
 	uint32_t (*readl)(struct fmc_device *fmc, int offset);
 	void (*writel)(struct fmc_device *fmc, uint32_t value, int offset);
-	int (*reprogram)(struct fmc_device *fmc, void *data, int len);
+	int (*reprogram)(struct fmc_device *fmc, char *gateware);
 	int (*irq_request)(struct fmc_device *fmc, irq_handler_t h,
 			   char *name, int flags);
 	void (*irq_ack)(struct fmc_device *fmc);

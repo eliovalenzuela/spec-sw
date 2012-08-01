@@ -184,7 +184,7 @@ this document):
 struct fmc_operations {
         uint32_t (*readl)(struct fmc_device *fmc, int offset);
         void (*writel)(struct fmc_device *fmc, uint32_t value, int offset);
-        int (*reprogram)(struct fmc_device *fmc, void *data, int len);
+        int (*reprogram)(struct fmc_device *fmc, char *gateware);
         int (*irq_request)(struct fmc_device *fmc, irq_handler_t h,
                            char *name, int flags);
         void (*irq_ack)(struct fmc_device *fmc);
@@ -214,10 +214,11 @@ The individual methods perform the following tasks:
 
 	The carrier enumerates FMC devices by loading a standard (or
         @i{golden} FPGA binary that allows EEPROM access. Each driver, then,
-        will need to reprogram the FPGA for its own use by calling this
-        function.  If @i{reprogram} is called with NULL arguments, the
-        carrier will reprogram the golden binary -- which will happen
-        after @i{remove} time in any case.
+        will need to reprogram the FPGA by calling this
+        function.  If the name argument is NULL,
+        the carrier will reprogram the golden binary. If the gateware name
+        has been overridden through module parameters (in a carrier-specific
+        way) the file loaded will match the parameters.
 
 @item irq_request
 @itemx irq_ack

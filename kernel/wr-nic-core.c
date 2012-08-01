@@ -10,7 +10,6 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
-#include <linux/firmware.h>
 #include <linux/fmc.h>
 #include <linux/fmc-sdb.h>
 #include "wr-nic.h"
@@ -32,7 +31,6 @@ int wrn_probe(struct fmc_device *fmc)
 {
 	int ret = 0;
 	struct device *dev = fmc->hwdev;
-	const struct firmware *fw;
 	struct wrn_drvdata *dd;
 
 	/* Driver data */
@@ -41,41 +39,34 @@ int wrn_probe(struct fmc_device *fmc)
 		return -ENOMEM;
 	fmc_set_drvdata(fmc, dd);
 
-	/* We first write a new binary within the spec */
-	if (wrn_filename) {
-
-		ret = request_firmware(&fw, wrn_filename, dev);
-		if (ret < 0) {
-			dev_warn(dev, "request firmware \"%s\": error %i\n",
-				wrn_filename, ret);
-			goto out;
-		}
-		ret = fmc->op->reprogram(fmc, (void *)fw->data, fw->size);
-		if (ret <0) {
-			dev_err(dev, "write firmware \"%s\": error %i\n",
-				wrn_filename, ret);
-			goto out_fw;
-		}
+	/* We first write a new binary (and lm32) within the spec */
+	ret = fmc->op->reprogram(fmc, WRN_GATEWARE_DEFAULT_NAME);
+	if (ret <0) {
+		dev_err(dev, "write firmware \"%s\": error %i\n",
+			wrn_filename, ret);
+		goto out;
 	}
 
 	/* Verify that we have SDB at offset 0x63000 */
 	if (fmc_readl(fmc, 0x63000) != 0x5344422d) {
 		dev_err(dev, "Can't find SDB magic\n");
 		ret = -ENODEV;
-		goto out_fw;
+		goto out;
 	}
 	dev_info(dev, "Gateware successfully loaded\n");
 
 	if ( (ret = fmc_scan_sdb_tree(fmc, 0x63000)) < 0) {
 		dev_err(dev, "scan fmc failed %i\n", ret);
-		goto out_fw;
+		goto out;
 	}
 	fmc_show_sdb_tree(fmc);
+
+	/* FIXME: load lm32 */
 
 	/* Register the gpio stuff,  if we have kernel support */
 	ret = wrn_gpio_init(fmc);
 	if (ret < 0)
-		goto out_fw;
+		goto out;
 
 	/* The netword device */
 	ret = wrn_eth_init(fmc);
@@ -94,8 +85,6 @@ out_nic:
 	wrn_eth_exit(fmc);
 out_gpio:
 	wrn_gpio_exit(fmc);
-out_fw:
-	release_firmware(fw);
 out:
 	return ret;
 }

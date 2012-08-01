@@ -2,7 +2,6 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
-#include <linux/firmware.h>
 #include <linux/fmc.h>
 #include "spec.h"
 
@@ -21,31 +20,15 @@ irqreturn_t t_handler(int irq, void *dev_id)
 int t_probe(struct fmc_device *fmc)
 {
 	int ret;
-	struct device *dev = fmc->hwdev;
 
 	ret = fmc->op->irq_request(fmc, t_handler, "fmc-trivial", 0);
 	if (ret < 0)
 		return ret;
 
-	if (t_filename) {
-		const struct firmware *fw;
-
-		ret = request_firmware(&fw, t_filename, dev);
-		if (ret < 0) {
-			dev_warn(dev, "request firmware \"%s\": error %i\n",
-				t_filename, ret);
-			ret = 0; /* not fatal */
-		} else {
-			ret = fmc->op->reprogram(fmc, (void *)fw->data,
-						 fw->size);
-		}
-		if (ret <0) {
-			dev_err(dev, "write firmware \"%s\": error %i\n",
-				t_filename, ret);
-			ret = 0; /* not fatal, either (lazy me) */
-		}
-		release_firmware(fw);
-	}
+	/* Reprogram, but only if specified in the arguments */
+	ret = fmc->op->reprogram(fmc, "");
+	if (ret < 0)
+		fmc->op->irq_free(fmc);
 	return ret;
 }
 
