@@ -11,6 +11,7 @@
 #include <linux/fmc.h>
 #include <linux/interrupt.h>
 #include <linux/moduleparam.h>
+#include <linux/fmc-sdb.h>
 #include "spec.h"
 
 static int spec_test_irq;
@@ -26,7 +27,7 @@ static int spec_reprogram(struct fmc_device *fmc, char *gw)
 	int ret;
 
 	if (!gw)
-		return 0;
+		gw = spec_fw_name;
 
 	if (!strlen(gw)) {
 		/* FIXME: use module parameters */
@@ -38,6 +39,7 @@ static int spec_reprogram(struct fmc_device *fmc, char *gw)
 		dev_warn(dev, "request firmware \"%s\": error %i\n", gw, ret);
 		goto out;
 	}
+	fmc_free_sdb_tree(fmc);
 	ret = spec_load_fpga(spec, fw->data, fw->size);
 	if (ret <0) {
 		dev_err(dev, "write firmware \"%s\": error %i\n", gw, ret);

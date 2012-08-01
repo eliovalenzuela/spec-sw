@@ -24,7 +24,7 @@
 #include "spec.h"
 #include "loader-ll.h"
 
-static char *spec_fw_name = "fmc/spec-init.bin";
+char *spec_fw_name = "fmc/spec-init.bin";
 module_param_named(fw_name, spec_fw_name, charp, 0444);
 
 /* Load the FPGA. This bases on loader-ll.c, a kernel/user space thing */

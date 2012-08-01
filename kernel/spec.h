@@ -118,6 +118,7 @@ static inline void gennum_mask_val(struct spec_dev *spec,
 /* Functions in spec-pci.c */
 extern int spec_load_fpga(struct spec_dev *spec, const void *data, int size);
 extern int spec_load_fpga_file(struct spec_dev *spec, char *name);
+extern char *spec_fw_name;
 
 /* Functions in spec-fmc.c, used by spec-pci.c */
 extern int spec_fmc_create(struct spec_dev *spec);
