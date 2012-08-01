@@ -22,6 +22,7 @@ struct fmc_device;
 struct sdb_array {
 	int len;
 	int level;
+	unsigned long baseaddr;
 	struct fmc_device *fmc;		/* the device that hosts it */
 	struct sdb_array *parent;	/* NULL at root */
 	union sdb_record *record;	/* copies of the struct */

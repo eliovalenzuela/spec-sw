@@ -61,17 +61,26 @@ static struct sdb_array *__fmc_scan_sdb_tree(struct fmc_device *fmc,
 	arr->level = level;
 	arr->fmc = fmc;
 	for (i = 0; i < n; i++) {
+		union  sdb_record *r;
+
 		for (j = 0; j < sizeof(arr->record[0]); j += 4) {
 			*(uint32_t *)((void *)(arr->record + i) + j) =
 				__sdb_rd(fmc, address + (i * 64) + j, convert);
 		}
+		r = &arr->record[i];
 		arr->subtree[i] = ERR_PTR(-ENODEV);
-		if (arr->record[i].empty.record_type == sdb_type_bridge) {
-			uint64_t subaddr = arr->record[i].bridge.sdb_child;
+		if (r->empty.record_type == sdb_type_bridge) {
+			uint64_t subaddr = r->bridge.sdb_child;
+			struct sdb_component *c;
 
+			c = &r->bridge.sdb_component;
 			subaddr = __be64_to_cpu(subaddr);
 			sub = __fmc_scan_sdb_tree(fmc, subaddr, level + 1);
 			arr->subtree[i] = sub; /* may be error */
+			if (IS_ERR(sub))
+				continue;
+			sub->parent = arr;
+			sub->baseaddr = __be64_to_cpu(c->addr_first);
 		}
 	}
 	return arr;
@@ -90,12 +99,37 @@ int fmc_scan_sdb_tree(struct fmc_device *fmc, unsigned long address)
 }
 EXPORT_SYMBOL(fmc_scan_sdb_tree);
 
+static void __fmc_sdb_free(struct sdb_array *arr)
+{
+	int i, n;
+
+	if (!arr) return;
+	n = arr->len;
+	for (i = 0; i < n; i++) {
+		if (IS_ERR(arr->subtree[i]))
+			continue;
+		__fmc_sdb_free(arr->subtree[i]);
+	}
+	kfree(arr->record);
+	kfree(arr->subtree);
+	kfree(arr);
+}
+
+int fmc_free_sdb_tree(struct fmc_device *fmc)
+{
+	__fmc_sdb_free(fmc->sdb);
+	fmc->sdb = NULL;
+	return 0;
+}
+EXPORT_SYMBOL(fmc_free_sdb_tree);
 
 static void __fmc_show_sdb_tree(struct sdb_array *arr)
 {
 	int i, j, n = arr->len, level = arr->level;
+	struct sdb_array *ap;
 
 	for (i = 0; i < n; i++) {
+		unsigned long base;
 		union  sdb_record *r;
 		struct sdb_product *p;
 		struct sdb_component *c;
@@ -104,6 +138,9 @@ static void __fmc_show_sdb_tree(struct sdb_array *arr)
 		r = &arr->record[i];
 		c = &r->dev.sdb_component;
 		p = &c->product;
+		base = 0;
+		for (ap = arr; ap; ap = ap->parent)
+			base += ap->baseaddr;
 
 		switch(r->empty.record_type) {
 		case sdb_type_interconnect:
@@ -117,14 +154,15 @@ static void __fmc_show_sdb_tree(struct sdb_array *arr)
 			       __be64_to_cpu(p->vendor_id),
 			       __be32_to_cpu(p->device_id),
 			       p->name,
-			       __be64_to_cpu(c->addr_first),
-			       __be64_to_cpu(c->addr_last));
+			       __be64_to_cpu(c->addr_first) + base,
+			       __be64_to_cpu(c->addr_last) + base);
 			break;
 		case sdb_type_bridge:
-			printk("%08llx:%08x %.19s (bridge)\n",
+			printk("%08llx:%08x %.19s (bridge: %08llx)\n",
 			       __be64_to_cpu(p->vendor_id),
 			       __be32_to_cpu(p->device_id),
-			       p->name);
+			       p->name,
+			       __be64_to_cpu(c->addr_first) + base);
 			if (IS_ERR(arr->subtree[i])) {
 				printk("(bridge error %li)\n",
 				       PTR_ERR(arr->subtree[i]));
