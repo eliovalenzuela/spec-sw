@@ -94,6 +94,7 @@ int wrn_remove(struct fmc_device *fmc)
 	fmc->op->irq_free(fmc);
 	wrn_eth_exit(fmc);
 	wrn_gpio_exit(fmc);
+	fmc_free_sdb_tree(fmc);
 	return 0;
 }
 
