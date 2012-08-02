@@ -126,16 +126,19 @@ void mi2c_init(struct fmc_device *fmc)
 	set_sda(fmc, 1);
 }
 
-void mi2c_scan(struct fmc_device *fmc)
+int mi2c_scan(struct fmc_device *fmc)
 {
-	int i;
+	int i, found = 0;
 	for(i = 0; i < 256; i += 2) {
 		mi2c_start(fmc);
-		if(!mi2c_put_byte(fmc, i))
+		if(!mi2c_put_byte(fmc, i)) {
 			pr_info("%s: Found i2c device at 0x%x\n",
 			       KBUILD_MODNAME, i >> 1);
+			found++;
+		}
 		mi2c_stop(fmc);
 	}
+	return found;
 }
 
 /* FIXME: this is very inefficient: read several bytes in a row instead */
@@ -198,9 +201,13 @@ int spec_i2c_init(struct fmc_device *fmc)
 {
 	struct spec_dev *spec = fmc->carrier_data;
 	void *buf;
-	int i;
+	int i, found;
 
-	mi2c_scan(fmc);
+	found = mi2c_scan(fmc);
+	if (!found) {
+		dev_err(&spec->pdev->dev, "Empty mezzanine?\n");
+		return 0;
+	}
 
 	buf = kmalloc(SPEC_I2C_EEPROM_SIZE, GFP_KERNEL);
 	if (!buf)
