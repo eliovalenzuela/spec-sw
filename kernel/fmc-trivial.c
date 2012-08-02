@@ -8,6 +8,8 @@
 static char *t_filename;
 module_param_named(file, t_filename, charp, 0444);
 
+static struct fmc_driver t_drv; /* initialized later */
+
 irqreturn_t t_handler(int irq, void *dev_id)
 {
 	struct fmc_device *fmc = dev_id;
@@ -20,6 +22,11 @@ irqreturn_t t_handler(int irq, void *dev_id)
 int t_probe(struct fmc_device *fmc)
 {
 	int ret;
+	int index;
+
+	index = fmc->op->validate(fmc, &t_drv);
+	if (index < 0)
+		return -EINVAL; /* not our device: invalid */
 
 	ret = fmc->op->irq_request(fmc, t_handler, "fmc-trivial", 0);
 	if (ret < 0)
@@ -29,6 +36,8 @@ int t_probe(struct fmc_device *fmc)
 	ret = fmc->op->reprogram(fmc, "");
 	if (ret < 0)
 		fmc->op->irq_free(fmc);
+
+	/* FIXME: reprogram LM32 too */
 	return ret;
 }
 
@@ -44,6 +53,8 @@ static struct fmc_driver t_drv = {
 	.remove = t_remove,
 	/* no table, as the current match just matches everything */
 };
+
+FMC_MODULE_PARAMS(t_drv); /* We accept the generic parameters */
 
 static int t_init(void)
 {
