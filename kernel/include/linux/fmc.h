@@ -10,6 +10,7 @@
 #ifndef __LINUX_FMC_H__
 #define __LINUX_FMC_H__
 #include <linux/types.h>
+#include <linux/moduleparam.h>
 #include <linux/device.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
@@ -22,20 +23,32 @@ struct fmc_device_id {
 	uint64_t unique_id;
 };
 
+#define FMC_MAX_CARDS 16 /* That many with the same matching driver... */
+
 /* The driver is a pretty simple thing */
 struct fmc_driver {
 	struct device_driver driver;
 	int (*probe)(struct fmc_device *);
 	int (*remove)(struct fmc_device *);
 	const struct fmc_device_id *id_table;
-
+	/* What follows is for generic module parameters */
+	int busid_n;
+	int busid_val[FMC_MAX_CARDS];
+	int gw_n;
+	char *gw_val[FMC_MAX_CARDS];
 };
 #define to_fmc_driver(x) container_of((x), struct fmc_driver, driver)
+
+/* These are the generic parameters, that drivers may instantiate */
+#define FMC_MODULE_PARAMS(_d) \
+    module_param_array_named(busid, _d.busid_val, int, &_d.busid_n, 0400); \
+    module_param_array_named(gateware, _d.gw_val, charp, &_d.gw_n, 0400)
 
 /* To be carrier-independent, we need to abstract hardware access */
 struct fmc_operations {
 	uint32_t (*readl)(struct fmc_device *fmc, int offset);
 	void (*writel)(struct fmc_device *fmc, uint32_t value, int offset);
+	int (*validate)(struct fmc_device *fmc, struct fmc_driver *drv);
 	int (*reprogram)(struct fmc_device *fmc, char *gateware);
 	int (*irq_request)(struct fmc_device *fmc, irq_handler_t h,
 			   char *name, int flags);
