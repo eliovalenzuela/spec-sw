@@ -55,11 +55,16 @@ static int spec_reprogram(struct fmc_device *fmc, char *gw)
 		goto out;
 	}
 	fmc_free_sdb_tree(fmc);
+	fmc->flags &= ~(FMC_DEVICE_HAS_GOLDEN | FMC_DEVICE_HAS_CUSTOM);
 	ret = spec_load_fpga(spec, fw->data, fw->size);
 	if (ret <0) {
 		dev_err(dev, "write firmware \"%s\": error %i\n", gw, ret);
 		goto out;
 	}
+	if (gw == spec_fw_name)
+		fmc->flags |= FMC_DEVICE_HAS_GOLDEN;
+	else
+		fmc->flags |= FMC_DEVICE_HAS_CUSTOM;
 
 	/* FIXME: load lm32 */
 out:
@@ -132,12 +137,16 @@ static int spec_irq_free(struct fmc_device *fmc)
 /* The engines for this live in spec-i2c.c, we only shape arguments */
 static int spec_read_ee(struct fmc_device *fmc, int pos, void *data, int len)
 {
+	if (!(fmc->flags & FMC_DEVICE_HAS_GOLDEN))
+		return -ENOTSUPP;
 	return spec_eeprom_read(fmc, SPEC_I2C_EEPROM_ADDR, pos, data, len);
 }
 
 static int spec_write_ee(struct fmc_device *fmc, int pos,
 			 const void *data, int len)
 {
+	if (!(fmc->flags & FMC_DEVICE_HAS_GOLDEN))
+		return -ENOTSUPP;
 	return spec_eeprom_write(fmc, SPEC_I2C_EEPROM_ADDR, pos, data, len);
 }
 

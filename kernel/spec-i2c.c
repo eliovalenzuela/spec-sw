@@ -205,7 +205,7 @@ int spec_i2c_init(struct fmc_device *fmc)
 
 	found = mi2c_scan(fmc);
 	if (!found) {
-		dev_err(&spec->pdev->dev, "Empty mezzanine?\n");
+		fmc->flags |= FMC_DEVICE_NO_MEZZANINE;
 		return 0;
 	}
 
