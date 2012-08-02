@@ -60,6 +60,7 @@ struct fmc_operations {
 
 /* The device reports all information needed to access hw */
 struct fmc_device {
+	unsigned long flags;
 	struct fmc_device_id id;	/* for the match function */
 	struct fmc_operations *op;	/* carrier-provided */
 	int irq;			/* according to host bus. 0 == none */
@@ -73,6 +74,10 @@ struct fmc_device {
 	struct sdb_array *sdb;
 };
 #define to_fmc_device(x) container_of((x), struct fmc_device, dev)
+
+#define FMC_DEVICE_HAS_GOLDEN		1
+#define FMC_DEVICE_HAS_CUSTOM		2
+#define FMC_DEVICE_NO_MEZZANINE		4
 
 /* If the carrier offers no readl/writel, use base address */
 static inline uint32_t fmc_readl(struct fmc_device *fmc, int offset)
