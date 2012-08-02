@@ -5,9 +5,6 @@
 #include <linux/fmc.h>
 #include "spec.h"
 
-static char *t_filename;
-module_param_named(file, t_filename, charp, 0444);
-
 static struct fmc_driver t_drv; /* initialized later */
 
 irqreturn_t t_handler(int irq, void *dev_id)
@@ -32,8 +29,10 @@ int t_probe(struct fmc_device *fmc)
 	if (ret < 0)
 		return ret;
 
-	/* Reprogram, but only if specified in the arguments */
-	ret = fmc->op->reprogram(fmc, "");
+	/* Reprogram, if asked to. ESRCH == no filename specified */
+	ret = fmc->op->reprogram(fmc, &t_drv,"");
+	if (ret == -ESRCH)
+		ret = 0;
 	if (ret < 0)
 		fmc->op->irq_free(fmc);
 
@@ -54,7 +53,9 @@ static struct fmc_driver t_drv = {
 	/* no table, as the current match just matches everything */
 };
 
-FMC_MODULE_PARAMS(t_drv); /* We accept the generic parameters */
+ /* We accept the generic parameters */
+FMC_PARAM_BUSID(t_drv);
+FMC_PARAM_GATEWARE(t_drv);
 
 static int t_init(void)
 {

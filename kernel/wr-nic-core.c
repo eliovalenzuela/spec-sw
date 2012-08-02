@@ -15,6 +15,8 @@
 #include "wr-nic.h"
 #include "spec.h"
 
+static struct fmc_driver wrn_drv;
+
 static char *wrn_filename = WRN_GATEWARE_DEFAULT_NAME;
 module_param_named(file, wrn_filename, charp, 0444);
 
@@ -40,7 +42,7 @@ int wrn_probe(struct fmc_device *fmc)
 	fmc_set_drvdata(fmc, dd);
 
 	/* We first write a new binary (and lm32) within the spec */
-	ret = fmc->op->reprogram(fmc, WRN_GATEWARE_DEFAULT_NAME);
+	ret = fmc->op->reprogram(fmc, &wrn_drv, WRN_GATEWARE_DEFAULT_NAME);
 	if (ret <0) {
 		dev_err(dev, "write firmware \"%s\": error %i\n",
 			wrn_filename, ret);

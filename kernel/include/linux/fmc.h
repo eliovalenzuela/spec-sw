@@ -40,16 +40,17 @@ struct fmc_driver {
 #define to_fmc_driver(x) container_of((x), struct fmc_driver, driver)
 
 /* These are the generic parameters, that drivers may instantiate */
-#define FMC_MODULE_PARAMS(_d) \
-    module_param_array_named(busid, _d.busid_val, int, &_d.busid_n, 0400); \
-    module_param_array_named(gateware, _d.gw_val, charp, &_d.gw_n, 0400)
+#define FMC_PARAM_BUSID(_d) \
+    module_param_array_named(busid, _d.busid_val, int, &_d.busid_n, 0444)
+#define FMC_PARAM_GATEWARE(_d) \
+    module_param_array_named(gateware, _d.gw_val, charp, &_d.gw_n, 0444)
 
 /* To be carrier-independent, we need to abstract hardware access */
 struct fmc_operations {
 	uint32_t (*readl)(struct fmc_device *fmc, int offset);
 	void (*writel)(struct fmc_device *fmc, uint32_t value, int offset);
 	int (*validate)(struct fmc_device *fmc, struct fmc_driver *drv);
-	int (*reprogram)(struct fmc_device *fmc, char *gateware);
+	int (*reprogram)(struct fmc_device *f, struct fmc_driver *d, char *gw);
 	int (*irq_request)(struct fmc_device *fmc, irq_handler_t h,
 			   char *name, int flags);
 	void (*irq_ack)(struct fmc_device *fmc);

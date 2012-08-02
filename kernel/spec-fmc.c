@@ -34,7 +34,8 @@ static int spec_validate(struct fmc_device *fmc, struct fmc_driver *drv)
 	return -ENOENT;
 }
 
-static int spec_reprogram(struct fmc_device *fmc, char *gw)
+static int spec_reprogram(struct fmc_device *fmc, struct fmc_driver *drv,
+			  char *gw)
 {
 	const struct firmware *fw;
 	struct spec_dev *spec = fmc->carrier_data;
@@ -44,11 +45,17 @@ static int spec_reprogram(struct fmc_device *fmc, char *gw)
 	if (!gw)
 		gw = spec_fw_name;
 
-	if (!strlen(gw)) {
-		/* FIXME: use module parameters */
-		return 0;
+	if (!strlen(gw)) { /* use module parameters from the driver */
+		int index;
+
+		index = spec_validate(fmc, drv);
+
+		gw = drv->gw_val[index];
+		if (!gw)
+			return -ESRCH; /* the caller may accept this */
 	}
 
+	dev_info(fmc->hwdev, "reprogramming with %s\n", gw);
 	ret = request_firmware(&fw, gw, dev);
 	if (ret < 0) {
 		dev_warn(dev, "request firmware \"%s\": error %i\n", gw, ret);
