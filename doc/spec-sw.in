@@ -42,7 +42,7 @@
 @title SPEC Software Support
 @subtitle @value{update-month}
 @subtitle A driver for the SPEC card and its FMC modules
-@author Alessandro Rubini for CERN
+@author Alessandro Rubini for CERN (BE-CO-HT)
 @end titlepage
 @headings single
 
@@ -71,8 +71,8 @@ the one used by @i{fine-delay-sw-v1.1}.  If you use such version, please
 compile the manual you find in your source code repository.
 
 The package currently includes both the @i{spec} driver and the
-@i{fmc-core} driver (which benefits from its own documentation file
-which you may want to read.
+@i{fmc} bus driver (documented separately).
+Moreover, it includes some drivers for fmc cards.
 
 @c ##########################################################################
 @node Compiling the Drivers
@@ -129,19 +129,23 @@ the previous case your driver will end up being installed
 @node Role of spec.ko
 @chapter Role of spec.ko
 
-The @code{spec.ko} driver depends on @code{fmc-core.ko}, that must
+The @code{spec.ko} driver depends on @code{fmc.ko}, that must
 be loaded first (if you don't rely on automatic dependencies).
 
-The driver @code{spec.ko} registers itself as a PCI driver,
+It registers itself as a PCI driver,
 using both the ``old'' vendor and device ID (the Gennum identifiers)
 and the new ones (CERN vendor and SPEC device).
+
+@c ==========================================================================
+@node SPEC Initialization
+@section SPEC Initialization
 
 For each new SPEC device found on the system, the driver performs the
 following steps:
 
 @itemize @bullet
-@item It enables MSI interrupts, the only kind supported in this package.
-@item It loads the @code{spec-init.bin} ``golden'' gateware file.
+@item It enables MSI interrupts, the only ones supported in this package.
+@item It loads the @code{fmc/spec-init.bin} ``golden'' gateware file.
 @item It checks that the content of the binary is as expected (using
       a minimal @i{sdb}-based verification).
 @item It reads the whole I2C EEPROM found on the mezzanine.
@@ -156,13 +160,23 @@ from the @i{files} area of the @i{spec-sw} project on @code{ohwr.org}.
 As I write this, the direct link is
 @url{http://www.ohwr.org/attachments/download/1454/spec-init.bin-2012-07-24}.
 
+@b{Note:} currently the SPEC driver does not re-write the golden
+binary file when the sub-driver releases control of the card. This
+allows a further driver to make use of an existing binary, and may be
+useful during development. The EEPROM contents are still being
+available to the new sub-driver (even if it cannot change it any more).
+
+@c ==========================================================================
+@node SPEC Module Parameters
+@section SPEC Module Parameters
+
 The module can receive the following parameters to customize its operation:
 
 @table @code
 
 @item test_irq
 
-	IF not zero, this parameter requests to self-test interrupt
+	If not zero, this parameter requests to self-test interrupt
         generation, using the Gennum registers. This usually does not
         work on my host, for yet unknown reasons (and that's why it is
         disabled by default).
@@ -175,7 +189,7 @@ The module can receive the following parameters to customize its operation:
 @item fw_name
 
 	This string parameter can be used to override the default name
-        for the initialization binary file.
+        (@code{fmc/spec-init.bin}) for the initialization binary file.
 
 @end table
 
@@ -198,7 +212,58 @@ returns success: the mezzanines I currently have for testing have no
 ID records written in their internal EEPROM, so I'm not able to setup
 the associated data structures and code.  For this reason there is no
 @i{module_alias} support nor autoprobe of drivers: any @i{fmc} driver
-you load will drive all SPEC cards found on the system.
+you load will drive all SPEC cards found on the system unless it
+limits itself through parameters (see below)
+
+@c ==========================================================================
+@node Sub-Module Parameters
+@section Sub-Module Parameters
+
+Since most of the FMC drivers, also called sub-modules, need the same
+set of kernel parameters, this package includes support
+to implement common parameters, by means of fields
+in the @code{fmc_driver} structure and simple macro definitions.
+
+The parameters are carrier-specific, in that they rely on the @i{busid}
+concept, that varies among carriers (here it is a PCI bus-devfn number).
+Drivers for other carriers will most likely offer something similar
+but not identical; some code duplication is unavoidable.
+
+This is the list of parameters, to see how they are used in sub-modules,
+please look at @i{spec-trivial.c}.
+
+These parameters are offered:
+
+@table @code
+
+@item busid=
+
+	This is an array of integers, specifying the PCI bus and PCI devfn,
+        each of the fields being 8 bits (and the latter is most likely 0).
+        For example: @code{0x0400} (bus 4,
+        slot 0).  If any such ID is specified, the sub-driver will only
+        accept to drive cards that appear in the list (even if the
+        FMC ID matches).
+
+@item gateware=
+
+	The argument is an array of strings. If no @i{busid=} is
+        specified, the first string of @i{gateware=} is used for
+        all cards; otherwise the identifiers and gateware names are
+        pared one by one, in the order specified.
+
+@end table
+
+For example, if you are using the trivial driver to load two different
+gateware files to two different cards, you can use the following
+parameters to load differnt binaries to the cards, after looking up
+the PCI identifiers:
+
+@smallexample
+   insmod fmc-trivial.ko \
+                         busid=0x0200,0x0400 \
+                         gateware=fmc/fine-delay.bin,fmc/simple-dio.bin
+@end smallexample
 
 @c ##########################################################################
 @node fmc-trivial.ko
@@ -208,13 +273,36 @@ The simple module @i{fmc-trivial} is just a simple client that
 registers an interrupt handler. I use it to verify the basic mechanism
 of the FMC bus and how interrupts work.
 
-Additionally, if you pass the @code{file=} module argument, it will
-load the file from @i{/lib/firmware} and reprogram the FPGA with the
-new binary. It is almost as useful as a user-space loader.
+The module is a user of generic SPEC parameters, so it can program a
+different gateware file in each card. The whole list of parameters it
+accepts are:
 
-I plan to add a simple char driver with a dreaded @i{ioctl}
-method to allow easy user-space access to FMC boards, irrespective
-of the carrier they are living on.
+@table @code
+
+@item busid=
+@itemx gateware=
+      Generic parameters. See @ref{Sub-Module Parameters}.
+
+@c no docbook is generated, so the following is like "#if 0"
+@ifdocbook
+@item sdb=
+
+	This is an array of integers, specifying the @i{sdb}
+        starting address after programming the gateware. See
+        @ref{Sub-Module Parameters} about how this is used in multi-board
+        environments.
+       
+@item lm32=
+
+	This is a array of strings like @code{gateware=},
+        listing the name or names
+        to be used to reprogram the internal LM32. The same rules as for
+        @code{gateware=} above are used for matching binaries and cards.
+        The carrier will copy the @i{lm32} executable to the first
+        SDB record that is mapped as ``@code{WB4-BlockRAM}'' (thus,
+        it needs the @code{sdb=} values to be specified.
+@end ifdocbook
+@end table
 
 This driver is worth reading, but it is not worth describing here.
 
@@ -223,7 +311,9 @@ This driver is worth reading, but it is not worth describing here.
 @chapter fmc-write-eeprom.ko
 
 This module is designed to load a binary file from @i{/lib/firmware}
-and to write it to the internal EEPROM of the mezzanine card.
+and to write it to the internal EEPROM of the mezzanine card. This
+driver uses the @code{busid} generic parameter, but doesn't use the
+other ones (even if @i{modinfo} reports them).
 
 Overwriting the EEPROM is not something you should do daily, and is
 expected to only happen during manufacturing. For this reason, the
@@ -246,8 +336,9 @@ type-length-value (i.e., it allows @i{writev(2)}-like operation).
 @item If the file name doesn't match any of the patterns above, it is
 ignored and no write is performed.
 
-@item Only one FMC card is written to, if more are there, they are
-ignored until the module is reloaded.
+@item Only cards listed with @code{busid=} are written to. If no
+@i{busid} is specified, no programming is done (and the probe function
+of the driver will fail).
 
 @end itemize
 
@@ -264,7 +355,7 @@ This is a real example: that writes 5 bytes at position 0x110:
    spusa.root# od -t x1 -Ax /lib/firmware/try.tlv
    000000 77 10 01 05 00 30 31 32 33 34
    00000a
-   spusa.root# insmod /tmp/fmc-write-eeprom.ko file=try.tlv
+   spusa.root# insmod /tmp/fmc-write-eeprom.ko busid=0x0200 file=try.tlv
    [19983.391498] spec 0000:03:00.0: write 5 bytes at 0x0110
    [19983.414615] spec 0000:03:00.0: write_eeprom: success
 @end smallexample
@@ -272,6 +363,7 @@ This is a real example: that writes 5 bytes at position 0x110:
 @c ##########################################################################
 @node The WR-NIC
 @chapter The WR-NIC
+@c FIXME
 
 The @i{wr-nic} driver is being worked on. It should be a model of how
 FMC drivers should behave, so it is hosted in this package.

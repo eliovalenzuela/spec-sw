@@ -186,7 +186,8 @@ this document):
 struct fmc_operations {
         uint32_t (*readl)(struct fmc_device *fmc, int offset);
         void (*writel)(struct fmc_device *fmc, uint32_t value, int offset);
-        int (*reprogram)(struct fmc_device *fmc, char *gateware);
+        int (*reprogram)(struct fmc_device *f, struct fmc_driver *d, char *gw);
+        int (*validate)(struct fmc_device *fmc, struct fmc_driver *drv);
         int (*irq_request)(struct fmc_device *fmc, irq_handler_t h,
                            char *name, int flags);
         void (*irq_ack)(struct fmc_device *fmc);
@@ -211,6 +212,20 @@ The individual methods perform the following tasks:
         access @i{base} if respective method is NULL.
         For Etherbone, or other non-local carriers,
         error-management is still to be defined.
+
+@item validate
+
+	Module parameters are used to manage different applications for
+        two two or more boards of the same kind. Validation uses
+        the @i{bus_id} module parameter (if provided) and returns the
+        matching index in the array. If no match is found, @code{-ENOENT}
+        is returned; if the argument has not been specified, all
+        devices match the driver and 0 is returned.  The value returned
+        by the validate method can be used as index into other parameters
+        (for example, some drivers use the @code{lm32=} parameter in this
+        way). Such ``generic parameters'' are currently documented in the
+        @i{spec-sw} manual; this @i{validate} method is on show in
+        @code{spec-fmc.c} and it is used by @code{fmc-trivial.c}.
 
 @item reprogram
 
