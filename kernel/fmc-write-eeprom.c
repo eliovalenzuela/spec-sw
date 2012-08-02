@@ -17,10 +17,17 @@
 /*
  * This module uses the firmware loader to program the whole or part
  * of the FMC eeprom. The meat is in the _run functions.  However, no
- * default file name is provided, to avoid accidental mishaps.
+ * default file name is provided, to avoid accidental mishaps. Also,
+ * you must pass the busid argument
  */
-static char *fwe_file;
-module_param_named(file, fwe_file, charp, 444);
+static struct fmc_driver fwe_drv;
+
+FMC_PARAM_BUSID(fwe_drv);
+
+/* The "file=" is like the generic "gateware=" used elsewhere */
+static char *fwe_file[FMC_MAX_CARDS];
+static int fwe_file_n;
+module_param_array_named(file, fwe_file, charp, &fwe_file_n, 444);
 
 static int fwe_run_tlv(struct fmc_device *fmc, const struct firmware *fw,
 	int write)
@@ -72,9 +79,9 @@ static int fwe_run_bin(struct fmc_device *fmc, const struct firmware *fw)
 	return 0;
 }
 
-static int fwe_run(struct fmc_device *fmc, const struct firmware *fw)
+static int fwe_run(struct fmc_device *fmc, const struct firmware *fw, char *s)
 {
-	char *last4 = fwe_file + strlen(fwe_file) - 4;
+	char *last4 = s + strlen(s) - 4;
 	int err;
 
 	if (!strcmp(last4,".bin"))
@@ -85,41 +92,42 @@ static int fwe_run(struct fmc_device *fmc, const struct firmware *fw)
 			err = fwe_run_tlv(fmc, fw, 1);
 		return err;
 	}
-	dev_err(fmc->hwdev, "invalid file name \"%s\"\n", fwe_file);
+	dev_err(fmc->hwdev, "invalid file name \"%s\"\n", s);
 	return -EINVAL;
 }
 
 /*
- * Programming is done at probe time. Morever, if more than one FMC
+ * Programming is done at probe time. Morever, only those listed with
+ * busid= are programmed.
  * card is probed for, only one is programmed. Unfortunately, it's
  * difficult to know in advance when probing the first card if others
  * are there.
  */
 int fwe_probe(struct fmc_device *fmc)
 {
-	int err;
-	static int done;
+	int err, index;
 	const struct firmware *fw;
 	struct device *dev = fmc->hwdev;
+	char *s;
 
-	if (!fwe_file) {
+	if (!fwe_drv.busid_n) {
+		dev_err(dev, "%s: no busid passed, refusing all cards\n",
+			KBUILD_MODNAME);
+		return -ENODEV;
+	}
+	index = fmc->op->validate(fmc, &fwe_drv);
+	s = fwe_file[index];
+	if (!s) {
 		dev_err(dev, "%s: no filename given: not programming\n",
 			KBUILD_MODNAME);
 		return -ENOENT;
 	}
-	if (done) {
-		dev_err(dev, "%s: refusing to program another card\n",
-			KBUILD_MODNAME);
-		return -EAGAIN;
-	}
-	done++; /* we are starting with this board, don't do any more */
-	err = request_firmware(&fw, fwe_file, dev);
+	err = request_firmware(&fw, s, dev);
 	if (err < 0) {
-		dev_err(dev, "request firmware \"%s\": error %i\n",
-			fwe_file, err);
+		dev_err(dev, "request firmware \"%s\": error %i\n", s, err);
 		return err;
 	}
-	fwe_run(fmc, fw);
+	fwe_run(fmc, fw, s);
 	release_firmware(fw);
 	return 0;
 }
