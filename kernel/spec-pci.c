@@ -43,7 +43,7 @@ int spec_load_fpga(struct spec_dev *spec, const void *data, int size)
 		udelay(100);
 		i = readl(spec->remap[2] + FCL_IRQ);
 		if (i & 0x8) {
-			dev_info(dev, "FPGA programming sucessful\n");
+			dev_info(dev, "FPGA programming successful\n");
 			return 0;
 		}
 
