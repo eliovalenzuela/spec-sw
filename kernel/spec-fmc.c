@@ -19,10 +19,25 @@ module_param_named(test_irq, spec_test_irq, int, 0444);
 
 /* The main role of this file is offering the fmc_operations for the spec */
 
-static int spec_reprogram(struct fmc_device *fmc, char *gw)
+static int spec_validate(struct fmc_device *fmc, struct fmc_driver *drv)
 {
 	struct spec_dev *spec = fmc->carrier_data;
+	struct pci_dev *pdev = spec->pdev;
+	int busid = (pdev->bus->number << 8) | pdev->devfn;
+	int i;
+
+	if (!drv->busid_n)
+		return 0; /* everyhing is valid */
+	for (i = 0; i < drv->busid_n; i++)
+		if (drv->busid_val[i] == busid)
+			return i;
+	return -ENOENT;
+}
+
+static int spec_reprogram(struct fmc_device *fmc, char *gw)
+{
 	const struct firmware *fw;
+	struct spec_dev *spec = fmc->carrier_data;
 	struct device *dev = fmc->hwdev;
 	int ret;
 
@@ -128,6 +143,7 @@ static int spec_write_ee(struct fmc_device *fmc, int pos,
 
 static struct fmc_operations spec_fmc_operations = {
 	/* no readl/writel because we have the base pointer */
+	.validate =		spec_validate,
 	.reprogram =		spec_reprogram,
 	.irq_request =		spec_irq_request,
 	.irq_ack =		spec_irq_ack,
