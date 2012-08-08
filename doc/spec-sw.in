@@ -34,7 +34,7 @@
 
 @setchapternewpage off
 
-@set update-month July 2012
+@set update-month August 2012
 
 @finalout
 
@@ -63,11 +63,14 @@ associated software project, hosted at
 hosts the latest version.
 
 @b{Warning}: this manual documents the setup we used for the first
-FMC mezzanine driver, the @i{fine-delay-sw} package, version 1.1.
-This @i{spec-sw} package is being completely redesigned to take advantage
-of the Linux bus abstraction. The current development is on the @i{fmc-bus}
-branch of the git repository, that will be merged to the master as soon
-as it is stable.
+FMC mezzanine driver (the @i{fine-delay-sw} package, version 1.1) with
+a few additions by Tomasz Wlostowski in the tool set.
+
+This is the latest release of the package using the abstractions
+described here.  This @i{spec-sw} package is being completely
+redesigned to take advantage of the Linux bus abstraction. The current
+development is on the @i{fmc-bus} branch of the git repository, but it
+will be merged immediately after this commit.
 
 @menu
 * The Core Driver::             
@@ -322,7 +325,8 @@ instead of using static file names.
 @node The WR-NIC
 @chapter The WR-NIC
 
-To be written.
+The @i{wr-nic} is going to be part of this package, but it is not as of this
+revision.
 
 @c ##########################################################################
 @node Tools
@@ -330,6 +334,27 @@ To be written.
 
 The @i{tools} subdirectory of this package includes a few host-side
 programs that may be useful while working with the SPEC device.
+They are all base on the same @i{speclib}, part of the same directory,
+so all of them accept some parameters in common, in order to identify
+one specific SPEC card if you have more than one:
+
+@table @code
+
+@item -b <bus>
+
+	This option specifies the bus number
+
+@item -d <devfn>
+
+	This is used to specify the device and function number, but it
+        is expected to be 0 on most if not all the computers. You won't
+        generally need to specify the @i{devfn} value.
+
+@end table
+
+If no arguments are supplied, the tools act on the @i{first} device
+if more than one is plugged. The meaning of @i{first} is actually undefined
+and system-dependent.
 
 The tools currently available are:
 
@@ -339,30 +364,40 @@ The tools currently available are:
 
 	The program acts like @i{devmem} or @i{devmem2} but in a
         simplified way. It receives one or two command line arguments:
-        one for reading and two for writing. It makes a single 32-bit
+        one for reading and two for writing. Both arguments are used
+        as hex numbers, whether or not the leading @code{0x} is
+        specified.  The program makes a single 32-bit
         access to BAR0 of the Gennum PCI bridge; the first argument is
         the address, and the second argument is the value to be written.
         The @code{VERBOSE} environment variable makes the tool slightly
-        more verbose.
+        more verbose.  If you pass @code{-g} you will access the Gennum
+        registers (for example, for GPIO access).
 
 @item spec-cl
 
 	This is the @i{cpu loader}. It is not called @i{lm32-loader} to
         avoid confusion with other tools we have been using. It
-        loads a program at offset 0x8000 in BAR0. This is where we
+        loads a program at offset 0x80000 in BAR0. This is where we
         usually have RAM memory for the soft-core running in the SPEC.
-        The program also keeps the soft-core in reset state during the
-        load operation, so the new program will be run after loading
-        is over.
+        If the program lives at aa different address, you can pass
+        @code{-c <number>} to specify a different address (note
+        that the leading @code{0x} is required to pass an hex address).
+
+@item spec-fwloader
+
+	This is a user-space loader for the gateware file. It simply
+        receives a file name argument (after the optinal bus number for
+        the device).
+
+@item spec-vuart
+
+	A simple tool to talk with the virtual-uart device inside the
+        SPEC. The default base address for the peripheral is 0xe0500
+        but you can can change it passing @code{-u <address>}.
 
 @end table
 
-Currently, the tools only work with one SPEC card (i.e., if you have
-two of them installed in your system, they work with one of them only
--- the first one appearing in @i{lspci}).  This will be fixed in later
-versions, using command-line options or environment variables.
-
-Use of these programs is exemplified in @ref{Troubleshooting}.
+Use of some of these programs is exemplified in @ref{Troubleshooting}.
 
 
 @c ##########################################################################
