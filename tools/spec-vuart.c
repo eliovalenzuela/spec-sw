@@ -26,11 +26,11 @@ static int transfer_byte(int from, int is_control) {
 		if(is_control) {
 			if(c == '\x01') { // C-a
 				return -1;
-			} 
+			}
 		}
 		spec_vuart_tx(card, &c, 1);
 	} else {
-		fprintf(stderr, "\nnothing to read. probably port disconnected.\n");
+		fprintf(stderr, "nothing to read. Port disconnected?\n");
 		return -2;
 	}
 	return 0;
@@ -39,7 +39,8 @@ static int transfer_byte(int from, int is_control) {
 
 void term_main(int keep_term)
 {
-	struct termios oldkey, newkey;       //place tor old and new port settings for keyboard teletype
+	struct termios oldkey, newkey;
+	//above is place for old and new port settings for keyboard teletype
 	int need_exit = 0;
 
 	fprintf(stderr, "[press C-a to exit]\n");
@@ -60,7 +61,7 @@ void term_main(int keep_term)
 		int ret;
 		char rx;
 		struct timeval tv = {0, 10000};
-		
+
 		FD_ZERO(&fds);
 		FD_SET(STDIN_FILENO, &fds);
 
@@ -106,10 +107,13 @@ int main(int argc, char **argv)
 			break;
 		default:
 			fprintf(stderr,
-				"Use: \"%s [-b bus] [-d devfn] [-u VUART base] [-k]\"\n", argv[0]);
+				"Use: \"%s [-b bus] [-d devfn] "
+				"[-u VUART base] [-k]\"\n", argv[0]);
 			fprintf(stderr,
-				"By default, the first available SPEC is used and the VUART is assumed at 0x%x.\n \
--k option keeps the terminal config unchanged.", vuart_base);
+				"By default, the first available SPEC "
+				"is used and the VUART is assumed at 0x%x.\n"
+				"-k option keeps the prev terminal config\n",
+				vuart_base);
 			exit(1);
 		}
 	}
@@ -117,8 +121,10 @@ int main(int argc, char **argv)
     card = spec_open(bus, dev_fn);
 	if(!card)
 	{
-	 	fprintf(stderr, "Can't detect a SPEC card under the given adress. Make sure a SPEC card is present in your PC and the driver is loaded.\n");
-	 	exit(1);
+		fprintf(stderr, "Can't detect a SPEC card under the given "
+			"adress. Make sure a SPEC card is present in your PC "
+			"and the driver is loaded.\n");
+		exit(1);
 	}
 
 	spec_vuart_init(card, vuart_base);

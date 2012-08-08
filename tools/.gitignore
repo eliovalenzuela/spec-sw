@@ -1,3 +1,5 @@
 libspec.a
 spec-cl
 specmem
+spec-fwloader
+spec-vuart
