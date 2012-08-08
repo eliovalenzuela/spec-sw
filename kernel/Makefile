@@ -1,11 +1,28 @@
 
 LINUX ?= /lib/modules/$(shell uname -r)/build
 
-obj-m = spec.o
-obj-m += spec-wr-nic.o
-obj-m += spec-fine-delay.o
+ccflags-y = -I$M/include
 
-spec-objs = spec-core.o loader-ll.o
+obj-m = fmc.o
+obj-m += spec.o
+obj-m += fmc-trivial.o
+obj-m += fmc-write-eeprom.o
+obj-m += wr-nic.o
+
+fmc-y = fmc-core.o
+fmc-y += fmc-sdb.o
+
+spec-y = spec-pci.o
+spec-y += spec-fmc.o
+spec-y += spec-i2c.o
+spec-y += loader-ll.o
+spec-y += spec-gpio-no.o
+spec-$(CONFIG_GPIOLIB) += spec-gpio.o
+
+wr-nic-y = wr-nic-core.o
+wr-nic-y += wr-nic-eth.o
+wr-nic-$(CONFIG_GPIOLIB) += wr-nic-gpio.o
+
 
 all modules:
 	$(MAKE) -C $(LINUX) M=$(shell /bin/pwd) modules
