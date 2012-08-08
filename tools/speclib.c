@@ -19,10 +19,6 @@
 #include "loader-ll.h"
 #include "wb_uart.h"
 
-#define BASE_BAR0 0
-#define BASE_BAR4 4
-
-
 struct spec_private {
 	void *bar0;
 	void *bar4;
@@ -90,12 +86,10 @@ static void *spec_map_area(int bus, int dev, int bar, size_t size)
 
 	ptr = mmap(NULL, size & ~(getpagesize()-1), PROT_READ | PROT_WRITE,
 		   MAP_SHARED, fd, 0);
+	close(fd);
 
 	if((int)ptr == -1)
-	{
-		close(fd);
 		return NULL;
-	}
 
 	return ptr;
 }
@@ -111,6 +105,17 @@ void *spec_open(int bus, int dev)
 	card->bar4 = spec_map_area(bus, dev, BASE_BAR4, 0x1000);
 
 	return card;
+}
+
+void *spec_get_base(void *card, int basenr)
+{
+	struct spec_private *p = card;
+
+	if (basenr == BASE_BAR0)
+		return p->bar0;
+	if (basenr == BASE_BAR4)
+		return p->bar4;
+	return NULL;
 }
 
 void spec_close(void *card)

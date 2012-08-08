@@ -30,4 +30,13 @@ int spec_vuart_init(void *card, uint32_t base_addr);
 size_t spec_vuart_rx(void *card, char *buffer, size_t size);
 size_t spec_vuart_tx(void *card, char *buffer, size_t size);
 
+/* Get the pointer to access SPEC memory directly */
+void *spec_get_base(void *card, int basenr);
+
+enum {
+	BASE_BAR0 = 0,	/* for wrpc etc (but lm32 is at 0x80000 offset) */
+	BASE_BAR2 = 2,
+	BASE_BAR4 = 4	/* for gennum-internal registers */
+};
+
 #endif

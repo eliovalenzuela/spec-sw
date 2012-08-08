@@ -5,7 +5,7 @@ LDFLAGS = -L. -lspec
 LIB = libspec.a
 LIBOBJ = speclib.o loader-ll.o
 
-PROGS = spec-cl spec-fwloader spec-vuart # specmem
+PROGS = spec-cl spec-fwloader spec-vuart specmem
 
 
 all: $(LIB) $(PROGS)
