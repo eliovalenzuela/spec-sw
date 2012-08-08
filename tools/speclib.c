@@ -16,6 +16,7 @@
 #include <unistd.h>
 
 #include "speclib.h"
+#include "loader-ll.h"
 #include "wb_uart.h"
 
 #define BASE_BAR0 0

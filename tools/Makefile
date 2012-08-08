@@ -1,5 +1,5 @@
 
-CFLAGS = -ggdb -Wall
+CFLAGS = -ggdb -Wall -I../kernel
 LDFLAGS = -L. -lspec
 
 LIB = libspec.a
