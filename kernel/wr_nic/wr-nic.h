@@ -235,9 +235,4 @@ extern int wrn_tstamp_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
 extern irqreturn_t wrn_tstamp_interrupt(int irq, void *dev_id);
 extern void wrn_tstamp_init(struct wrn_dev *wrn);
 
-/* Following functions from dmtd.c */
-extern int wrn_phase_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
-extern int wrn_calib_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
-extern void wrn_ppsg_read_time(struct wrn_dev *wrn, u32 *fine_cnt, u32 *utc);
-
 #endif /* __WR_NIC_H__ */

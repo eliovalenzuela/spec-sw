@@ -232,9 +232,8 @@ static int wrn_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 	case SIOCSHWTSTAMP:
 		return wrn_tstamp_ioctl(dev, rq, cmd);
 	case PRIV_IOCGCALIBRATE:
-		return wrn_calib_ioctl(dev, rq, cmd);
 	case PRIV_IOCGGETPHASE:
-		return wrn_phase_ioctl(dev, rq, cmd);
+		return -EOPNOTSUPP;
 	case PRIV_IOCREADREG:
 		if (get_user(reg, (u32 *)rq->ifr_data) < 0)
 			return -EFAULT;
@@ -352,7 +351,8 @@ static void __wrn_rx_descriptor(struct wrn_dev *wrn, int desc)
 
 	/* RX timestamping part */
 
-	wrn_ppsg_read_time(wrn, &counter_ppsg, &utc);
+	//wrn_ppsg_read_time(wrn, &counter_ppsg, &utc);
+	r1 |= NIC_RX1_D1_TS_INCORRECT; /* FIXME: temporary hack */
 
 	if(counter_ppsg < REFCLK_FREQ/4 && ts_r > 3*REFCLK_FREQ/4)
 		utc--;

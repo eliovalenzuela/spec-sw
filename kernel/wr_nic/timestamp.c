@@ -37,8 +37,9 @@ void wrn_tstamp_find_skb(struct wrn_dev *wrn, int desc)
 	pr_debug("%s: found\n", __func__);
 
 	/* so we found the skb, do the timestamping magic */
-	wrn_ppsg_read_time(wrn, &counter_ppsg, &utc);
-	
+	//wrn_ppsg_read_time(wrn, &counter_ppsg, &utc);
+	return; /* FIXME: temporary hack */
+
 	/* The timestamp nanoseconds value is closer to the end of previous second, but the UTC time
 	   read from PPSG is at the beginning of the next second: adjust UTC seconds to avoid 1 sec
 	   "jump" */
@@ -84,7 +85,9 @@ static int record_tstamp(struct wrn_dev *wrn, u32 tsval, u32 idreg, u32 r2)
 		/*printk("%s: found\n", __func__);*/
 		skb = wrn->skb_desc[i].skb;
 
-		wrn_ppsg_read_time(wrn, &counter_ppsg, &utc);
+		//wrn_ppsg_read_time(wrn, &counter_ppsg, &utc);
+		return 0; /* FIXME: temporary hack */
+
 		if(counter_ppsg < (tsval & 0xfffffff))
 			utc--;
 
