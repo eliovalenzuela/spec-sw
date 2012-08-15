@@ -216,7 +216,7 @@ The individual methods perform the following tasks:
 @item validate
 
 	Module parameters are used to manage different applications for
-        two two or more boards of the same kind. Validation uses
+        two or more boards of the same kind. Validation uses
         the @i{bus_id} module parameter (if provided) and returns the
         matching index in the array. If no match is found, @code{-ENOENT}
         is returned; if the argument has not been specified, all
