@@ -42,7 +42,7 @@ int wrn_probe(struct fmc_device *fmc)
 	fmc_set_drvdata(fmc, dd);
 
 	/* We first write a new binary (and lm32) within the spec */
-	ret = fmc->op->reprogram(fmc, &wrn_drv, WRN_GATEWARE_DEFAULT_NAME);
+	ret = fmc->op->reprogram(fmc, &wrn_drv, wrn_filename);
 	if (ret <0) {
 		dev_err(dev, "write firmware \"%s\": error %i\n",
 			wrn_filename, ret);
