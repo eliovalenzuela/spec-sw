@@ -106,17 +106,17 @@ static int spec_irq_request(struct fmc_device *fmc, irq_handler_t handler,
 	 */
 
 	/* bypass = alternate function */
-	gennum_mask_val(spec, 0xfc, 0x00, GNGPIO_BYPASS_MODE);
+	gennum_mask_val(spec, 0xfc0, 0x00, GNGPIO_BYPASS_MODE);
 	/* direction 0 = output */
-	gennum_mask_val(spec, 0x44, 0x00, GNGPIO_DIRECTION_MODE);
-	gennum_mask_val(spec, 0xb8, 0xb8, GNGPIO_DIRECTION_MODE);
-	gennum_mask_val(spec, 0x44, 0x44, GNGPIO_OUTPUT_ENABLE);
+	gennum_mask_val(spec, 0x440, 0x000, GNGPIO_DIRECTION_MODE);
+	gennum_mask_val(spec, 0xb80, 0xb80, GNGPIO_DIRECTION_MODE);
+	gennum_mask_val(spec, 0x440, 0x440, GNGPIO_OUTPUT_ENABLE);
 
-	gennum_mask_val(spec, 0xb8, 0x00, GNGPIO_INT_TYPE); /* 0 = edge */
-	gennum_mask_val(spec, 0xb8, 0xb8, GNGPIO_INT_VALUE); /* 1 = raising */
-	gennum_mask_val(spec, 0xb8, 0x00, GNGPIO_INT_ON_ANY);
+	gennum_mask_val(spec, 0xb80, 0x000, GNGPIO_INT_TYPE); /* 0 = edge */
+	gennum_mask_val(spec, 0xb80, 0xb80, GNGPIO_INT_VALUE); /* 1 = raising */
+	gennum_mask_val(spec, 0xb80, 0x000, GNGPIO_INT_ON_ANY);
 
-	gennum_writel(spec, 0xb8, GNGPIO_INT_MASK_CLR); /* enable */
+	gennum_writel(spec, 0xb80, GNGPIO_INT_MASK_CLR); /* enable */
 	return 0;
 }
 
