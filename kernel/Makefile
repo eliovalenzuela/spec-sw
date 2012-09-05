@@ -21,6 +21,11 @@ spec-$(CONFIG_GPIOLIB) += spec-gpio.o
 
 wr-nic-y = wr-nic-core.o
 wr-nic-y += wr-nic-eth.o
+wr-nic-y += wr_nic/device.o
+wr-nic-y += wr_nic/endpoint.o
+wr-nic-y += wr_nic/ethtool.o
+wr-nic-y += wr_nic/nic-core.o
+wr-nic-y += wr_nic/timestamp.o
 wr-nic-$(CONFIG_GPIOLIB) += wr-nic-gpio.o
 
 
