@@ -73,7 +73,7 @@ static void mi2c_stop(struct fmc_device *fmc)
 	set_sda(fmc, 1);
 }
 
-int mi2c_put_byte(struct fmc_device *fmc, int data)
+static int mi2c_put_byte(struct fmc_device *fmc, int data)
 {
 	int i;
 	int ack;
@@ -95,7 +95,7 @@ int mi2c_put_byte(struct fmc_device *fmc, int data)
 	return ack ? -EIO : 0; /* ack low == success */
 }
 
-int mi2c_get_byte(struct fmc_device *fmc, unsigned char *data, int sendack)
+static int mi2c_get_byte(struct fmc_device *fmc, unsigned char *data, int ack)
 {
 	int i;
 	int indata = 0;
@@ -111,7 +111,7 @@ int mi2c_get_byte(struct fmc_device *fmc, unsigned char *data, int sendack)
 		set_scl(fmc, 0);
 	}
 
-	set_sda(fmc, (sendack ? 0 : 1));
+	set_sda(fmc, (ack ? 0 : 1));
 	set_scl(fmc, 1);
 	set_scl(fmc, 0);
 	set_sda(fmc, 0);
@@ -131,11 +131,8 @@ int mi2c_scan(struct fmc_device *fmc)
 	int i, found = 0;
 	for(i = 0; i < 256; i += 2) {
 		mi2c_start(fmc);
-		if(!mi2c_put_byte(fmc, i)) {
-			pr_info("%s: Found i2c device at 0x%x\n",
-			       KBUILD_MODNAME, i >> 1);
+		if(!mi2c_put_byte(fmc, i))
 			found++;
-		}
 		mi2c_stop(fmc);
 	}
 	return found;
