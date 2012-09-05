@@ -44,8 +44,6 @@ static struct sdb_array *__fmc_scan_sdb_tree(struct fmc_device *fmc,
 	/* So, the magic was there: get the count from offset 4*/
 	onew = __sdb_rd(fmc, address + 4, convert);
 	n = __be16_to_cpu(*(uint16_t *)&onew);
-	dev_info(fmc->hwdev, "address %lx, %i items (%08x) - c %i\n", address,
-		 n, onew, convert);
 	arr = kzalloc(sizeof(*arr), GFP_KERNEL);
 	if (arr) {
 		arr->record = kzalloc(sizeof(arr->record[0]) * n, GFP_KERNEL);
@@ -123,7 +121,7 @@ int fmc_free_sdb_tree(struct fmc_device *fmc)
 }
 EXPORT_SYMBOL(fmc_free_sdb_tree);
 
-static void __fmc_show_sdb_tree(struct sdb_array *arr)
+static void __fmc_show_sdb_tree(struct fmc_device *fmc, struct sdb_array *arr)
 {
 	int i, j, n = arr->len, level = arr->level;
 	struct sdb_array *ap;
@@ -133,15 +131,15 @@ static void __fmc_show_sdb_tree(struct sdb_array *arr)
 		union  sdb_record *r;
 		struct sdb_product *p;
 		struct sdb_component *c;
-		for (j = 0; j < level; j++)
-			printk("   ");
 		r = &arr->record[i];
 		c = &r->dev.sdb_component;
 		p = &c->product;
 		base = 0;
 		for (ap = arr; ap; ap = ap->parent)
 			base += ap->baseaddr;
-
+		dev_info(fmc->hwdev, "SDB: ");
+		for (j = 0; j < level; j++)
+			printk("   ");
 		switch(r->empty.record_type) {
 		case sdb_type_interconnect:
 			printk("%08llx:%08x %.19s\n",
@@ -168,7 +166,7 @@ static void __fmc_show_sdb_tree(struct sdb_array *arr)
 				       PTR_ERR(arr->subtree[i]));
 				break;
 			}
-			__fmc_show_sdb_tree(arr->subtree[i]);
+			__fmc_show_sdb_tree(fmc, arr->subtree[i]);
 			break;
 		case sdb_type_integration:
 			printk("integration\n");
@@ -187,7 +185,7 @@ void fmc_show_sdb_tree(struct fmc_device *fmc)
 {
 	if (!fmc->sdb)
 		return;
-	__fmc_show_sdb_tree(fmc->sdb);
+	__fmc_show_sdb_tree(fmc, fmc->sdb);
 }
 EXPORT_SYMBOL(fmc_show_sdb_tree);
 
