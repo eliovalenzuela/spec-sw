@@ -248,17 +248,16 @@ static void spec_irq_exit(struct fmc_device *fmc)
 static int check_golden(struct fmc_device *fmc)
 {
 	struct spec_dev *spec = fmc->carrier_data;
+	int ret;
 
 	/* poor man's SDB */
 	if (fmc_readl(fmc, 0x100) != 0x5344422d) {
 		dev_err(&spec->pdev->dev, "Can't find SDB magic\n");
 		return -ENODEV;
 	}
-	/* Offset 4 is number of records, version, bus type */
-	if (fmc_readl(fmc, 0x104) != 0x00020100) {
-		dev_err(&spec->pdev->dev, "unsexpected content of SDB\n");
+	if ( (ret = fmc_scan_sdb_tree(fmc, 0x100)) < 0)
 		return -ENODEV;
-	}
+
 	if (fmc_readl(fmc, 0x15c) != 0x0000ce42) {
 		dev_err(&spec->pdev->dev, "unsexpected vendor in SDB\n");
 		return -ENODEV;
@@ -267,6 +266,7 @@ static int check_golden(struct fmc_device *fmc)
 		dev_err(&spec->pdev->dev, "unsexpected device in SDB\n");
 		return -ENODEV;
 	}
+	fmc_show_sdb_tree(fmc);
 	return 0;
 }
 
