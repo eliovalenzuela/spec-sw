@@ -283,7 +283,7 @@ int spec_fmc_create(struct spec_dev *spec)
 	/* FIXME: many fields of the device are still NULL */
 	fmc->carrier_name = "SPEC";
 	fmc->carrier_data = spec;
-	fmc->base = spec->remap[0] + 0x80000; /* 512k window at 512k offset */
+	fmc->base = spec->remap[0]; /* 1M window at offset 0 */
 	fmc->irq = spec->pdev->irq;
 	fmc->op = &spec_fmc_operations;
 	fmc->hwdev = &spec->pdev->dev; /* for messages */
