@@ -9,26 +9,19 @@
  */
 #include <linux/module.h>
 #include <linux/init.h>
+#include <linux/platform_device.h>
 #include <linux/fmc.h>
 #include <linux/fmc-sdb.h>
-#include "spec-nic.h"
 #include "spec.h"
+#include "spec-nic.h"
+#include "wr_nic/wr-nic.h"
 
 static struct fmc_driver wrn_drv;
 
 static char *wrn_filename = WRN_GATEWARE_DEFAULT_NAME;
 module_param_named(file, wrn_filename, charp, 0444);
 
-irqreturn_t wrn_handler(int irq, void *dev_id)
-{
-	struct fmc_device *fmc = dev_id;
-
-	fmc->op->irq_ack(fmc);
-	printk("%s: irq %i\n", __func__, irq);
-	return IRQ_HANDLED;
-}
-
-int wrn_probe(struct fmc_device *fmc)
+int wrn_fmc_probe(struct fmc_device *fmc)
 {
 	int ret = 0;
 	struct device *dev = fmc->hwdev;
@@ -56,7 +49,7 @@ int wrn_probe(struct fmc_device *fmc)
 	}
 	dev_info(dev, "Gateware successfully loaded\n");
 
-	if ( (ret = fmc_scan_sdb_tree(fmc, 0x63000)) < 0) {
+	if ( (ret = fmc_scan_sdb_tree(fmc, WRN_SDB_ADDR)) < 0) {
 		dev_err(dev, "scan fmc failed %i\n", ret);
 		goto out;
 	}
@@ -72,37 +65,23 @@ int wrn_probe(struct fmc_device *fmc)
 	/* The netword device */
 	ret = wrn_eth_init(fmc);
 	if (ret < 0)
-		goto out_gpio;
-
-	/* The interrupt */
-	ret = fmc->op->irq_request(fmc, wrn_handler, "wr-nic", 0);
-	if (ret < 0) {
-		dev_err(dev, "Can't request interrupt\n");
-		goto out_nic;
-	}
-	return 0;
-
-out_nic:
-	wrn_eth_exit(fmc);
-out_gpio:
-	wrn_gpio_exit(fmc);
+		wrn_gpio_exit(fmc);
 out:
 	return ret;
 }
 
-int wrn_remove(struct fmc_device *fmc)
+int wrn_fmc_remove(struct fmc_device *fmc)
 {
-	fmc->op->irq_free(fmc);
 	wrn_eth_exit(fmc);
 	wrn_gpio_exit(fmc);
 	fmc_free_sdb_tree(fmc);
 	return 0;
 }
 
-static struct fmc_driver wrn_drv = {
+static struct fmc_driver wrn_fmc_drv = {
 	.driver.name = KBUILD_MODNAME,
-	.probe = wrn_probe,
-	.remove = wrn_remove,
+	.probe = wrn_fmc_probe,
+	.remove = wrn_fmc_remove,
 	/* no table, as the current match just matches everything */
 };
 
@@ -110,13 +89,18 @@ static int wrn_init(void)
 {
 	int ret;
 
-	ret = fmc_driver_register(&wrn_drv);
+        ret = platform_driver_register(&wrn_driver); /* nic-device.c */
+	if (!ret)
+		ret = fmc_driver_register(&wrn_fmc_drv);
+	if (ret < 0)
+		platform_driver_unregister(&wrn_driver);
 	return ret;
 }
 
 static void wrn_exit(void)
 {
-	fmc_driver_unregister(&wrn_drv);
+	fmc_driver_unregister(&wrn_fmc_drv);
+	platform_driver_unregister(&wrn_driver);
 }
 
 module_init(wrn_init);
