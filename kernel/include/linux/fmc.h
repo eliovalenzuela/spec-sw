@@ -73,6 +73,7 @@ struct fmc_device {
 	struct device dev;		/* For Linux use */
 	struct device *hwdev;		/* The underlying hardware device */
 	struct sdb_array *sdb;
+	void *mezzanine_data;
 };
 #define to_fmc_device(x) container_of((x), struct fmc_device, dev)
 
