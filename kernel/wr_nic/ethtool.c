@@ -70,7 +70,7 @@ static int wrn_nwayreset(struct net_device *dev)
 static void wrn_get_drvinfo(struct net_device *dev,
 			      struct ethtool_drvinfo *info)
 {
-	strlcpy(info->driver, DRV_NAME, sizeof(info->driver));
+	strlcpy(info->driver, KBUILD_MODNAME, sizeof(info->driver));
 	strlcpy(info->version, DRV_VERSION, sizeof(info->version));
 	strlcpy(info->bus_info, dev_name(dev->dev.parent),
 		sizeof(info->bus_info));

@@ -211,7 +211,7 @@ struct platform_driver wrn_driver = {
 	.remove		= wrn_remove, /* not __exit_p as probe calls it */
 	/* No suspend or resume by now */
 	.driver		= {
-		.name		= DRV_NAME,
+		.name		= KBUILD_MODNAME,
 		.owner		= THIS_MODULE,
 	},
 };
