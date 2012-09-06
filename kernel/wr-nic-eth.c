@@ -9,8 +9,12 @@
  */
 #include <linux/module.h>
 #include <linux/init.h>
+#include <linux/interrupt.h>
+#include <linux/platform_device.h>
 #include <linux/fmc.h>
-#include "wr-nic.h"
+#include <linux/fmc-sdb.h>
+#include "spec-nic.h"
+#include "wr_nic/wr-nic.h"
 #include "spec.h"
 
 int wrn_eth_init(struct fmc_device *fmc)

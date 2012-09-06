@@ -9,10 +9,9 @@
  */
 #include <linux/module.h>
 #include <linux/init.h>
-#include <linux/interrupt.h>
 #include <linux/fmc.h>
 #include <linux/fmc-sdb.h>
-#include "wr-nic.h"
+#include "spec-nic.h"
 #include "spec.h"
 
 static struct fmc_driver wrn_drv;
