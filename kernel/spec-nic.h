@@ -40,16 +40,21 @@
 #define WRN_SDB_EP	0x650c2d4f
 #define WRN_SDB_PPSG	0xde0d8ced
 #define WRN_SDB_TS	0x00000014
+#define WRN_SDB_VIC	0x00000013
 #define WRN_SDB_GPIO	0x441c5143
 #define WRN_SDB_WRDIO	0x00000001
 
 #define WRN_GATEWARE_DEFAULT_NAME "fmc/wr_nic_dio.bin"
+
+/* the various interrupt sources for the VIC */
+#define WRN_VIC_MASK_NIC  0x0002
 
 struct wrn_drvdata {
 	struct gpio_chip *gc;
 	struct wrn_dev *wrn;
 	struct fmc_device *fmc;
 	/* We also need the various base addresses here for fmc_writel/readl */
+	__iomem void *vic_base;
 	__iomem void *gpio_base;
 	__iomem void *wrdio_base;
 };
