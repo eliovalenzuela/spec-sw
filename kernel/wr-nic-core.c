@@ -89,18 +89,19 @@ static int wrn_init(void)
 {
 	int ret;
 
-        ret = platform_driver_register(&wrn_driver); /* nic-device.c */
-	if (!ret)
-		ret = fmc_driver_register(&wrn_fmc_drv);
+	ret = fmc_driver_register(&wrn_fmc_drv);
 	if (ret < 0)
-		platform_driver_unregister(&wrn_driver);
+		return ret;
+	platform_driver_register(&wrn_driver);
+	if (ret < 0)
+		fmc_driver_unregister(&wrn_fmc_drv);
 	return ret;
 }
 
 static void wrn_exit(void)
 {
-	fmc_driver_unregister(&wrn_fmc_drv);
 	platform_driver_unregister(&wrn_driver);
+	fmc_driver_unregister(&wrn_fmc_drv);
 }
 
 module_init(wrn_init);
