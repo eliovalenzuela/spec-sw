@@ -13,9 +13,10 @@
 #include <linux/platform_device.h>
 #include <linux/fmc.h>
 #include <linux/fmc-sdb.h>
+#include "spec.h"
 #include "spec-nic.h"
 #include "wr_nic/wr-nic.h"
-#include "spec.h"
+#include "wbgen-regs/vic-regs.h"
 
 /*
  * nic-device.c defines a platform driver. We need to allocate
@@ -35,24 +36,87 @@ static struct platform_device wrn_pdev = {
 	.dev.release = &wrn_release,
 };
 
+/* This is the interrupt handler, that uses the VIC to know which is which */
 irqreturn_t wrn_handler(int irq, void *dev_id)
 {
 	struct fmc_device *fmc = dev_id;
+	struct platform_device *pdev = fmc->mezzanine_data;
+	struct wrn_drvdata *drvdata;
+	struct VIC_WB *vic;
+	uint32_t mask;
+	irqreturn_t ret = IRQ_HANDLED;
 
 	fmc->op->irq_ack(fmc);
-	printk("%s: irq %i\n", __func__, irq);
-	return IRQ_HANDLED;
+
+	if (!pdev) {
+		/* too early, just do nothing */
+		printk("%s: irq %i\n", __func__, irq);
+		return ret;
+	}
+
+	drvdata = pdev->dev.platform_data;
+	vic = (typeof(vic))drvdata->vic_base;
+
+	mask = readl(&vic->RISR);
+	while (mask & WRN_VIC_MASK_NIC) {
+		ret = wrn_interrupt(irq, drvdata->wrn);
+		mask = readl(&vic->RISR);
+	}
+	writel(WRN_VIC_MASK_NIC, &vic->EOIR);
+
+	if (mask)
+		printk("%s: irq %i (mask %x)\n", __func__, irq, mask);
+	return ret;
 }
 
-static struct wrn_core {
+static int wrn_vic_init(struct fmc_device *fmc)
+{
+	struct platform_device *pdev = fmc->mezzanine_data;
+	struct wrn_drvdata *drvdata = pdev->dev.platform_data;
+	struct VIC_WB *vic = (typeof(vic))drvdata->vic_base;
+
+	writel(VIC_CTL_ENABLE | VIC_CTL_POL, &vic->CTL);
+	writel(0xff, &vic->IER);
+	return 0;
+}
+
+static void wrn_vic_exit(struct fmc_device *fmc)
+{
+	struct platform_device *pdev = fmc->mezzanine_data;
+	struct wrn_drvdata *drvdata = pdev->dev.platform_data;
+	struct VIC_WB *vic = (typeof(vic))drvdata->vic_base;
+
+	writel(0, &vic->IER);
+	writel(0, &vic->CTL);
+}
+
+struct wrn_core {
 	const char *name;
 	uint64_t vendor;
 	uint32_t device;
-} wrn_cores[] = {
+	int offset;
+};
+
+/* These cores are used by the nic driver itself */
+static struct wrn_core wrn_cores[] = {
 	[WRN_FB_NIC]  = {"NIC",		SDB_CERN,	WRN_SDB_NIC},
 	[WRN_FB_EP]   = {"Endpoint",	SDB_CERN,	WRN_SDB_EP},
 	[WRN_FB_PPSG] = {"PPS-Gen",	SDB_CERN,	WRN_SDB_PPSG},
 	[WRN_FB_TS]   = {"Tx-Stamp",	SDB_CERN,	WRN_SDB_TS},
+};
+
+/* These cores are used by the wr-nic fmc device */
+static struct wrn_core wrn_cores2[] = {
+	{
+		"VIC",		SDB_CERN,	WRN_SDB_VIC,
+		offsetof(struct wrn_drvdata, vic_base)
+	},{
+		"GPIO",		SDB_CERN,	WRN_SDB_GPIO,
+		offsetof(struct wrn_drvdata, gpio_base)
+	},{
+		"WR-DIO",	SDB_7SOL,	WRN_SDB_WRDIO,
+		offsetof(struct wrn_drvdata, wrdio_base)
+	}
 };
 
 int wrn_eth_init(struct fmc_device *fmc)
@@ -64,6 +128,8 @@ int wrn_eth_init(struct fmc_device *fmc)
 	struct wrn_dev *wrn;
 	struct wrn_core *c;
 	struct spec_dev *spec = fmc->carrier_data;
+	signed long start;
+	unsigned long size;
 	int i, ret;
 
 	ret = fmc->op->irq_request(fmc, wrn_handler, "wr-nic", 0);
@@ -83,8 +149,6 @@ int wrn_eth_init(struct fmc_device *fmc)
 		goto out_mem;
 
 	for (i = 0, c = wrn_cores; i < ARRAY_SIZE(wrn_cores); i++, c++) {
-		signed long start;
-		unsigned long size;
 
 		start = fmc_find_sdb_device(fmc->sdb, c->vendor, c->device,
 					    &size);
@@ -92,7 +156,6 @@ int wrn_eth_init(struct fmc_device *fmc)
 			dev_err(dev, "Can't find sdb core \"%s\"\n", c->name);
 			goto out_mem;
 		}
-		dev_info(dev, "core \"%s\": offset %08lx\n", c->name, start);
 		resarr[i].name = c->name;
 		resarr[i].flags = IORESOURCE_MEM;
 		/* FIXME: spec-specific for the io area to be remapped */
@@ -100,14 +163,25 @@ int wrn_eth_init(struct fmc_device *fmc)
 		resarr[i].end = resarr[i].start + size - 1;
 		resarr[i].parent = spec->area[0];
 	}
-
+	for (i = 0, c = wrn_cores2; i < ARRAY_SIZE(wrn_cores2); i++, c++) {
+		start = fmc_find_sdb_device(fmc->sdb, c->vendor, c->device,
+					    &size);
+		if (start < 0) {
+			dev_err(dev, "Can't find sdb core \"%s\"\n", c->name);
+			continue;
+		}
+		/* use c->offset to copy and already-remapped value */
+		*((void **)((u8 *)drvdata + c->offset)) = fmc->base + start;
+	}
+	printk("%p %p %p\n", drvdata->vic_base, drvdata->gpio_base,
+	       drvdata->wrdio_base);
 	pdev->resource = resarr;
 	pdev->num_resources = ARRAY_SIZE(wrn_cores);
 	drvdata->wrn = wrn;
 	drvdata->fmc = fmc;
-	/* FIXME: drvdata->gpio_base etc */
 	pdev->dev.platform_data = drvdata;
 	fmc->mezzanine_data = pdev;
+	wrn_vic_init(fmc);
 	platform_device_register(pdev);
 
 	wrn_pdev.id++; /* for the next one */
@@ -128,6 +202,7 @@ void wrn_eth_exit(struct fmc_device *fmc)
 	struct wrn_drvdata *drvdata = pdev->dev.platform_data;
 
 	platform_device_unregister(pdev);
+	wrn_vic_exit(fmc);
 	kfree(drvdata->wrn);
 	kfree(drvdata);
 	kfree(pdev->resource);
