@@ -173,10 +173,10 @@ static int wrn_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	/* Allocate a descriptor and id (start from last allocated) */
-	spin_lock_irqsave(&wrn->lock, flags);
+	//spin_lock_irqsave(&wrn->lock, flags);
 	desc = __wrn_alloc_tx_desc(wrn);
 	id = (wrn->id++) & 0xffff;
-	spin_unlock_irqrestore(&wrn->lock, flags);
+	//spin_unlock_irqrestore(&wrn->lock, flags);
 
 	if (desc < 0) /* error */
 		return desc;

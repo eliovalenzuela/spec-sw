@@ -10,6 +10,7 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
+#define DEBUG
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
@@ -23,16 +24,20 @@
 
 #include "wr-nic.h"
 #include "nic-mem.h"
+#include "../spec-nic.h"
 
 /* The remove function is used by probe, so it's not __devexit */
-static int __devexit wrn_remove(struct platform_device *pdev)
+static int wrn_remove(struct platform_device *pdev)
 {
-	struct wrn_dev *wrn = pdev->dev.platform_data;
+	struct wrn_drvdata *drvdata = pdev->dev.platform_data;
+	struct wrn_dev *wrn = drvdata->wrn;
 	int i;
 
+#if 0
 	spin_lock(&wrn->lock);
 	--wrn->use_count; /* Hmmm... looks like overkill... */
 	spin_unlock(&wrn->lock);
+#endif
 
 	/* First of all, stop any transmission */
 	writel(0, &wrn->regs->CR);
@@ -67,13 +72,15 @@ static int __devinit __wrn_map_resources(struct platform_device *pdev)
 	int i;
 	struct resource *res;
 	void __iomem *ptr;
-	struct wrn_dev *wrn = pdev->dev.platform_data;
+	struct wrn_drvdata *drvdata = pdev->dev.platform_data;
+	struct wrn_dev *wrn = drvdata->wrn;
 
 	/*
 	 * The memory regions are mapped once for all endpoints.
 	 * We don't populate the whole array, but use the resource list
 	 */
 	for (i = 0; i < pdev->num_resources; i++) {
+		printk("%s: %i\n", __func__, __LINE__);
 		res = platform_get_resource(pdev, IORESOURCE_MEM, i);
 		if (!res || !res->start)
 			continue;
@@ -95,7 +102,8 @@ static int __devinit wrn_probe(struct platform_device *pdev)
 {
 	struct net_device *netdev;
 	struct wrn_ep *ep;
-	struct wrn_dev *wrn = pdev->dev.platform_data;
+	struct wrn_drvdata *drvdata = pdev->dev.platform_data;
+	struct wrn_dev *wrn = drvdata->wrn;
 	int i, err = 0;
 
 	/* Lazily: irqs are not in the resource list */
@@ -103,16 +111,22 @@ static int __devinit wrn_probe(struct platform_device *pdev)
 	static char *irq_names[] = WRN_IRQ_NAMES;
 	static irq_handler_t irq_handlers[] = WRN_IRQ_HANDLERS;
 
+	printk("wrn = %p\n", wrn);
+
 	/* No need to lock_irq: we only protect count and continue unlocked */
+	printk("%s: %i\n", __func__, __LINE__);
+#if 0
 	spin_lock(&wrn->lock);
 	if (++wrn->use_count != 1) {
 		--wrn->use_count;
 		spin_unlock(&wrn->lock);
+		printk("use count %i\n", wrn->use_count);
 		return -EBUSY;
 	}
 	spin_unlock(&wrn->lock);
-
+#endif
 	/* Map our resource list and instantiate the shortcut pointers */
+	printk("%s: %i\n", __func__, __LINE__);
 	if ( (err = __wrn_map_resources(pdev)) )
 		goto out;
 	wrn->regs = wrn->bases[WRN_FB_NIC];
@@ -125,6 +139,7 @@ static int __devinit wrn_probe(struct platform_device *pdev)
 	printk("regs %p, txd %p, rxd %p, buffer %p\n",
 	       wrn->regs, wrn->txd, wrn->rxd, wrn->databuf);
 
+#if 0
 	/* Register the interrupt handlers (not shared) */
 	for (i = 0; i < ARRAY_SIZE(irq_names); i++) {
 		err = request_irq(irqs[i], irq_handlers[i],
@@ -132,6 +147,7 @@ static int __devinit wrn_probe(struct platform_device *pdev)
 		if (err) goto out;
 		wrn->irq_registered |= 1 << i;
 	}
+#endif
 	/* Reset the device, just to be sure, before making anything */
 	writel(0, &wrn->regs->CR);
 	mdelay(10);
@@ -165,6 +181,8 @@ static int __devinit wrn_probe(struct platform_device *pdev)
 		/* This endpoint went in properly */
 		wrn->dev[i] = netdev;
 	}
+	if (i == 0)
+		return -ENODEV; /* no endpoints */
 
 	for (i = 0; i < WRN_NR_TXDESC; i++) { /* Clear all tx descriptors */
 		struct wrn_txd *tx;
