@@ -63,6 +63,7 @@ int wrn_eth_init(struct fmc_device *fmc)
 	struct wrn_drvdata *drvdata;
 	struct wrn_dev *wrn;
 	struct wrn_core *c;
+	struct spec_dev *spec = fmc->carrier_data;
 	int i, ret;
 
 	ret = fmc->op->irq_request(fmc, wrn_handler, "wr-nic", 0);
@@ -94,8 +95,10 @@ int wrn_eth_init(struct fmc_device *fmc)
 		dev_info(dev, "core \"%s\": offset %08lx\n", c->name, start);
 		resarr[i].name = c->name;
 		resarr[i].flags = IORESOURCE_MEM;
-		resarr[i].start = (unsigned long)fmc->base + start;
+		/* FIXME: spec-specific for the io area to be remapped */
+		resarr[i].start = spec->area[0]->start + start;
 		resarr[i].end = resarr[i].start + size - 1;
+		resarr[i].parent = spec->area[0];
 	}
 
 	pdev->resource = resarr;
