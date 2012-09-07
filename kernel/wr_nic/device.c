@@ -106,10 +106,12 @@ static int __devinit wrn_probe(struct platform_device *pdev)
 	struct wrn_dev *wrn = drvdata->wrn;
 	int i, err = 0;
 
+#if 0
 	/* Lazily: irqs are not in the resource list */
 	static int irqs[] = WRN_IRQ_NUMBERS;
 	static char *irq_names[] = WRN_IRQ_NAMES;
 	static irq_handler_t irq_handlers[] = WRN_IRQ_HANDLERS;
+#endif
 
 	printk("wrn = %p\n", wrn);
 

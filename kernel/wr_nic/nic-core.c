@@ -159,7 +159,7 @@ static int wrn_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct wrn_ep *ep = netdev_priv(dev);
 	struct wrn_dev *wrn = ep->wrn;
 	struct skb_shared_info *info = skb_shinfo(skb);
-	unsigned long flags;
+	//unsigned long flags;
 	int desc;
 	int id;
 	int do_stamp = 0;
