@@ -158,6 +158,7 @@ static int __devinit wrn_probe(struct platform_device *pdev)
 	memset(wrn->dev, 0, sizeof(wrn->dev));
 	for (i = 0; i < WRN_NR_ENDPOINTS; i++) {
 		netdev = alloc_etherdev(sizeof(struct wrn_ep));
+		netdev->dev.parent = &pdev->dev;
 		if (!netdev) {
 			dev_err(&pdev->dev, "Etherdev alloc failed.\n");
 			err = -ENOMEM;
