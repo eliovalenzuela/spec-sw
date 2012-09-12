@@ -221,6 +221,12 @@ struct net_device_stats *wrn_get_stats(struct net_device *dev)
 	return NULL;
 }
 
+int __weak wrn_mezzanine_ioctl(struct net_device *dev, struct ifreq *rq,
+			       int cmd)
+{
+	return -ENOIOCTLCMD;
+}
+
 static int wrn_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 {
 	struct wrn_ep *ep = netdev_priv(dev);
@@ -255,6 +261,11 @@ static int wrn_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 		if (put_user(reg, (u32 *)rq->ifr_data) < 0)
 			return -EFAULT;
 		return 0;
+
+	case PRIV_MEZZANINE_ID:
+	case PRIV_MEZZANINE_CMD:
+		/* Pass this to the mezzanine driver, or use internal weak */
+		return wrn_mezzanine_ioctl(dev, rq, cmd);
 
 	default:
 		spin_lock_irq(&ep->lock);
