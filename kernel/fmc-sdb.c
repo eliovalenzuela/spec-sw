@@ -208,7 +208,7 @@ signed long fmc_find_sdb_device(struct sdb_array *tree,
 		if (!IS_ERR(tree->subtree[i]))
 			res = fmc_find_sdb_device(tree->subtree[i],
 						  vid, did, sz);
-		if (res > 0)
+		if (res >= 0)
 			return res + tree->baseaddr;
 		if (r->empty.record_type != sdb_type_device)
 			continue;
