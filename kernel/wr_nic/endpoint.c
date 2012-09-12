@@ -233,8 +233,16 @@ int wrn_endpoint_probe(struct net_device *dev)
 		return err == -ENODEV ? -EIO : err;
 	}
 
-	/* randomize a MAC address, so lazy users can avoid ifconfig */
-	random_ether_addr(dev->dev_addr);
+	if (0) {
+		/* randomize a MAC address, so lazy users can avoid ifconfig */
+		random_ether_addr(dev->dev_addr);
+	} else {
+		/* on the SPEC the lm32 already configured the mac address */
+		val = readl(&ep->ep_regs->MACH);
+		put_unaligned_be16(val, dev->dev_addr);
+		val = readl(&ep->ep_regs->MACL);
+		put_unaligned_be32(val, dev->dev_addr+2);
+	}
 
 	return 0;
 }
