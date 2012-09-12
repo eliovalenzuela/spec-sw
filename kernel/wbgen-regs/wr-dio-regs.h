@@ -10,8 +10,8 @@
 
 */
 
-#ifndef __WBGEN2_REGDEFS_WR-DIO
-#define __WBGEN2_REGDEFS_WR-DIO
+#ifndef __WBGEN2_REGDEFS_WR_DIO
+#define __WBGEN2_REGDEFS_WR_DIO
 
 #ifdef __KERNEL__
 #include <linux/types.h>
@@ -597,7 +597,7 @@ PACKED struct DIO_WB {
   /* [0x3c]: REG FMC-DIO output configuration register.  */
   uint32_t OUT;
   /* [0x40]: REG Time-programmable output strobe signal */
-  uint32_t LATCH;
+  uint32_t R_LATCH;
   /* [0x44]: REG FMC-DIO time trigger is ready to accept a new trigger generation request */
   uint32_t TRIG;
   /* [0x48]: REG fmc-dio channel 0 Programmable/immediate output pulse length */
