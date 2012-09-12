@@ -199,14 +199,18 @@ out_mem:
 void wrn_eth_exit(struct fmc_device *fmc)
 {
 	struct platform_device *pdev = fmc->mezzanine_data;
-	struct wrn_drvdata *drvdata = pdev->dev.platform_data;
+	struct wrn_drvdata *drvdata;
 
-	platform_device_unregister(pdev);
+	if (pdev)
+		platform_device_unregister(pdev);
 	wrn_vic_exit(fmc);
-	kfree(drvdata->wrn);
-	kfree(drvdata);
-	kfree(pdev->resource);
-	kfree(pdev);
+	if (pdev) {
+		drvdata = pdev->dev.platform_data;
+		kfree(drvdata->wrn);
+		kfree(drvdata);
+		kfree(pdev->resource);
+		kfree(pdev);
+	}
 	fmc->mezzanine_data = NULL;
 	fmc->op->irq_free(fmc);
 }
