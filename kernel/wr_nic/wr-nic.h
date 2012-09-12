@@ -173,6 +173,14 @@ enum wrn_resnames {
 #define PRIV_IOCREADREG		(SIOCDEVPRIVATE + 3)
 #define PRIV_IOCPHYREG		(SIOCDEVPRIVATE + 4)
 
+/* The last two available are used for mezzanine-private stuff */
+#define PRIV_MEZZANINE_ID	(SIOCDEVPRIVATE + 14)
+#define PRIV_MEZZANINE_CMD	(SIOCDEVPRIVATE + 15)
+
+extern int wrn_mezzanine_ioctl(struct net_device *dev, struct ifreq *rq,
+			       int cmd);
+
+
 #define NIC_READ_PHY_CMD(addr)  (((addr) & 0xff) << 16)
 #define NIC_RESULT_DATA(val) ((val) & 0xffff)
 #define NIC_WRITE_PHY_CMD(addr, value)  ((((addr) & 0xff) << 16) \
