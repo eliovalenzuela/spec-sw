@@ -159,7 +159,13 @@ int wrn_ep_open(struct net_device *dev)
 
 	/* Prepare the timer for link-up notifications */
 	setup_timer(&ep->ep_link_timer, wrn_ep_check_link, timerarg);
-	mod_timer(&ep->ep_link_timer, jiffies + WRN_LINK_POLL_INTERVAL);
+	if (0) {
+		/* not on spec */
+		mod_timer(&ep->ep_link_timer, jiffies + WRN_LINK_POLL_INTERVAL);
+	} else {
+		/* Assume it's already on */
+		netif_carrier_on(dev);
+	}
 	return 0;
 }
 
