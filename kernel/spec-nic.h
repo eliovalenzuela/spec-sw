@@ -36,6 +36,7 @@
 #define SDB_CERN 	0xce42LL
 #define SDB_7SOL	0x75cbLL
 
+#define WRN_SDB_RAM	0x66cfeb52
 #define WRN_SDB_NIC	0x00000012
 #define WRN_SDB_EP	0x650c2d4f
 #define WRN_SDB_PPSG	0xde0d8ced
@@ -43,8 +44,10 @@
 #define WRN_SDB_VIC	0x00000013
 #define WRN_SDB_GPIO	0x441c5143
 #define WRN_SDB_WRDIO	0x00000001
+#define WRN_SDB_SYSCON	0xff07fc47
 
 #define WRN_GATEWARE_DEFAULT_NAME "fmc/wr_nic_dio.bin"
+#define WRN_WRC_DEFAULT_NAME "fmc/wr_nic_dio-wrc.bin"
 
 /* the various interrupt sources for the VIC */
 #define WRN_VIC_MASK_NIC  0x0002

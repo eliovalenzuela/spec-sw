@@ -10,6 +10,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
+#include <linux/firmware.h>
 #include <linux/fmc.h>
 #include <linux/fmc-sdb.h>
 #include "spec.h"
@@ -21,11 +22,44 @@ static struct fmc_driver wrn_drv;
 static char *wrn_filename = WRN_GATEWARE_DEFAULT_NAME;
 module_param_named(file, wrn_filename, charp, 0444);
 
+static char *wrn_wrc_filename = WRN_WRC_DEFAULT_NAME;
+module_param_named(wrc, wrn_wrc_filename, charp, 0444);
+
+static int wrn_load_wrc(struct fmc_device *fmc, char *name,
+			unsigned long ram, unsigned long ramsize)
+{
+	const struct firmware *fw;
+	struct device *dev = fmc->hwdev;
+	int ret, count;
+	const uint32_t *p;
+
+	ret = request_firmware(&fw, name, dev);
+	if (ret < 0) {
+		dev_err(dev, "request firmware \"%s\": error %i\n",
+			name, ret);
+		return ret;
+	}
+	if (fw->size > ramsize) {
+		dev_err(dev, "firmware \"%s\" longer than ram (0x%lx)\n",
+			name, ramsize);
+		ret = -ENOMEM;
+		goto out;
+	}
+	for (count = 0, p = (void *)fw->data; count < fw->size; count += 4, p++)
+		fmc_writel(fmc, __cpu_to_be32(*p), ram + count);
+out:
+	release_firmware(fw);
+	return ret;
+}
+
+
 int wrn_fmc_probe(struct fmc_device *fmc)
 {
-	int ret = 0;
+	int need_wrc = 0, ret = 0;
 	struct device *dev = fmc->hwdev;
 	struct wrn_drvdata *dd;
+	signed long ram, syscon;
+	unsigned long ramsize;
 
 	/* Driver data */
 	dd = devm_kzalloc(&fmc->dev, sizeof(*dd), GFP_KERNEL);
@@ -55,14 +89,52 @@ int wrn_fmc_probe(struct fmc_device *fmc)
 	}
 	fmc_show_sdb_tree(fmc);
 
-	/* FIXME: load lm32 */
+	/*
+	 * The gateware may not be including the WRC code, or the
+	 * user may have asked for a specific file name. If so, load.
+	 */
+	ram = fmc_find_sdb_device(fmc->sdb, SDB_CERN, WRN_SDB_RAM, &ramsize);
+	syscon = fmc_find_sdb_device(fmc->sdb, SDB_CERN, WRN_SDB_SYSCON, NULL);
+	if (ram >= 0 && fmc_readl(fmc, ram) != __be32_to_cpu(0x98000000))
+		need_wrc = 1;
+	if (strcmp(wrn_wrc_filename, WRN_WRC_DEFAULT_NAME)) {
+		need_wrc = 1;
+		if (!strcmp(wrn_wrc_filename, "1"))
+			wrn_wrc_filename = WRN_WRC_DEFAULT_NAME;
+	}
+	if (need_wrc && ((ram < 0) || (syscon < 0))) {
+		dev_err(dev, "can't reprogram WRC: SDB failure\n");
+		goto out;
+	}
+	if (need_wrc) {
+		unsigned long j = jiffies + HZ/2;
+		printk("ram %lx syscon %lx\n", ram, syscon);
+		fmc_writel(fmc, 0x1deadbee, syscon);
+		while ( !(fmc_readl(fmc, syscon) & (1 << 28)) )
+			if (time_after(jiffies, j))
+				break;
+		if (time_after(jiffies, j)) {
+			dev_err(dev, "can't reset LM32\n");
+			fmc_writel(fmc, 0x0deadbee, syscon);
+			goto out;
+		}
+		ret = wrn_load_wrc(fmc, wrn_wrc_filename, ram, ramsize);
+		fmc_writel(fmc, 0x0deadbee, syscon);
+		if (ret)
+			goto out; /* message already reported */
+		if (fmc_readl(fmc, ram) != __be32_to_cpu(0x98000000))
+			dev_warn(dev, "possible failure in wrc load\n");
+		else
+			dev_info(dev, "WRC program reloaded from \"%s\"\n",
+				 wrn_wrc_filename);
+	}
 
 	/* Register the gpio stuff,  if we have kernel support */
 	ret = wrn_gpio_init(fmc);
 	if (ret < 0)
 		goto out;
 
-	/* The netword device */
+	/* The network device */
 	ret = wrn_eth_init(fmc);
 	if (ret < 0)
 		wrn_gpio_exit(fmc);
