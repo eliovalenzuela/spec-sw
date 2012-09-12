@@ -10,7 +10,6 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
-#define DEBUG
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
@@ -80,7 +79,6 @@ static int __devinit __wrn_map_resources(struct platform_device *pdev)
 	 * We don't populate the whole array, but use the resource list
 	 */
 	for (i = 0; i < pdev->num_resources; i++) {
-		printk("%s: %i\n", __func__, __LINE__);
 		res = platform_get_resource(pdev, IORESOURCE_MEM, i);
 		if (!res || !res->start)
 			continue;
@@ -113,10 +111,8 @@ static int __devinit wrn_probe(struct platform_device *pdev)
 	static irq_handler_t irq_handlers[] = WRN_IRQ_HANDLERS;
 #endif
 
-	printk("wrn = %p\n", wrn);
 
 	/* No need to lock_irq: we only protect count and continue unlocked */
-	printk("%s: %i\n", __func__, __LINE__);
 #if 0
 	spin_lock(&wrn->lock);
 	if (++wrn->use_count != 1) {
@@ -128,7 +124,6 @@ static int __devinit wrn_probe(struct platform_device *pdev)
 	spin_unlock(&wrn->lock);
 #endif
 	/* Map our resource list and instantiate the shortcut pointers */
-	printk("%s: %i\n", __func__, __LINE__);
 	if ( (err = __wrn_map_resources(pdev)) )
 		goto out;
 	wrn->regs = wrn->bases[WRN_FB_NIC];
@@ -138,8 +133,9 @@ static int __devinit wrn_probe(struct platform_device *pdev)
 	wrn->rxd = ((void *)wrn->regs) + 0x100; /* was: RX1_D1 */
 	wrn->databuf = (void *)wrn->regs + offsetof(struct NIC_WB, MEM);
 	tasklet_init(&wrn->rx_tlet, wrn_rx_interrupt, (unsigned long)wrn);
-	printk("regs %p, txd %p, rxd %p, buffer %p\n",
-	       wrn->regs, wrn->txd, wrn->rxd, wrn->databuf);
+	if (0)
+		printk("regs %p, txd %p, rxd %p, buffer %p\n",
+		       wrn->regs, wrn->txd, wrn->rxd, wrn->databuf);
 
 #if 0
 	/* Register the interrupt handlers (not shared) */
