@@ -13,7 +13,6 @@
 #include <linux/firmware.h>
 #include <linux/fmc.h>
 #include <linux/fmc-sdb.h>
-#include "spec.h"
 #include "spec-nic.h"
 #include "wr_nic/wr-nic.h"
 

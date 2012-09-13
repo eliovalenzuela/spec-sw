@@ -12,7 +12,6 @@
 #include <linux/slab.h>
 #include <linux/gpio.h>
 #include <linux/fmc.h>
-#include "spec.h"
 #include "spec-nic.h"
 
 static inline struct fmc_device *gc_to_fmc(struct gpio_chip *gc)

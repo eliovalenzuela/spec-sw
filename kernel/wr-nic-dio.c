@@ -10,9 +10,9 @@
 #include <linux/module.h>
 #include <linux/fmc.h>
 #include <linux/fmc-sdb.h>
-#include "spec.h"
 #include "spec-nic.h"
 #include "wr_nic/wr-nic.h"
+#include "wr-dio.h"
 
 int wrn_mezzanine_ioctl(struct net_device *dev, struct ifreq *rq,
 			       int cmd)
