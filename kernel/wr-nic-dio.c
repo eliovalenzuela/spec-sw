@@ -55,8 +55,7 @@ static int wrn_dio_cmd_out(struct wrn_drvdata *drvdata,
 		if (h2 != h1)
 			l = readl(&ppsg->CNTR_UTCLO);
 		now = l;
-		if (sizeof(now) > 4)
-			now |= h2 << 32;
+		SET_HI32(now, h2);
 		ts->tv_sec += now;
 		printk("relative: %li -> %li\n", now, ts->tv_sec);
 	}
@@ -66,11 +65,11 @@ static int wrn_dio_cmd_out(struct wrn_drvdata *drvdata,
 		/* not now: set relevant registers */
 		p = &dio->TRIG0;
 		p += (cmd->channel * 12);
+		printk("%i -> %p\n", GET_HI32(ts->tv_sec), p + 4);
+		writel(GET_HI32(ts->tv_sec), p + 4);
 		printk("%li -> %p\n", ts->tv_sec, p);
 		writel(ts->tv_sec, p);
-		if (sizeof(ts->tv_sec) > 4)
-			writel(ts->tv_sec >> 32, p + 4);
-		printk("%li -> %p\n", ts->tv_nsec, p+8);
+		printk("%li -> %p\n", ts->tv_nsec / 8, p + 8);
 		writel(ts->tv_nsec / 8, p + 8);
 	}
 
