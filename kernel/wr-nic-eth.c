@@ -116,6 +116,9 @@ static struct wrn_core wrn_cores2[] = {
 	},{
 		"WR-DIO",	SDB_7SOL,	WRN_SDB_WRDIO,
 		offsetof(struct wrn_drvdata, wrdio_base)
+	},{
+		"PPS-Gen",	SDB_CERN,	WRN_SDB_PPSG,
+		offsetof(struct wrn_drvdata, ppsg_base)
 	}
 };
 

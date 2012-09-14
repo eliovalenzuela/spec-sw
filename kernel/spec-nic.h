@@ -60,6 +60,7 @@ struct wrn_drvdata {
 	__iomem void *vic_base;
 	__iomem void *gpio_base;
 	__iomem void *wrdio_base;
+	__iomem void *ppsg_base;
 };
 
 /* wr-nic-eth.c */
