@@ -30,7 +30,7 @@ static int scan_pulse(int argc, char **argv)
 			prgname);
 		return -1;
 	}
-	if (sscanf(argv[1], "%i%c", &cmd->channel, &c) != 1
+	if (sscanf(argv[1], "%hi%c", &cmd->channel, &c) != 1
 		|| cmd->channel < 0
 		|| cmd->channel > 4) {
 		fprintf(stderr, "%s: stamp: not a channel number \"%s\"\n",
@@ -112,7 +112,7 @@ int main(int argc, char **argv)
 	 * TODO: stampm <mask>
 	 **/
 	if (!strcmp(argv[0], "pulse")) {
-		cmd->command = WR_DIO_CMD_OUT;
+		cmd->command = WR_DIO_CMD_PULSE;
 
 		if (scan_pulse(argc, argv) < 0)
 			exit(1);

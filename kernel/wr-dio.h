@@ -14,18 +14,46 @@
 
 /* This should be included by both the kernel and the tools */
 
+
 enum wr_dio_cmd_name {
-	WR_DIO_CMD_OUT,
+	WR_DIO_CMD_PULSE,
 	WR_DIO_CMD_STAMP,
 	WR_DIO_CMD_DAC,
+	WR_DIO_CMD_INOUT,
 };
+
+/*
+ * This is how parameters are used (K == reply from kernel):
+ *
+ *  CMD_PULSE:
+ *     cmd->flags: F_NOW, F_REL, F_MASK, F_LOOP
+ *     cmd->channel: the channel or the mask
+ *     cmd->t[]: either 3 or 5 * 3 values (start, duration, loop)
+ *
+ *  CMD_STAMP:
+ *     cmd->flags: F_MASK
+ *     cmd->channel: the channel or the mask
+ *     K: cmd->channel: the channel where we had stamps
+ *     K: cmd->nstamp: number of valid stamps
+ *     K: cmd->t[]: the stamps
+ *
+ *  CMD_DAC:
+ *     cmd->flags: none
+ *     cmd->channel: which one
+ *     cmd->value: the value
+ *
+ *  CMD_INOUT:
+ *     cmd->flags: F_MASK
+ *     cmd->channel: the channel or the mask
+ *     cmd->value: bits 0..4: data, bits 8..12 OEN (high active), 16..20 term
+ */
 
 #define WR_DIO_N_STAMP  16 /* At least 5 * 3 */
 
 struct wr_dio_cmd {
 	uint16_t command;	/* from user */
-	uint16_t value;		/* for DAC */
-	uint32_t channel;	/* 0..4 from user */
+	uint16_t channel;	/* 0..4 or mask from user */
+	uint32_t value;		/* for DAC or I/O */
 	uint32_t flags;
 	uint32_t nstamp;	/* from kernel, if IN_STAMP */
 	struct timespec t[WR_DIO_N_STAMP];	/* may be from user */

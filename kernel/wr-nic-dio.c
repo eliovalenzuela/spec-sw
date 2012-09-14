@@ -25,7 +25,7 @@
 #endif
 
 /* FIXME: should this access use fmc_readl/writel? */
-static int wrn_dio_cmd_out(struct wrn_drvdata *drvdata,
+static int wrn_dio_cmd_pulse(struct wrn_drvdata *drvdata,
 			   struct wr_dio_cmd *cmd)
 {
 	struct DIO_WB __iomem *dio = drvdata->wrdio_base;
@@ -125,13 +125,14 @@ int wrn_mezzanine_ioctl(struct net_device *dev, struct ifreq *rq,
 
 
 	switch(cmd->command) {
-	case WR_DIO_CMD_OUT:
-		ret = wrn_dio_cmd_out(drvdata, cmd);
+	case WR_DIO_CMD_PULSE:
+		ret = wrn_dio_cmd_pulse(drvdata, cmd);
 		break;
 	case WR_DIO_CMD_STAMP:
 		ret = wrn_dio_cmd_stamp(drvdata, cmd);
 		break;
 	case WR_DIO_CMD_DAC:
+	case WR_DIO_CMD_INOUT:
 		ret = -ENOTSUPP;
 		goto out;
 	default:
