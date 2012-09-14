@@ -28,7 +28,7 @@ struct wr_dio_cmd {
 	uint32_t channel;	/* 0..4 from user */
 	uint32_t flags;
 	uint32_t nstamp;	/* from kernel, if IN_STAMP */
-	struct timespec t[WR_DIO_N_STAMP];	/* t[0] may be from user */
+	struct timespec t[WR_DIO_N_STAMP];	/* may be from user */
 };
 
 #define WR_DIO_F_NOW	0x01	/* Output is now, t[0] ignored */
