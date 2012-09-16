@@ -1,5 +1,5 @@
-#ifndef __WR_NIC_H__
-#define __WR_NIC_H__
+#ifndef __SPEC_NIC_H__
+#define __SPEC_NIC_H__
 #include <linux/gpio.h>
 
 /*
@@ -28,20 +28,50 @@
  * --       0x200: DIO-GPIO
  * --       0x300: DIO-REGISTERS
  * (plus, at 63000 there are the sdb records)
+ *
+ * However, we are extracting this information from SDB
  */
+#define WRN_SDB_ADDR	0x63000
 
-#define WRN_GPIO	0x62200 /* "standard" GPIO registers */
-#define WRN_DIO		0x62300 /* time-aware gpio registers */
-#define WRN_SDB		0x63000
+#define SDB_CERN 	0xce42LL
+#define SDB_7SOL	0x75cbLL
 
+#define WRN_SDB_RAM	0x66cfeb52
+#define WRN_SDB_NIC	0x00000012
+#define WRN_SDB_EP	0x650c2d4f
+#define WRN_SDB_PPSG	0xde0d8ced
+#define WRN_SDB_TS	0x00000014
+#define WRN_SDB_VIC	0x00000013
+#define WRN_SDB_GPIO	0x441c5143
+#define WRN_SDB_WRDIO	0x00000001
+#define WRN_SDB_SYSCON	0xff07fc47
 
 #define WRN_GATEWARE_DEFAULT_NAME "fmc/wr_nic_dio.bin"
+#define WRN_WRC_DEFAULT_NAME "fmc/wr_nic_dio-wrc.bin"
+
+/* the various interrupt sources for the VIC */
+#define WRN_VIC_MASK_NIC  0x0002
+
+/* This is somehow generic, but I find no better place at this time */
+#ifndef SET_HI32
+#  if BITS_PER_LONG > 32
+#    define SET_HI32(var, value)	((var) |= (value) << 32)
+#    define GET_HI32(var)		((var) >> 32)
+#  else
+#    define SET_HI32(var, value)	((var) |= 0)
+#    define GET_HI32(var)		0
+#  endif
+#endif
 
 struct wrn_drvdata {
 	struct gpio_chip *gc;
-	struct net_device *eth;
+	struct wrn_dev *wrn;
+	struct fmc_device *fmc;
 	/* We also need the various base addresses here for fmc_writel/readl */
-	__iomem void *gpio_baseaddr;
+	__iomem void *vic_base;
+	__iomem void *gpio_base;
+	__iomem void *wrdio_base;
+	__iomem void *ppsg_base;
 };
 
 /* wr-nic-eth.c */

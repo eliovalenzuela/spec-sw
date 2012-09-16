@@ -3,3 +3,4 @@ spec-cl
 specmem
 spec-fwloader
 spec-vuart
+wr-dio-cmd
