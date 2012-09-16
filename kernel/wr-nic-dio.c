@@ -151,7 +151,52 @@ static int wrn_dio_cmd_pulse(struct wrn_drvdata *drvdata,
 static int wrn_dio_cmd_stamp(struct wrn_drvdata *drvdata,
 			     struct wr_dio_cmd *cmd)
 {
-	return -ENOTSUPP;
+	void __iomem *base = drvdata->wrdio_base;
+	struct timespec *ts = cmd->t;
+	struct regmap *map;
+	uint32_t reg;
+	int mask, ch, last;
+	int nstamp = 0;
+
+	if (cmd->flags & WR_DIO_F_MASK) {
+		ch = 0;
+		last = 4;
+		mask = cmd->channel;
+	} else {
+		ch = cmd->channel;
+		last = ch;
+		mask = (1 << ch);
+	}
+
+	/* handle the 1-channel and mask case in the same loop */
+	for (; ch <= last; ch++) {
+		if ((ch & mask) == 0)
+			continue;
+		map = regmap + ch;
+		while (1) {
+			if (nstamp == WR_DIO_N_STAMP)
+				break;
+			reg = readl(base + map->fifo_status);
+			printk("ctrl %08x\n", reg);
+			if (reg & 0x20000) /* empty */
+				break;
+
+			/* fifo is not-empty, pick one sample */
+			ts->tv_nsec = 8 * readl(base + map->fifo_cycle);
+			/* reading the low tai pops the fifo */
+			ts->tv_sec = 0;
+			SET_HI32(ts->tv_sec, readl(base + map->fifo_tai_h));
+			ts->tv_sec |= readl(base + map->fifo_tai_l);
+			nstamp++;
+			ts++;
+		}
+		if (nstamp) break;
+	}
+	cmd->nstamp = nstamp;
+	if (!nstamp)
+		return -EAGAIN;
+	cmd->channel = ch; /* if any, they are all of this channel */
+	return 0;
 }
 
 
