@@ -16,6 +16,9 @@
 
 char *prgname;
 char c;
+int sock;
+char *ifname;
+struct ifreq ifr;
 
 struct wr_dio_cmd _cmd;
 struct wr_dio_cmd *cmd = &_cmd;
@@ -26,15 +29,15 @@ static int scan_pulse(int argc, char **argv)
 	int n;
 
 	if (argc != 4) {
-		fprintf(stderr, "%s: stamp: wrong number of arguments\n",
-			prgname);
+		fprintf(stderr, "%s: %s: wrong number of arguments\n",
+			prgname, argv[0]);
 		return -1;
 	}
 	if (sscanf(argv[1], "%hi%c", &cmd->channel, &c) != 1
 		|| cmd->channel < 0
 		|| cmd->channel > 4) {
-		fprintf(stderr, "%s: stamp: not a channel number \"%s\"\n",
-			prgname, argv[1]);
+		fprintf(stderr, "%s: %s: not a channel number \"%s\"\n",
+			prgname, argv[0], argv[1]);
 		return -1;
 	}
 
@@ -48,8 +51,8 @@ static int scan_pulse(int argc, char **argv)
 		argv[2][10] = '\0';
 	}
 	if (sscanf(argv[2], ".%ld%c", &frac_ns, &c) < 1) {
-		fprintf(stderr, "%s: stamp: not a fraction \"%s\"\n",
-			prgname, argv[2]);
+		fprintf(stderr, "%s: %s: not a fraction \"%s\"\n",
+			prgname, argv[0], argv[2]);
 		return -1;
 	}
 	while (n < 9) {
@@ -65,19 +68,53 @@ static int scan_pulse(int argc, char **argv)
 		cmd->flags |= WR_DIO_F_REL;
 	if (!strcmp(argv[3], "now"))
 		cmd->flags |= WR_DIO_F_NOW;
+
+	ifr.ifr_data = (void *)cmd;
+	if (ioctl(sock, PRIV_MEZZANINE_CMD, &ifr) < 0) {
+		fprintf(stderr, "%s: ioctl(PRIV_MEZZANINE_CMD(%s)): %s\n",
+			prgname, ifname, strerror(errno));
+			return -1;
+	}
+	return 0;
+}
+
+static int scan_stamp(int argc, char **argv)
+{
+	int i;
+
+	if (argc != 1) {
+		fprintf(stderr, "%s: %s: wrong number of arguments\n",
+			prgname, argv[0]);
+		return -1;
+	}
+	/* Lazy: only scan all channels */
+	while (1) {
+		cmd->flags = WR_DIO_F_MASK;
+		cmd->channel = 0x1f;
+
+		errno = 0;
+		ifr.ifr_data = (void *)cmd;
+		if (ioctl(sock, PRIV_MEZZANINE_CMD, &ifr) < 0 ) {
+			if (errno == EAGAIN)
+				break;
+			fprintf(stderr, "%s: ioctl(PRIV_MEZZANINE_CMD(%s)): "
+				"%s\n", prgname, ifname, strerror(errno));
+			return -1;
+		}
+		for (i = 0; i < cmd->nstamp; i++)
+			printf("ch %i, %9li.%09li\n", cmd->channel,
+			       (long)cmd->t[i].tv_sec, cmd->t[i].tv_nsec);
+	}
 	return 0;
 }
 
 int main(int argc, char **argv)
 {
-	int sock;
-	char *ifname;
-	struct ifreq ifr;
 
 	prgname = argv[0];
 	argv++, argc--;
 
-	if (argc < 3) {
+	if (argc < 2) {
 		fprintf(stderr, "%s: use \"%s <netdev> <cmd> [...]\"\n",
 			prgname, prgname);
 		exit(1);
@@ -117,11 +154,17 @@ int main(int argc, char **argv)
 		if (scan_pulse(argc, argv) < 0)
 			exit(1);
 	}
+	else if (!strcmp(argv[0], "stamp")) {
+		cmd->command = WR_DIO_CMD_STAMP;
+
+		if (scan_stamp(argc, argv) < 0)
+			exit(1);
+	} else {
+		fprintf(stderr, "%s: unknown command \"%s\"\n", prgname,
+			argv[0]);
+		exit(1);
+	}
 
 	ifr.ifr_data = (void *)cmd;
-	if (ioctl(sock, PRIV_MEZZANINE_CMD, &ifr) < 0) {
-		fprintf(stderr, "%s: ioctl(PRIV_MEZZANINE_CMD(%s)): %s\n",
-			prgname, ifname, strerror(errno));
-	}
 	exit(0);
 }
