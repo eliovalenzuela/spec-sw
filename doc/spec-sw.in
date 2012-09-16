@@ -29,7 +29,6 @@
 @iftex
 @afourpaper
 @end iftex
-@paragraphindent 3mm
 @comment %**end of header
 
 @setchapternewpage off
@@ -50,6 +49,8 @@
 @iftex
 @contents
 @end iftex
+
+@paragraphindent 3mm
 
 @c ##########################################################################
 @node Top
