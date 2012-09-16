@@ -9,11 +9,22 @@
  */
 #ifndef __WR_DIO_H__
 #define __WR_DIO_H__
+/* This should be included by both the kernel and the tools */
 
 #include "wbgen-regs/wr-dio-regs.h"
 
-/* This should be included by both the kernel and the tools */
+/* For GPIO we have no wb-gen header */
+struct wrn_gpio_block {
+	uint32_t	clear;
+	uint32_t	set;
+	uint32_t	dir;
+	uint32_t	status;
+};
 
+/* And this is our bit mapping */
+#define WRN_GPIO_VALUE(bit)	(1 << ((4 * (bit)) + 0))
+#define WRN_GPIO_OE_N(bit)	(1 << ((4 * (bit)) + 1))
+#define WRN_GPIO_TERM(bit)	(1 << ((4 * (bit)) + 2))
 
 enum wr_dio_cmd_name {
 	WR_DIO_CMD_PULSE,
