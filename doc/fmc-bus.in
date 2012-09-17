@@ -99,7 +99,7 @@ may want to force the choice).
 
 Within this framework, the FMC device is created and registered by the
 carrier driver. For example, the PCI driver for the SPEC card fills a
-data structure for each SPEC that it drivers, and registers an
+data structure for each SPEC that it drives, and registers an
 associated FMC device.  The SVEC driver can do exactly the same for
 the VME carrier (actually, it should do it twice, because the SVEC
 carries two FMC mezzanines.  Similarly, an Etherbone driver will be

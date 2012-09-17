@@ -151,7 +151,7 @@ following steps:
       a minimal @i{sdb}-based verification).
 @item It reads the whole I2C EEPROM found on the mezzanine.
 @item It allocates an @i{fmc_device} structure and registers as
-      a nee device in the @i{fmc} bus.
+      a new device in the @i{fmc} bus.
 @end itemize
 
 Failure of any of the above steps is fatal.
