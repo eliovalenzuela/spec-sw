@@ -422,7 +422,7 @@ void wrn_rx_interrupt(unsigned long arg)
 		__wrn_rx_descriptor(wrn, desc);
 		wrn->next_rx = __wrn_next_desc(desc);
 	}
-	writel(WRN_IRQ_ALL, (void *)wrn->regs + 0x24 /* IER */);
+	writel(NIC_EIC_IER_RCOMP, (void *)wrn->regs + 0x24 /* IER */);
 }
 
 /* This, lazily, remains in hard-irq context */
@@ -489,8 +489,8 @@ irqreturn_t wrn_interrupt(int irq, void *dev_id)
 		 * what is needed for socket processing. So disable
 		 * the interrupt first, then run the tasklet
 		 */
-		writel(WRN_IRQ_ALL_BUT_RX, (void *)wrn->regs + 0x24 /* IER */);
-		writel(NIC_EIC_ISR_RCOMP, (void *)regs + 0x2c);
+		writel(NIC_EIC_ISR_RCOMP, (void *)wrn->regs + 0x2c /* ISR */);
+		writel(NIC_EIC_IDR_RCOMP, (void *)wrn->regs + 0x20 /* IDR */);
 		tasklet_schedule(&wrn->rx_tlet);
 	}
 	return IRQ_HANDLED;
