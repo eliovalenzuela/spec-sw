@@ -36,6 +36,8 @@ static struct platform_device wrn_pdev = {
 	.dev.release = &wrn_release,
 };
 
+#define WRN_ALL_MASK WRN_VIC_MASK_NIC
+
 /* This is the interrupt handler, that uses the VIC to know which is which */
 irqreturn_t wrn_handler(int irq, void *dev_id)
 {
@@ -46,11 +48,10 @@ irqreturn_t wrn_handler(int irq, void *dev_id)
 	uint32_t mask;
 	irqreturn_t ret = IRQ_HANDLED;
 
-	fmc->op->irq_ack(fmc);
-
 	if (!pdev) {
 		/* too early, just do nothing */
 		printk("%s: irq %i\n", __func__, irq);
+		fmc->op->irq_ack(fmc);
 		return ret;
 	}
 
@@ -66,6 +67,12 @@ irqreturn_t wrn_handler(int irq, void *dev_id)
 
 	if (mask)
 		printk("%s: irq %i (mask %x)\n", __func__, irq, mask);
+
+	fmc->op->irq_ack(fmc);
+	/* after ack, disable and re-enable the irq, so to force an edge */
+	writel(WRN_ALL_MASK, &vic->IDR);
+	writel(WRN_ALL_MASK, &vic->IER);
+
 	return ret;
 }
 
@@ -76,7 +83,7 @@ static int wrn_vic_init(struct fmc_device *fmc)
 	struct VIC_WB *vic = (typeof(vic))drvdata->vic_base;
 
 	writel(VIC_CTL_ENABLE | VIC_CTL_POL, &vic->CTL);
-	writel(0xff, &vic->IER);
+	writel(WRN_ALL_MASK, &vic->IER);
 	return 0;
 }
 
@@ -86,7 +93,7 @@ static void wrn_vic_exit(struct fmc_device *fmc)
 	struct wrn_drvdata *drvdata = pdev->dev.platform_data;
 	struct VIC_WB *vic = (typeof(vic))drvdata->vic_base;
 
-	writel(0, &vic->IER);
+	writel(0xff, &vic->IDR);
 	writel(0, &vic->CTL);
 }
 
@@ -184,8 +191,8 @@ int wrn_eth_init(struct fmc_device *fmc)
 	drvdata->fmc = fmc;
 	pdev->dev.platform_data = drvdata;
 	fmc->mezzanine_data = pdev;
-	wrn_vic_init(fmc);
 	platform_device_register(pdev);
+	wrn_vic_init(fmc);
 
 	wrn_pdev.id++; /* for the next one */
 	return 0;
@@ -204,9 +211,9 @@ void wrn_eth_exit(struct fmc_device *fmc)
 	struct platform_device *pdev = fmc->mezzanine_data;
 	struct wrn_drvdata *drvdata;
 
+	wrn_vic_exit(fmc);
 	if (pdev)
 		platform_device_unregister(pdev);
-	wrn_vic_exit(fmc);
 	if (pdev) {
 		drvdata = pdev->dev.platform_data;
 		kfree(drvdata->wrn);
