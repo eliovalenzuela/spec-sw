@@ -136,11 +136,97 @@ static int scan_stamp(int argc, char **argv, int ismask)
 				break;
 			fprintf(stderr, "%s: ioctl(PRIV_MEZZANINE_CMD(%s)): "
 				"%s\n", prgname, ifname, strerror(errno));
-			return -1;
+		return -1;
 		}
 		for (i = 0; i < cmd->nstamp; i++)
 			printf("ch %i, %9li.%09li\n", cmd->channel,
 			       (long)cmd->t[i].tv_sec, cmd->t[i].tv_nsec);
+	}
+	return 0;
+}
+
+static int one_mode(int c, int index)
+{
+	if (c == '-')
+		return 0;
+	cmd->channel |= 1 << index;
+
+	switch(c) {
+	case 'D':
+		cmd->value |= WR_DIO_INOUT_DIO << index;
+		cmd->value |= WR_DIO_INOUT_TERM << index;
+		break;
+
+	case 'd':
+		cmd->value |= WR_DIO_INOUT_DIO << index;
+		break;
+
+	case 'I':
+		cmd->value |= WR_DIO_INOUT_TERM << index;
+	case 'i':
+		break;
+
+	case '1':
+		cmd->value |= WR_DIO_INOUT_VALUE << index;
+	case '0':
+		cmd->value |= WR_DIO_INOUT_OUTPUT << index;
+		break;
+	default:
+		fprintf(stderr, "%s: mode: invalid mode '%c'\n",
+			prgname, c);
+		return -1;
+	}
+	return 0;
+}
+
+
+static int scan_inout(int argc, char **argv)
+{
+	int i, ch;
+	char c;
+
+	cmd->flags = WR_DIO_F_MASK;
+	cmd->channel = 0;
+	cmd->value = 0;
+
+	if (argc == 2) {
+		if (strlen(argv[1]) != 5) {
+			fprintf(stderr, "%s: %s: wrong argument \"%s\"\n",
+				prgname, argv[0], argv[1]);
+			exit(1);
+		}
+		for (i = 0; i < 5; i++)
+			if (one_mode(argv[1][i], i) < 0)
+				return -1;
+	} else {
+		if (argc < 3 || argc > 11 || ((argc & 1) == 0)) {
+			fprintf(stderr, "%s: %s: wrong number of arguments\n",
+				prgname, argv[0]);
+			return -1;
+		}
+		while (argc >= 3) {
+			if (sscanf(argv[1], "%i%c", &ch, &c) != 1
+			    || ch < 0 || ch > 4) {
+				fprintf(stderr, "%s: mode: invalid channel "
+					"\"%s\"\n", prgname,  argv[1]);
+				return -1;
+			}
+			if (strlen(argv[2]) != 1) {
+				fprintf(stderr, "%s: mode: invalid mode "
+					"\"%s\"\n", prgname,  argv[2]);
+				return -1;
+			}
+			if (one_mode(argv[2][0], ch) < 0)
+				return -1;
+			argv += 2;
+			argc -= 2;
+		}
+	}
+	ifr.ifr_data = (void *)cmd;
+	if (ioctl(sock, PRIV_MEZZANINE_CMD, &ifr) < 0) {
+		fprintf(stderr, "%s: ioctl(PRIV_MEZZANINE_CMD(%s)): %s\n",
+			prgname, ifname, strerror(errno));
+			return -1;
 	}
 	return 0;
 }
@@ -182,12 +268,14 @@ int main(int argc, char **argv)
 	 * pulse <ch> .<len> now
 	 * pulse <ch> .<len> +<seconds>.<fraction>
 	 *
-	 * TODO: stamp <channel>
-	 * TODO: stampm <mask>
-	 **/
+	 * stamp [<channel>]
+	 * stampm [<mask>]
+	 *
+	 * mode <01234>
+	 * mode <ch> <mode> [...]
+	 */
 	if (!strcmp(argv[0], "pulse")) {
 		cmd->command = WR_DIO_CMD_PULSE;
-
 		if (scan_pulse(argc, argv) < 0)
 			exit(1);
 	} else if (!strcmp(argv[0], "stamp")) {
@@ -197,6 +285,10 @@ int main(int argc, char **argv)
 	} else if (!strcmp(argv[0], "stampm")) {
 		cmd->command = WR_DIO_CMD_STAMP;
 		if (scan_stamp(argc, argv, 1 /* mask */) < 0)
+			exit(1);
+	} else if (!strcmp(argv[0], "mode")) {
+		cmd->command = WR_DIO_CMD_INOUT;
+		if (scan_inout(argc, argv) < 0)
 			exit(1);
 	} else {
 		fprintf(stderr, "%s: unknown command \"%s\"\n", prgname,

@@ -621,7 +621,12 @@ generated a MAC address using the serial number of the internal
 thermometer.
 
 The user is thus only expected to assign an Internet address to the
-Ethernet port and just use it to transfer data.
+Ethernet port and just use it to transfer data. If you need to change
+the MAC address, the command you need is something like the following:
+
+@example
+   ifconfig wr0 hw ether 12:34:56:78:9a:bc
+@end example
 
 The port supports hardware timestamping for user frames through the
 standard Linux mechanisms, but at this point no sample code is provided
@@ -779,7 +784,43 @@ The current version of the tool supports the following commands:
         is not modified. The @code{+} form is useful for simple checks with
         visual inspection.
 
+@item mode <channel> <mode> [<channel> <mode> ...]
+@itemx mode <mode0><mode1><mode2><mode3><mode4>
+
+	Configure one or more channel for the specified mode. Each mode
+        is one character, so the second form receives a 5-byte
+        string argument. Available modes are ``@code{I}'' (input),
+        ``@code{0}'' and ``@code{1}'' (output, steady state),
+        ``@code{D}'' (DIO core output) or ``@code{-}'' (unchanged).
+        A channel managed by the DIO core is normally low and can
+        pulse high on request (see @code{pulse}
+        command. Uppercase @code{D} or @code{I} select the termination
+        resistor, while lowercase @code{d} or @code{i} disable the termination
+        (output is always without termination, but I may add @code{L} and
+        @code{H} if needed: the driver supports all combinations).
+        Please note that the @code{pulse} command turns the affected channel in
+        @i{DIO} mode anyways (without changing the termination).
+
 @end table
+
+Example uses of the tool follow:
+
+@example
+   # Pulse channel 4 for 0.1 seconds now
+   wr-dio-cmd wr0 pulse 4 .1 now
+
+   # Pulse for 10 microseconds in the middle of the next second
+   wr-dio-cmd wr0 pulse 4 .00001 +1.5
+
+   # Pulse for 1ms at 17:00 today
+   wr-dio-cmd wr0 pulse 4 .001 $(date +%s --date 17:00)
+
+   # Get timestamps for the output events above
+   wr-dio-cmd wr0 stamp 4
+
+   # Configure channel 0 as input with termination, 1 as input, 4 as low
+   wr-dio-cmd wr0 mode Ii--0
+@end example
 
 @c ==========================================================================
 @node The Future of WR-NIC 

@@ -102,15 +102,15 @@ static int wrn_dio_cmd_pulse(struct wrn_drvdata *drvdata,
 	struct PPSG_WB __iomem *ppsg = drvdata->ppsg_base;
 	struct regmap *map;
 	struct timespec *ts;
-	uint32_t val;
+	uint32_t reg;
 
 	if (cmd->channel > 4)
 		return -EINVAL; /* FIXME: mask */
 	map = regmap + cmd->channel;
 
 	/* First, put this bit as output (FIXME: plain GPIO support?) */
-	val = readl(&dio->OUT) | (1 << cmd->channel);
-	writel(val, &dio->OUT);
+	reg = readl(&dio->OUT) | (1 << cmd->channel);
+	writel(reg, &dio->OUT);
 
 	ts = cmd->t;
 
@@ -208,6 +208,64 @@ static int wrn_dio_cmd_stamp(struct wrn_drvdata *drvdata,
 	return 0;
 }
 
+static int wrn_dio_cmd_inout(struct wrn_drvdata *drvdata,
+			     struct wr_dio_cmd *cmd)
+{
+	struct DIO_WB __iomem *dio = drvdata->wrdio_base;
+	int mask, ch, last, bits;
+	uint32_t reg;
+
+	if (cmd->flags & WR_DIO_F_MASK) {
+		ch = 0;
+		last = 4;
+		mask = cmd->channel;
+	} else {
+		ch = cmd->channel;
+		last = ch;
+		mask = (1 << ch);
+		cmd->value <<= ch;
+	}
+
+	/* handle the 1-channel and mask case in the same loop */
+	for (; ch <= last; ch++) {
+		if (((1 << ch) & mask) == 0)
+			continue;
+		/* select the bits by shifting back the value field */
+		bits = cmd->value >> ch;
+
+		/* termination is bit 2 (0x4); register 0 clears, reg 4 sets */
+		if (bits & WR_DIO_INOUT_TERM)
+			writel(0x4 << (4 * ch), drvdata->gpio_base + 4);
+		else
+			writel(0x4 << (4 * ch), drvdata->gpio_base + 0);
+
+		reg = readl(&dio->OUT) & ~(1 << ch);
+		if (bits & WR_DIO_INOUT_DIO) {
+			writel(reg | (1 << ch), &dio->OUT);
+			continue; /* if DIO, nothing more to do */
+		}
+		/* If not DIO, wait after we know if input or output */
+
+		if (!(bits & WR_DIO_INOUT_OUTPUT)) {
+			/* output-enable is low-active, so set bit 1 (0x2) */
+			writel(0x2 << (4 * ch), drvdata->gpio_base + 4);
+			writel(reg, &dio->OUT); /* not DIO */
+			continue; /* input, no value to be set */
+		}
+
+		/* Output value is bit 0 (0x1) */
+		if (bits & WR_DIO_INOUT_VALUE)
+			writel(0x1 << (4 * ch), drvdata->gpio_base + 4);
+		else
+			writel(0x1 << (4 * ch), drvdata->gpio_base + 0);
+		/* Then clear the low-active output enable, bit 1 (0x2) */
+		writel(0x2 << (4 * ch), drvdata->gpio_base + 0);
+
+		writel(reg, &dio->OUT); /* not DIO */
+	}
+	return 0;
+}
+
 
 int wrn_mezzanine_ioctl(struct net_device *dev, struct ifreq *rq,
 			       int ioctlcmd)
@@ -241,8 +299,10 @@ int wrn_mezzanine_ioctl(struct net_device *dev, struct ifreq *rq,
 	case WR_DIO_CMD_STAMP:
 		ret = wrn_dio_cmd_stamp(drvdata, cmd);
 		break;
-	case WR_DIO_CMD_DAC:
 	case WR_DIO_CMD_INOUT:
+		ret = wrn_dio_cmd_inout(drvdata, cmd);
+		break;
+	case WR_DIO_CMD_DAC:
 		ret = -ENOTSUPP;
 		goto out;
 	default:

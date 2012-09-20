@@ -56,8 +56,13 @@ enum wr_dio_cmd_name {
  *  CMD_INOUT:
  *     cmd->flags: F_MASK
  *     cmd->channel: the channel or the mask
- *     cmd->value: bits 0..4: data, bits 8..12 OEN (high active), 16..20 term
+ *     cmd->value: bits 0..4: WR-DIO, 8..12 value, 16..20 OEN, 24..28 term
  */
+
+#define WR_DIO_INOUT_DIO	(1 << 0)
+#define WR_DIO_INOUT_VALUE	(1 << 8)
+#define WR_DIO_INOUT_OUTPUT	(1 << 16)
+#define WR_DIO_INOUT_TERM	(1 << 24)
 
 #define WR_DIO_N_STAMP  16 /* At least 5 * 3 */
 
