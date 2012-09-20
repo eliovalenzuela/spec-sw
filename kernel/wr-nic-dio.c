@@ -187,12 +187,14 @@ static int wrn_dio_cmd_stamp(struct wrn_drvdata *drvdata,
 			if (reg & 0x20000) /* empty */
 				break;
 
-			/* fifo is not-empty, pick one sample */
-			ts->tv_nsec = 8 * readl(base + map->fifo_cycle);
+			/*
+			 * fifo is not-empty, pick one sample. Read
+			 * cycles last, as that operation pops the FIFO
+			 */
 			ts->tv_sec = 0;
 			SET_HI32(ts->tv_sec, readl(base + map->fifo_tai_h));
-			/* reading the low tai pops the fifo */
 			ts->tv_sec |= readl(base + map->fifo_tai_l);
+			ts->tv_nsec = 8 * readl(base + map->fifo_cycle);
 
 			/* subtract 5 cycles lost in input sync circuits */
 			wrn_ts_sub(ts, 40);
