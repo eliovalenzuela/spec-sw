@@ -100,20 +100,35 @@ static int scan_pulse(int argc, char **argv)
 	return 0;
 }
 
-static int scan_stamp(int argc, char **argv)
+static int scan_stamp(int argc, char **argv, int ismask)
 {
-	int i;
+	int i, ch;
+	char c;
 
-	if (argc != 1) {
+	if (argc == 1) {
+		ismask = 1;
+		ch = 0x1f;
+	} else if (argc == 2) {
+		if (sscanf(argv[1], "%i%c", &ch, &c) != 1) {
+			fprintf(stderr, "%s: %s: not a number \"%s\"\n",
+				prgname, argv[0], argv[1]);
+			exit(1);
+		}
+		if (ch < 0 || ch > 31 || (!ismask && ch > 4)) {
+			fprintf(stderr, "%s: %s: out of range value \"%s\"\n",
+				prgname, argv[0], argv[1]);
+			exit(1);
+		}
+	} else {
 		fprintf(stderr, "%s: %s: wrong number of arguments\n",
 			prgname, argv[0]);
 		return -1;
 	}
-	/* Lazy: only scan all channels */
-	while (1) {
+	if (ismask)
 		cmd->flags = WR_DIO_F_MASK;
-		cmd->channel = 0x1f;
 
+	while (1) {
+		cmd->channel = ch;
 		errno = 0;
 		ifr.ifr_data = (void *)cmd;
 		if (ioctl(sock, PRIV_MEZZANINE_CMD, &ifr) < 0 ) {
@@ -175,11 +190,13 @@ int main(int argc, char **argv)
 
 		if (scan_pulse(argc, argv) < 0)
 			exit(1);
-	}
-	else if (!strcmp(argv[0], "stamp")) {
+	} else if (!strcmp(argv[0], "stamp")) {
 		cmd->command = WR_DIO_CMD_STAMP;
-
-		if (scan_stamp(argc, argv) < 0)
+		if (scan_stamp(argc, argv, 0 /* no mask */) < 0)
+			exit(1);
+	} else if (!strcmp(argv[0], "stampm")) {
+		cmd->command = WR_DIO_CMD_STAMP;
+		if (scan_stamp(argc, argv, 1 /* mask */) < 0)
 			exit(1);
 	} else {
 		fprintf(stderr, "%s: unknown command \"%s\"\n", prgname,
