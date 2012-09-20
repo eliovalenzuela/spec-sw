@@ -86,6 +86,15 @@ static struct regmap regmap[] = {
 	}
 };
 
+static inline void wrn_ts_sub(struct timespec *ts, int nano)
+{
+	ts->tv_nsec -= nano;
+	if (ts->tv_nsec < 0) {
+		ts->tv_nsec += 1000 * 1000 * 1000;
+		ts->tv_sec--;
+	}
+}
+
 /* FIXME: should this access use fmc_readl/writel? */
 static int wrn_dio_cmd_pulse(struct wrn_drvdata *drvdata,
 			   struct wr_dio_cmd *cmd)
@@ -120,12 +129,12 @@ static int wrn_dio_cmd_pulse(struct wrn_drvdata *drvdata,
 		now = l;
 		SET_HI32(now, h2);
 		ts->tv_sec += now;
-		printk("relative: %li -> %li\n", now, ts->tv_sec);
 	}
 
 	/* if not "now", set trig, trigh, cycles */
 	if (!(cmd->flags & WR_DIO_F_NOW)) {
-		/* not now: set relevant registers */
+		/* Subtract 1 cycle, to count for output latencies */
+		wrn_ts_sub(ts, 8);
 		writel(ts->tv_nsec / 8, base + map->cycle);
 		writel(GET_HI32(ts->tv_sec), base + map->trig_h);
 		writel(ts->tv_sec, base + map->trig_l);
@@ -133,7 +142,6 @@ static int wrn_dio_cmd_pulse(struct wrn_drvdata *drvdata,
 
 	/* set the width */
 	ts++;
-	printk("%x\n", map->pulse);
 	writel(ts->tv_nsec / 8, base + map->pulse);
 
 	/* no loop yet (FIXME: interrupts) */
@@ -186,15 +194,8 @@ static int wrn_dio_cmd_stamp(struct wrn_drvdata *drvdata,
 			/* reading the low tai pops the fifo */
 			ts->tv_sec |= readl(base + map->fifo_tai_l);
 
-			/* At startup I get many zero values: discard them */
-			if (!ts->tv_sec)
-				continue;
 			/* subtract 5 cycles lost in input sync circuits */
-			ts->tv_nsec -= 40;
-			if (ts->tv_nsec < 0) {
-				ts->tv_nsec += 1000 * 1000 * 1000;
-				ts->tv_sec--;
-			}
+			wrn_ts_sub(ts, 40);
 			nstamp++;
 			ts++;
 		}
@@ -232,7 +233,6 @@ int wrn_mezzanine_ioctl(struct net_device *dev, struct ifreq *rq,
 	ret = -EFAULT;
 	if (copy_from_user(cmd, rq->ifr_data, sizeof(*cmd)))
 		goto out;
-
 
 	switch(cmd->command) {
 	case WR_DIO_CMD_PULSE:
