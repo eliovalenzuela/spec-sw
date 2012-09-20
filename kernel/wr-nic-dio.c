@@ -126,10 +126,9 @@ static int wrn_dio_cmd_pulse(struct wrn_drvdata *drvdata,
 	/* if not "now", set trig, trigh, cycles */
 	if (!(cmd->flags & WR_DIO_F_NOW)) {
 		/* not now: set relevant registers */
-		printk("%x %x %x\n", map->trig_h, map->trig_l, map->cycle);
+		writel(ts->tv_nsec / 8, base + map->cycle);
 		writel(GET_HI32(ts->tv_sec), base + map->trig_h);
 		writel(ts->tv_sec, base + map->trig_l);
-		writel(ts->tv_nsec / 8, base + map->cycle);
 	}
 
 	/* set the width */
@@ -177,16 +176,25 @@ static int wrn_dio_cmd_stamp(struct wrn_drvdata *drvdata,
 			if (nstamp == WR_DIO_N_STAMP)
 				break;
 			reg = readl(base + map->fifo_status);
-			printk("ctrl %08x\n", reg);
 			if (reg & 0x20000) /* empty */
 				break;
 
 			/* fifo is not-empty, pick one sample */
 			ts->tv_nsec = 8 * readl(base + map->fifo_cycle);
-			/* reading the low tai pops the fifo */
 			ts->tv_sec = 0;
 			SET_HI32(ts->tv_sec, readl(base + map->fifo_tai_h));
+			/* reading the low tai pops the fifo */
 			ts->tv_sec |= readl(base + map->fifo_tai_l);
+
+			/* At startup I get many zero values: discard them */
+			if (!ts->tv_sec)
+				continue;
+			/* subtract 5 cycles lost in input sync circuits */
+			ts->tv_nsec -= 40;
+			if (ts->tv_nsec < 0) {
+				ts->tv_nsec += 1000 * 1000 * 1000;
+				ts->tv_sec--;
+			}
 			nstamp++;
 			ts++;
 		}
