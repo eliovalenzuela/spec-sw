@@ -11,6 +11,7 @@
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/firmware.h>
+#include <linux/delay.h>
 #include <linux/fmc.h>
 #include <linux/fmc-sdb.h>
 #include "spec-nic.h"
@@ -127,6 +128,8 @@ int wrn_fmc_probe(struct fmc_device *fmc)
 			dev_info(dev, "WRC program reloaded from \"%s\"\n",
 				 wrn_wrc_filename);
 	}
+	/* After the LM32 started, give it time to set up */
+	msleep(200);
 
 	/* Register the gpio stuff,  if we have kernel support */
 	ret = wrn_gpio_init(fmc);
