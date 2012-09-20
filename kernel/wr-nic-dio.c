@@ -175,7 +175,7 @@ static int wrn_dio_cmd_stamp(struct wrn_drvdata *drvdata,
 
 	/* handle the 1-channel and mask case in the same loop */
 	for (; ch <= last; ch++) {
-		if ((ch & mask) == 0)
+		if (((1 << ch) & mask) == 0)
 			continue;
 		map = regmap + ch;
 		while (1) {
