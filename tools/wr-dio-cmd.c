@@ -26,7 +26,8 @@ struct wr_dio_cmd *cmd = &_cmd;
 static int scan_pulse(int argc, char **argv)
 {
 	unsigned long frac_ns;
-	int n;
+	char *s;
+	int i, n;
 
 	if (argc != 4) {
 		fprintf(stderr, "%s: %s: wrong number of arguments\n",
@@ -50,9 +51,9 @@ static int scan_pulse(int argc, char **argv)
 		n = 9;
 		argv[2][10] = '\0';
 	}
-	if (sscanf(argv[2], ".%ld%c", &frac_ns, &c) < 1) {
-		fprintf(stderr, "%s: %s: not a fraction \"%s\"\n",
-			prgname, argv[0], argv[2]);
+	if (sscanf(argv[2], ".%ld%c", &frac_ns, &c) != 1) {
+		fprintf(stderr, "%s: %s: not a fraction \"%s\" (please use "
+			"leading dot)\n", prgname, argv[0], argv[2]);
 		return -1;
 	}
 	while (n < 9) {
@@ -63,11 +64,32 @@ static int scan_pulse(int argc, char **argv)
 	cmd->t[1].tv_nsec = frac_ns;
 
 	/* Same problem with the time. But now it's integer only (FIXME) */
-	sscanf(argv[3], "%ld", &cmd->t[0].tv_sec);
-	if (argv[3][0] == '+')
-		cmd->flags |= WR_DIO_F_REL;
+	frac_ns = 0;
 	if (!strcmp(argv[3], "now"))
 		cmd->flags |= WR_DIO_F_NOW;
+	i = sscanf(argv[3], "%ld.%ld%c", &cmd->t[0].tv_sec, &frac_ns, &c);
+	if (i != 1 && i != 2 && !(cmd->flags & WR_DIO_F_NOW)) {
+		fprintf(stderr, "%s: %s: not a time value \"%s\"\n",
+		       prgname, argv[0], argv[3]);
+		return -1;
+	}
+	if (i == 2) {
+		/* FIXME: factorize this scanning of fractions */
+		s = strchr(argv[3], '.') + 1;
+		n = strlen(s);
+		if (n > 9) {
+			n = 9;
+			s[9] = '\0';
+		}
+		while (n < 9) {
+			frac_ns *= 10;
+			n++;
+		}
+	}
+	cmd->t[0].tv_nsec = frac_ns;
+
+	if (argv[3][0] == '+')
+		cmd->flags |= WR_DIO_F_REL;
 
 	ifr.ifr_data = (void *)cmd;
 	if (ioctl(sock, PRIV_MEZZANINE_CMD, &ifr) < 0) {
