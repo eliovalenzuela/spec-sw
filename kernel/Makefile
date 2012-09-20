@@ -1,7 +1,8 @@
 
 LINUX ?= /lib/modules/$(shell uname -r)/build
 
-ccflags-y = -I$M/include
+ccflags-y += -I$M/include
+ccflags-y += $(WR_NIC_CFLAGS)
 
 obj-m = fmc.o
 obj-m += spec.o

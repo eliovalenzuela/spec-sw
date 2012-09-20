@@ -16,8 +16,6 @@
 #include "wr_nic/wr-nic.h"
 #include "wr-dio.h"
 
-#define DIO_STAT
-
 #ifdef DIO_STAT
 #define wrn_stat 1
 #else
