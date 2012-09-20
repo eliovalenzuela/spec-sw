@@ -39,7 +39,7 @@
 
 @titlepage
 @title SPEC Software Support
-@subtitle Version 2.0-rc1 (@value{update-month})
+@subtitle (@value{update-month})
 @subtitle A driver for the SPEC card and its FMC modules
 @author Alessandro Rubini for CERN (BE-CO-HT)
 @end titlepage
@@ -627,9 +627,7 @@ The port supports hardware timestamping for user frames through the
 standard Linux mechanisms, but at this point no sample code is provided
 in this package.
 
-@b{Warning:} While frame transmission is perfectly working, there is
-still a problem in the RX data path and no data can be received with
-this version of the software and gateware.
+@b{Warning}: time stamping is not working, but we are on the problem.
 
 @c ==========================================================================
 @node Accessing the DIO Channels
@@ -691,15 +689,26 @@ non-selected channels are ignored by the driver.  To stop output
 generation, the application must request a starting time of 0.0
 seconds for the channels it wants to stop.
 
-@b{Warning}: there is a problem with pulse output at a specified time,
-only immediate pulse is working. The bug is in the FPGA binary and is
-being worked on.
-
 @b{Warning}: currently the @i{pulse train} mode is not supported
 by software.
       
-Specifics about the use of individual fields is shown in the driver itself
-and in the user-space programs that call the command.
+Specifics about the use of individual fields is shown in the header
+(in a big comment block), in the driver itself and in the user-space
+programs that call @i{ioctl}.
+
+In lab environments you may be concerned about the duration of the
+@i{ioctl} implementation, because it sometimes seems to do more work
+than needed. To verify whether we have an over-engineering problem in
+kernel space, I provided a simple measurement of how much time is
+spent in the @i{Ioctl} itself. The @i{make} variable
+@code{WR_NIC_CFLAGS} can be used to pass extra flags to the compiler,
+and the macro @code{DIO_STAT} enables the time measurement.
+Compiling with the following command thus enable such measurement
+and associated @i{printk} -- the time is usually 5 microseconds for me:
+
+@example
+   make WR_NIC_FLAGS=-DDIO_STAT
+@end example
 
 @c ==========================================================================
 @node WR-NIC User Tool
@@ -709,16 +718,22 @@ In the @file{tools/} subdirectory of this project, you find the
 @file{wr-dio-cmd} program, which is a command-line interface to the
 @i{ioctl} command to simplify initial access to the DIO device.
 
-Please note that neither timestamping nor pulse generation works
-if the WR core is running and has valid times: it must either be
-a master or a slave in synchronized state.
+Please note that neither timestamping nor pulse generation work
+if the WR core is not running or has an invalid time: it must either be
+a master or a synchronized slave.
+
+Moreover, please note that this tool is just a demonstration to quickly
+test the I/O features of the device (and for me to verify the kernel
+part is actually working): for serious use you should call
+@i{ioctl} by yourself with proper arguments, and avoid all the parsing
+of ASCII and repeated invocation of this program.
 
 This is the general syntax of the command:
 
 @example
    wr-dio-cmd <ifname> <cmd> [<args> ...]
 @end example
-@c FIXME:   wr-dio-cmd <ifname> <cmd> [<args> ...] [<cmd> [<args> ...]]
+@c FIXME:   wr-dio-cmd <ifname> <cmd> [<args> ...]
 
 The arguments have the following meaning
 
@@ -731,36 +746,40 @@ The arguments have the following meaning
 
 @item cmd
 
-	The specific command. Currently the tool supports @code{stamp}
-        and @code{pulse}.
+	The specific command. Supported commands are listed below.
+        Each command takes zero or more of arguments. If you pass
+        a wrong number of arguments no help is provided in the error
+        message. If one argument is wrong (e.g., not a number) the
+	error message is meant to be directly helpful.
 
 @end table
 
-@c FIXME: argument to stamp
-The @code{stamp} command currently takes no arguments. It reports
-to stdout all the available timestamps, scanning the FIFO for all
-channels in order.  Later I'll add a <i>channel</i> argument to restrict
-the report to only one channel (the driver already supports this).
+The current version of the tool supports the following commands:
 
-The @code{pulse} command receives three arguments:
+@table @code
 
-@example
-   wr-dio-cmd wr0 pulse <channel> <fraction> <start>
-@end example
+@item stamp [<channel>]
+@itemx stampm [<channel-mask>]
 
-The @code{channel} argument is a number, in the range 0-4. The
-@code{fraction} argument is a decimal number, for example @code{.1}
-representing the length in second of the pulse; the length is
-truncated to a multiple of 8ns.  The @code{start} argument is
-either the string @code{now}, or an absolute number of seconds, or
-a relative number of seconds. A relative time is expressed as
-@code{+@i{nr}} (for example, @code{+3}) and requests the pulse
-at the start of a second, @i{nr} seconds in the future.
+	The commands are used to retrieve timestamps from the card.
+        If no arguments are passed, the tool reports to @i{stdout} all
+        timestamps for all channels (they are ordered by channel, not
+        by time). If one integer argument is passed, it can be a channel
+        number in the range 0 to 4 (@code{stamp} command) or a mask
+        in the range 0 to 0x1f (@code{stampm} command).
 
-@c FIXME: support fractional starting times
+@item pulse <channel> <duration> <when>
 
-@b{Warning}: due to problems in the current gateware, only immediate
-pulses are actually generated by hardware.
+	Channel is an integer in the range 0 to 4. The duration must
+        be specified as a fraction of a second (decimal number, with
+        leading dot), the @code{when} argument can be the string @code{now},
+        an absolute time (@code{<seconds>.<fraction>}) or a relative
+        time (@code{+<seconds>.<fraction}). In the last case, the
+        current second is added to @code{<seconds>} while the fraction
+        is not modified. The @code{+} form is useful for simple checks with
+        visual inspection.
+
+@end table
 
 @c ==========================================================================
 @node The Future of WR-NIC 
@@ -863,16 +882,18 @@ The tools currently available are:
 @itemize @bullet
 
 @item Identification of the mezzanine is completely missing; every @i{fmc}
-driver at this point takes hold of every device.
+driver at this point takes hold of every device. We are working on this,
+and the next version of spec-sw will support identification, with a flag
+to run without identification for users whose EEPROM has not been programmed.
 
 @item Both spec and wr-nic should have GPIO support with @i{gpiolib};
-there is skeletal support but no real code for actual I/O.
-
-@item The NIC data transfer only works in the transmit direction. This looks
-like a bug in the gateware and we are investigating on both sides.
+there is skeletal support but no real code for actual I/O. This is not
+a priority, just a wish list for better Linux integration.
 
 @item The NIC driver should directly support setting the White Rabbit
-mode for each card (grandmaster, free-running master or slave).
+mode for each card (grandmaster, free-running master or slave). This
+will be supported at module load time, not at runtime (for that please
+use the UART).
 
 @item DIO support in @i{wr-nic} is missing some of the features listed
 in @file{wr-dio.h}.
@@ -881,12 +902,10 @@ in @file{wr-dio.h}.
 and timestamps to be collected without polling the FIFO.
 
 @item The @i{wr-nic} functionality should be completely detached from
-the specific mezzanine.
+the specific mezzanine. This is a longer-term desire.
 
 @item The package should be verified with a wide range of kernel versions.
 Currently I compiled and tested only under Linux-3.4.
-
-@item A number of temporary @i{printk} should be removed.
 
 @end itemize
 
@@ -897,4 +916,4 @@ Currently I compiled and tested only under Linux-3.4.
 @c  LocalWords:  gnudd titlepage iftex texinfo CERN documentlanguage settitle
 @c  LocalWords:  documentencoding setfilename afourpaper paragraphindent EEPROM
 @c  LocalWords:  setchapternewpage finalout eeprom gateware devmem devfn busid
-@c  LocalWords:  speclib Gennum
+@c  LocalWords:  speclib Gennum timestamps stampm ifname timespec timestamp
