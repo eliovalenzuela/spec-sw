@@ -12,7 +12,7 @@
 #define __WR_NIC_HARDWARE_H__
 
 /* This is the clock used in internal counters. */
-#define REFCLK_FREQ (125000000 / 2)
+#define REFCLK_FREQ (125000000)
 #define NSEC_PER_TICK (NSEC_PER_SEC / REFCLK_FREQ)
 
 /* The interrupt is one of those managed by our WRVIC device */
