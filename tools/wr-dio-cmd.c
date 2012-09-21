@@ -105,6 +105,11 @@ static int scan_stamp(int argc, char **argv, int ismask)
 	int i, ch;
 	char c;
 
+	cmd->flags = 0;
+	if (argc == 3 && !strcmp(argv[2], "wait")) {
+		cmd->flags = WR_DIO_F_WAIT;
+		argc = 2;
+	}
 	if (argc == 1) {
 		ismask = 1;
 		ch = 0x1f;

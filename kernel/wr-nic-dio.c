@@ -8,12 +8,14 @@
  * by CERN, the European Institute for Nuclear Research.
  */
 #include <linux/module.h>
+#include <linux/sched.h>
 #include <linux/wait.h>
 #include <linux/ktime.h>
 #include <linux/platform_device.h>
 #include <linux/uaccess.h>
 #include <linux/fmc.h>
 #include <linux/fmc-sdb.h>
+#include <linux/rtnetlink.h>
 #include "spec-nic.h"
 #include "wr_nic/wr-nic.h"
 #include "wr-dio.h"
@@ -179,6 +181,11 @@ static int wrn_dio_cmd_stamp(struct wrn_drvdata *drvdata,
 	int mask, ch, last;
 	int nstamp = 0;
 
+	if ((cmd->flags & (WR_DIO_F_MASK || WR_DIO_F_WAIT))
+	    == (WR_DIO_F_MASK || WR_DIO_F_WAIT))
+		return -EINVAL; /* wait on several channels not supported */
+
+again:
 	if (cmd->flags & WR_DIO_F_MASK) {
 		ch = 0;
 		last = 4;
@@ -188,7 +195,6 @@ static int wrn_dio_cmd_stamp(struct wrn_drvdata *drvdata,
 		last = ch;
 		mask = (1 << ch);
 	}
-
 	/* handle the 1-channel and mask case in the same loop */
 	for (; ch <= last; ch++) {
 		if (((1 << ch) & mask) == 0)
@@ -208,9 +214,25 @@ static int wrn_dio_cmd_stamp(struct wrn_drvdata *drvdata,
 		if (nstamp) break;
 	}
 	cmd->nstamp = nstamp;
+	if (nstamp)
+		cmd->channel = ch; /* if any, they are all of this channel */
+
+	/* The user may asketo wait for timestamps, but for 1 channel only */
+	if (!nstamp && cmd->flags & WR_DIO_F_WAIT) {
+		/*
+		 * HACK: since 2.1.68 (Nov 1997) the ioctl is called locked.
+		 * So we need to unlock, but that is dangerous for rmmod
+		 */
+		rtnl_unlock();
+		wait_event_interruptible(c->q, c->bhead != c->btail);
+		rtnl_lock();
+		if (signal_pending(current))
+			return -ERESTARTSYS;
+		goto again;
+	}
+
 	if (!nstamp)
 		return -EAGAIN;
-	cmd->channel = ch; /* if any, they are all of this channel */
 	return 0;
 }
 
@@ -382,7 +404,7 @@ irqreturn_t wrn_dio_interrupt(struct fmc_device *fmc)
 			wrn_ts_sub(ts, 40);
 		}
 		writel(chm, &dio->EIC_ISR); /* ack */
-
+		wake_up_interruptible(&c->q);
 		if (h != c->bhead) {
 			printk("ch %i, %i samples\n", c - d->ch, c->bhead - h);
 			/* FIXME: if needed, perform the action */

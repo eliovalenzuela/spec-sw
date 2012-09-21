@@ -738,9 +738,8 @@ of ASCII and repeated invocation of this program.
 This is the general syntax of the command:
 
 @example
-   wr-dio-cmd <ifname> <cmd> [<args> ...]
+   wr-dio-cmd <ifname> <cmd> [<arg> ...]
 @end example
-@c FIXME:   wr-dio-cmd <ifname> <cmd> [<args> ...]
 
 The arguments have the following meaning
 
@@ -765,7 +764,7 @@ The current version of the tool supports the following commands:
 
 @table @code
 
-@item stamp [<channel>]
+@item stamp [<channel>] [wait]
 @itemx stampm [<channel-mask>]
 
 	The commands are used to retrieve timestamps from the card.
@@ -773,7 +772,9 @@ The current version of the tool supports the following commands:
         timestamps for all channels (they are ordered by channel, not
         by time). If one integer argument is passed, it can be a channel
         number in the range 0 to 4 (@code{stamp} command) or a mask
-        in the range 0 to 0x1f (@code{stampm} command).
+        in the range 0 to 0x1f (@code{stampm} command). If getting stamps
+        for an individual channel, you can add the @code{wait} option
+        to have the tool wait for (and report) new timestamps until killed.
 
 @item pulse <channel> <duration> <when>
 

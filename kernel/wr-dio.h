@@ -47,7 +47,7 @@ enum wr_dio_cmd_name {
  *     cmd->t[]: either 3 or 5 * 3 values (start, duration, loop)
  *
  *  CMD_STAMP:
- *     cmd->flags: F_MASK
+ *     cmd->flags: F_MASK, F_WAIT
  *     cmd->channel: the channel or the mask
  *     K: cmd->channel: the channel where we had stamps
  *     K: cmd->nstamp: number of valid stamps
@@ -62,6 +62,7 @@ enum wr_dio_cmd_name {
  *     cmd->flags: F_MASK
  *     cmd->channel: the channel or the mask
  *     cmd->value: bits 0..4: WR-DIO, 8..12 value, 16..20 OEN, 24..28 term
+ *
  */
 
 #define WR_DIO_INOUT_DIO	(1 << 0)
@@ -84,5 +85,7 @@ struct wr_dio_cmd {
 #define WR_DIO_F_REL	0x02	/* t[0].tv_sec is relative */
 #define WR_DIO_F_MASK	0x04	/* Channel is 0x00..0x1f, use t[0..4,5..9] */
 #define WR_DIO_F_LOOP	0x08	/* Output should loop: t[2] is  looping*/
+#define WR_DIO_F_WAIT	0x10	/* Wait for event */
+
 
 #endif /* __WR_DIO_H__ */
