@@ -180,10 +180,6 @@ enum wrn_resnames {
 #define wrn_ep_read(ep, reg) __raw_readl(&(ep)->ep_regs->reg)
 #define wrn_ep_write(ep, reg, val) __raw_writel((val), &(ep)->ep_regs->reg)
 
-extern int wrn_mezzanine_ioctl(struct net_device *dev, struct ifreq *rq,
-			       int cmd);
-
-
 #define NIC_READ_PHY_CMD(addr)  (((addr) & 0xff) << 16)
 #define NIC_RESULT_DATA(val) ((val) & 0xffff)
 #define NIC_WRITE_PHY_CMD(addr, value)  ((((addr) & 0xff) << 16) \
@@ -245,6 +241,12 @@ extern void wrn_tstamp_find_skb(struct wrn_dev *wrn, int i);
 extern int wrn_tstamp_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
 extern irqreturn_t wrn_tstamp_interrupt(int irq, void *dev_id);
 extern void wrn_tstamp_init(struct wrn_dev *wrn);
+
+/* Locally weak, designed for a mezzanine driver to implement */
+extern int wrn_mezzanine_ioctl(struct net_device *dev, struct ifreq *rq,
+			       int cmd);
+extern int wrn_mezzanine_init(struct net_device *dev);
+extern void wrn_mezzanine_exit(struct net_device *dev);
 
 #endif /* __KERNEL__ */
 

@@ -224,11 +224,26 @@ struct net_device_stats *wrn_get_stats(struct net_device *dev)
 	return NULL;
 }
 
+/*
+ * If we have a mezzanine, we need the ioctl as well as init/exit. Provide
+ * three weak functions here, so to link even if no mezzanine is there.
+ */
 int __weak wrn_mezzanine_ioctl(struct net_device *dev, struct ifreq *rq,
 			       int cmd)
 {
 	return -ENOIOCTLCMD;
 }
+
+int __weak wrn_mezzanine_init(struct net_device *dev)
+{
+	return 0;
+}
+
+void __weak wrn_mezzanine_exit(struct net_device *dev)
+{
+	return;
+}
+
 
 static int wrn_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 {
