@@ -69,6 +69,7 @@ struct wrn_drvdata {
 	struct gpio_chip *gc;
 	struct wrn_dev *wrn;
 	struct fmc_device *fmc;
+	void *mezzanine_data;
 	/* We also need the various base addresses here for fmc_writel/readl */
 	__iomem void *vic_base;
 	__iomem void *gpio_base;

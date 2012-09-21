@@ -8,11 +8,12 @@
  * by CERN, the European Institute for Nuclear Research.
  */
 #include <linux/module.h>
-#include <linux/fmc.h>
-#include <linux/fmc-sdb.h>
+#include <linux/wait.h>
 #include <linux/ktime.h>
 #include <linux/platform_device.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
+#include <linux/fmc.h>
+#include <linux/fmc-sdb.h>
 #include "spec-nic.h"
 #include "wr_nic/wr-nic.h"
 #include "wr-dio.h"
@@ -83,6 +84,20 @@ static struct regmap regmap[] = {
 		.fifo_cycle = R(TSF4_R2),
 		.fifo_status = R(TSF4_CSR),
 	}
+};
+
+/* This is the structure we need to manage interrupts and loop internally */
+#define WRN_DIO_BUFFER_LEN  512
+struct dio_channel {
+	struct timespec tsbuf[WRN_DIO_BUFFER_LEN];
+	int bhead, btail;
+	wait_queue_head_t q;
+	int target_channel; /* -1 == none */
+	struct timespec  delay;
+};
+
+struct dio_device {
+	struct dio_channel ch[5];
 };
 
 static inline void wrn_ts_sub(struct timespec *ts, int nano)
@@ -157,10 +172,10 @@ static int wrn_dio_cmd_pulse(struct wrn_drvdata *drvdata,
 static int wrn_dio_cmd_stamp(struct wrn_drvdata *drvdata,
 			     struct wr_dio_cmd *cmd)
 {
-	void __iomem *base = drvdata->wrdio_base;
+	struct dio_device *d = drvdata->mezzanine_data;
+	struct dio_channel *c;
 	struct timespec *ts = cmd->t;
 	struct regmap *map;
-	uint32_t reg;
 	int mask, ch, last;
 	int nstamp = 0;
 
@@ -179,24 +194,14 @@ static int wrn_dio_cmd_stamp(struct wrn_drvdata *drvdata,
 		if (((1 << ch) & mask) == 0)
 			continue;
 		map = regmap + ch;
+		c = d->ch + ch;
 		while (1) {
 			if (nstamp == WR_DIO_N_STAMP)
 				break;
-			reg = readl(base + map->fifo_status);
-			if (reg & 0x20000) /* empty */
+			if (c->bhead == c->btail)
 				break;
-
-			/*
-			 * fifo is not-empty, pick one sample. Read
-			 * cycles last, as that operation pops the FIFO
-			 */
-			ts->tv_sec = 0;
-			SET_HI32(ts->tv_sec, readl(base + map->fifo_tai_h));
-			ts->tv_sec |= readl(base + map->fifo_tai_l);
-			ts->tv_nsec = 8 * readl(base + map->fifo_cycle);
-
-			/* subtract 5 cycles lost in input sync circuits */
-			wrn_ts_sub(ts, 40);
+			*ts = c->tsbuf[c->btail];
+			c->btail = (c->btail + 1) % WRN_DIO_BUFFER_LEN;
 			nstamp++;
 			ts++;
 		}
@@ -329,8 +334,94 @@ irqreturn_t wrn_dio_interrupt(struct fmc_device *fmc)
 	struct platform_device *pdev = fmc->mezzanine_data;
 	struct wrn_drvdata *drvdata = pdev->dev.platform_data;
 	struct DIO_WB __iomem *dio = drvdata->wrdio_base;
+	void __iomem *base = drvdata->wrdio_base;
+	struct dio_device *d = drvdata->mezzanine_data;
+	struct dio_channel *c;
+	struct timespec *ts;
+	struct regmap *map;
+	uint32_t mask, reg;
+	int ch, chm;
 
-	printk("%s: %x %x\n", __func__, readl(&dio->EIC_IMR),
-	       readl(&dio->EIC_ISR));
-	return IRQ_NONE;
+	if (unlikely(!fmc->eeprom)) {
+		dev_err(fmc->hwdev, "No mezzanine: disabling interrupts\n");
+		writel(0x1f, &dio->EIC_IDR);
+		writel(0x1f, &dio->EIC_ISR);
+		return IRQ_NONE;
+	}
+
+	mask = readl(&dio->EIC_ISR);
+
+	/* Three indexes: channel, channel-mask, channel pointer */
+	for (ch = 0, chm = 1, c = d->ch; mask; ch++, chm <<= 1, c++) {
+		int h;
+
+		if (!(mask & chm))
+			continue;
+		mask &= ~chm;
+
+		/* Pull the FIFOs to the device structure */
+		map = regmap + ch;
+		h = c->bhead;
+		while (1) {
+			reg = readl(base + map->fifo_status);
+			if (reg & 0x20000) /* empty */
+				break;
+			ts = c->tsbuf + h;
+			c->bhead = (h + 1) % WRN_DIO_BUFFER_LEN;
+			if (c->bhead == c->btail)
+				c->btail = (c->btail + 1) % WRN_DIO_BUFFER_LEN;
+			/*
+			 * fifo is not-empty, pick one sample. Read
+			 * cycles last, as that operation pops the FIFO
+			 */
+			ts->tv_sec = 0;
+			SET_HI32(ts->tv_sec, readl(base + map->fifo_tai_h));
+			ts->tv_sec |= readl(base + map->fifo_tai_l);
+			ts->tv_nsec = 8 * readl(base + map->fifo_cycle);
+			/* subtract 5 cycles lost in input sync circuits */
+			wrn_ts_sub(ts, 40);
+		}
+		writel(chm, &dio->EIC_ISR); /* ack */
+
+		if (h != c->bhead) {
+			printk("ch %i, %i samples\n", c - d->ch, c->bhead - h);
+			/* FIXME: if needed, perform the action */
+		}
+	}
+	return IRQ_HANDLED;
 }
+
+/* Init and exit below are called when a netdevice is created/destroyed */
+int wrn_mezzanine_init(struct net_device *dev)
+{
+	struct wrn_drvdata *drvdata = dev->dev.parent->platform_data;
+	struct DIO_WB __iomem *dio = drvdata->wrdio_base;
+	struct dio_device *d;
+	int i;
+
+	/* Allocate the data structure and enable interrupts for stamping */
+	d = kzalloc(sizeof(*d), GFP_KERNEL);
+	if (!d)
+		return -ENOMEM;
+	for (i = 0; i < ARRAY_SIZE(d->ch); i++)
+		init_waitqueue_head(&d->ch[i].q);
+	drvdata->mezzanine_data = d;
+
+	/*
+	 * Enable interrupts for FIFO, if there's no mezzanine the
+	 * handler will notice and disable the interrupts
+	 */
+	writel(0x1f, &dio->EIC_IER);
+	return 0;
+}
+
+void wrn_mezzanine_exit(struct net_device *dev)
+{
+	struct wrn_drvdata *drvdata = dev->dev.parent->platform_data;
+	struct DIO_WB __iomem *dio = drvdata->wrdio_base;
+
+	writel(0x1f, &dio->EIC_IDR);
+	if (drvdata->mezzanine_data)
+		kfree(drvdata->mezzanine_data);
+}
+
