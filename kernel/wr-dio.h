@@ -11,6 +11,7 @@
 #define __WR_DIO_H__
 /* This should be included by both the kernel and the tools */
 
+#ifdef __KERNEL__
 #include "wbgen-regs/wr-dio-regs.h"
 
 /* For GPIO we have no wb-gen header */
@@ -25,6 +26,10 @@ struct wrn_gpio_block {
 #define WRN_GPIO_VALUE(bit)	(1 << ((4 * (bit)) + 0))
 #define WRN_GPIO_OE_N(bit)	(1 << ((4 * (bit)) + 1))
 #define WRN_GPIO_TERM(bit)	(1 << ((4 * (bit)) + 2))
+
+extern irqreturn_t wrn_dio_interrupt(struct fmc_device *fmc);
+
+#endif /* __KERNEL__ */
 
 enum wr_dio_cmd_name {
 	WR_DIO_CMD_PULSE,

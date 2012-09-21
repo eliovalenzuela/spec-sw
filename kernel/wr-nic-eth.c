@@ -15,6 +15,7 @@
 #include <linux/fmc-sdb.h>
 #include "spec.h"
 #include "spec-nic.h"
+#include "wr-dio.h"
 #include "wr_nic/wr-nic.h"
 #include "wbgen-regs/vic-regs.h"
 
@@ -58,15 +59,15 @@ irqreturn_t wrn_handler(int irq, void *dev_id)
 	drvdata = pdev->dev.platform_data;
 	vic = (typeof(vic))drvdata->vic_base;
 
-	mask = readl(&vic->RISR);
-	while (mask & WRN_VIC_MASK_NIC) {
-		ret = wrn_interrupt(irq, drvdata->wrn);
-		mask = readl(&vic->RISR);
+	while ( (mask = readl(&vic->RISR)) ) {
+		if (mask & WRN_VIC_MASK_NIC)
+			ret = wrn_interrupt(irq, drvdata->wrn);
+		if (mask & WRN_VIC_MASK_TXTSU)
+			ret = wrn_tstamp_interrupt(irq, drvdata->wrn);
+		if (mask & WRN_VIC_MASK_DIO)
+			ret = wrn_dio_interrupt(fmc /* different arg! */);
+		writel(mask, &vic->EOIR);
 	}
-	writel(WRN_VIC_MASK_NIC, &vic->EOIR);
-
-	if (mask)
-		printk("%s: irq %i (mask %x)\n", __func__, irq, mask);
 
 	fmc->op->irq_ack(fmc);
 	/* after ack, disable and re-enable the irq, so to force an edge */

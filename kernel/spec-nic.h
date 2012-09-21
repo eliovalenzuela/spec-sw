@@ -50,7 +50,9 @@
 #define WRN_WRC_DEFAULT_NAME "fmc/wr_nic_dio-wrc.bin"
 
 /* the various interrupt sources for the VIC */
-#define WRN_VIC_MASK_NIC  0x0002
+#define WRN_VIC_MASK_TXTSU	0x0001
+#define WRN_VIC_MASK_NIC	0x0002
+#define WRN_VIC_MASK_DIO	0x0004
 
 /* This is somehow generic, but I find no better place at this time */
 #ifndef SET_HI32

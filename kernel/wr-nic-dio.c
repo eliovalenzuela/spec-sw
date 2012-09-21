@@ -11,6 +11,7 @@
 #include <linux/fmc.h>
 #include <linux/fmc-sdb.h>
 #include <linux/ktime.h>
+#include <linux/platform_device.h>
 #include <asm/uaccess.h>
 #include "spec-nic.h"
 #include "wr_nic/wr-nic.h"
@@ -320,4 +321,15 @@ out:
 		dev_info(&dev->dev, "ioctl: %li ns\n", (long)ktime_to_ns(t));
 	}
 	return ret;
+}
+
+irqreturn_t wrn_dio_interrupt(struct fmc_device *fmc)
+{
+	struct platform_device *pdev = fmc->mezzanine_data;
+	struct wrn_drvdata *drvdata = pdev->dev.platform_data;
+	struct DIO_WB __iomem *dio = drvdata->wrdio_base;
+
+	printk("%s: %x %x\n", __func__, readl(&dio->EIC_IMR),
+	       readl(&dio->EIC_ISR));
+	return IRQ_NONE;
 }
