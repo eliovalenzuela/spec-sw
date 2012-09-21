@@ -73,8 +73,9 @@ static int record_tstamp(struct wrn_dev *wrn, u32 tsval, u32 idreg, u32 r2)
 	u32 utc, counter_ppsg; /* PPS generator nanosecond counter */
 	int i; /* FIXME: use list for faster access */
 
-	/*printk("%s: Got TS: %x pid %d fid %d\n", __func__,
-		 tsval, port_id, frame_id);*/
+	if (0)
+		printk("%s: Got TS: %x pid %d fid %d\n", __func__,
+		       tsval, port_id, frame_id);
 
 	/* First of all look if the skb is already pending */
 	for (i = 0; i < WRN_NR_DESC; i++)
