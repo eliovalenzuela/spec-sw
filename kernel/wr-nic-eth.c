@@ -37,7 +37,7 @@ static struct platform_device wrn_pdev = {
 	.dev.release = &wrn_release,
 };
 
-#define WRN_ALL_MASK WRN_VIC_MASK_NIC
+#define WRN_ALL_MASK (WRN_VIC_MASK_NIC | WRN_VIC_MASK_TXTSU | WRN_VIC_MASK_DIO)
 
 /* This is the interrupt handler, that uses the VIC to know which is which */
 irqreturn_t wrn_handler(int irq, void *dev_id)
