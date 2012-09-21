@@ -39,7 +39,7 @@
 
 @titlepage
 @title SPEC Software Support
-@subtitle Version 2.0-rc2 (@value{update-month})
+@subtitle (@value{update-month})
 @subtitle A driver for the SPEC card and its FMC modules
 @author Alessandro Rubini for CERN (BE-CO-HT)
 @end titlepage
