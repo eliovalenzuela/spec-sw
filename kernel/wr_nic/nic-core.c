@@ -380,7 +380,6 @@ static void __wrn_rx_descriptor(struct wrn_dev *wrn, int desc)
 	/* RX timestamping part */
 
 	//wrn_ppsg_read_time(wrn, &counter_ppsg, &utc);
-	r1 |= NIC_RX1_D1_TS_INCORRECT; /* FIXME: temporary hack */
 
 	if(counter_ppsg < REFCLK_FREQ/4 && ts_r > 3*REFCLK_FREQ/4)
 		utc--;
