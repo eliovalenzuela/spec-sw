@@ -24,42 +24,52 @@
 //#define WRN_IRQ_RTUT		(WRN_IRQ_BASE + )
 
 /*
- *	spec-wr-nic memory map
+ *	spec-wr-nic memory map (from SDB dump):
  *
- *  0x00000 - 0x1ffff: RT Subsystem (ram etc)
- *  0x20000 - 0x200ff: Mini-NIC
- *  0x20100 - 0x201ff: Endpoint (not used here)
- *  0x20200 - 0x202ff: RT Subsystem SoftPLL-adv
- *  0x20300 - 0x203ff: pps generator
- *  0x20400 - 0x204ff: syscon
- *  0x20500 - 0x205ff: RT Subsystem UART
- *  0x20600 - 0x206ff: RT Subsystem Onewire
- *  0x20700 - 0x207ff: RT Subsystem Onewire
- *  0x40000 - 0x5ffff: WR-NIC
- *  0x60000 - 0x600ff: VIC core
- *  0x61000 - 0x610ff: timestamping unit
- *  0x62200 - 0x622ff: GPIO Port
- *  0x62300 - 0x623ff: WR-DIO
+ *  00000651:e6a542c9 WB4-Crossbar-GSI
+ *  0000ce42:00000011 WR-CORE             (bridge: 00000000)
+ *     00000651:e6a542c9 WB4-Crossbar-GSI
+ *     0000ce42:66cfeb52 WB4-BlockRAM        (00000000-00015fff)
+ *     00000651:eef0b198 WB4-Bridge-GSI      (bridge: 00020000)
+ *        00000651:e6a542c9 WB4-Crossbar-GSI
+ *        0000ce42:ab28633a WR-Mini-NIC         (00020000-000200ff)
+ *        0000ce42:650c2d4f WR-Endpoint         (00020100-000201ff)
+ *        0000ce42:65158dc0 WR-Soft-PLL         (00020200-000202ff)
+ *        0000ce42:de0d8ced WR-PPS-Generator    (00020300-000203ff)
+ *        0000ce42:ff07fc47 WR-Periph-Syscon    (00020400-000204ff)
+ *        0000ce42:e2d13d04 WR-Periph-UART      (00020500-000205ff)
+ *        0000ce42:779c5443 WR-Periph-1Wire     (00020600-000206ff)
+ *        0000ce42:779c5443 WR-Periph-1Wire     (00020700-000207ff)
+ *  0000ce42:00000012 WR-NIC              (00040000-0005ffff)
+ *  0000ce42:00000013 WB-VIC-Int.Control  (00060000-000600ff)
+ *  0000ce42:00000014 WR-TXTSU            (00061000-000610ff)
+ *  000075cb:00000002 WR-DIO-Core         (bridge: 00062000)
+ *     00000651:e6a542c9 WB4-Crossbar-GSI
+ *     0000ce42:779c5443 WR-1Wire-master     (00062000-000620ff)
+ *     0000ce42:123c5443 WB-I2C-Master       (00062100-000621ff)
+ *     0000ce42:441c5143 WB-GPIO-Port        (00062200-000622ff)
+ *     000075cb:00000001 WR-DIO-Registers    (00062300-000623ff)
+ * 
  */
 
 /* This is the base address of memory regions (gennum bridge, bar 0) */
-#define FPGA_BASE_LM32	0x00080000
-#define FPGA_SIZE_LM32	0x00010000
+#define FPGA_BASE_LM32	0x00000000
+#define FPGA_SIZE_LM32	0x00016000
 
-#define FPGA_BASE_NIC	0x000a0000
+#define FPGA_BASE_NIC	0x00020000
 #define FPGA_SIZE_NIC	0x00000100
 
-#define FPGA_BASE_EP	0x000a0100
+#define FPGA_BASE_EP	0x00020100
 #define FPGA_SIZE_EP	0x00000100
 #define FPGA_SIZE_EACH_EP	0x100 /* There is one only */
 
-#define FPGA_BASE_PPSG	0x000a0300
+#define FPGA_BASE_PPSG	0x00020300
 #define FPGA_SIZE_PPSG	0x00000100
 
-#define FPGA_BASE_VIC	0x000a4000 /* not used here */
-#define FPGA_SIZE_VIC	0x00001000
-#define FPGA_BASE_TS	0x000a8000
-#define FPGA_SIZE_TS	0x00001000
+#define FPGA_BASE_VIC	0x00060000 /* not used here */
+#define FPGA_SIZE_VIC	0x00000100
+#define FPGA_BASE_TS	0x00061000
+#define FPGA_SIZE_TS	0x0000 100
 
 enum fpga_blocks {
 	WRN_FB_NIC,
