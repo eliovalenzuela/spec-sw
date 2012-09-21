@@ -213,6 +213,7 @@ static int wrn_dio_cmd_inout(struct wrn_drvdata *drvdata,
 			     struct wr_dio_cmd *cmd)
 {
 	struct DIO_WB __iomem *dio = drvdata->wrdio_base;
+	struct wrn_gpio_block __iomem *gpio = drvdata->gpio_base;
 	int mask, ch, last, bits;
 	uint32_t reg;
 
@@ -236,9 +237,9 @@ static int wrn_dio_cmd_inout(struct wrn_drvdata *drvdata,
 
 		/* termination is bit 2 (0x4); register 0 clears, reg 4 sets */
 		if (bits & WR_DIO_INOUT_TERM)
-			writel(0x4 << (4 * ch), drvdata->gpio_base + 4);
+			writel(WRN_GPIO_TERM(ch), &gpio->set);
 		else
-			writel(0x4 << (4 * ch), drvdata->gpio_base + 0);
+			writel(WRN_GPIO_TERM(ch), &gpio->clear);
 
 		reg = readl(&dio->OUT) & ~(1 << ch);
 		if (bits & WR_DIO_INOUT_DIO) {
@@ -249,18 +250,18 @@ static int wrn_dio_cmd_inout(struct wrn_drvdata *drvdata,
 
 		if (!(bits & WR_DIO_INOUT_OUTPUT)) {
 			/* output-enable is low-active, so set bit 1 (0x2) */
-			writel(0x2 << (4 * ch), drvdata->gpio_base + 4);
+			writel(WRN_GPIO_OE_N(ch), &gpio->set);
 			writel(reg, &dio->OUT); /* not DIO */
 			continue; /* input, no value to be set */
 		}
 
 		/* Output value is bit 0 (0x1) */
 		if (bits & WR_DIO_INOUT_VALUE)
-			writel(0x1 << (4 * ch), drvdata->gpio_base + 4);
+			writel(WRN_GPIO_VALUE(ch), &gpio->set);
 		else
-			writel(0x1 << (4 * ch), drvdata->gpio_base + 0);
+			writel(WRN_GPIO_VALUE(ch), &gpio->clear);
 		/* Then clear the low-active output enable, bit 1 (0x2) */
-		writel(0x2 << (4 * ch), drvdata->gpio_base + 0);
+		writel(WRN_GPIO_OE_N(ch), &gpio->clear);
 
 		writel(reg, &dio->OUT); /* not DIO */
 	}
