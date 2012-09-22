@@ -23,15 +23,50 @@ struct ifreq ifr;
 struct wr_dio_cmd _cmd;
 struct wr_dio_cmd *cmd = &_cmd;
 
+static int parse_ts(char *s, struct timespec *ts)
+{
+	int i, n;
+	unsigned long nano;
+	char c;
+
+	/*
+ 	 * Hairy: if we scan "%ld%lf", the 0.009999 will become 9998 micro.
+	 * Thus, scan as integer and string, so we can count leading zeros
+	 */
+
+	nano = 0;
+	ts->tv_sec = 0;
+	ts->tv_nsec = 0;
+
+	if ( (i = sscanf(s, "%ld.%ld%c", &ts->tv_sec, &nano, &c)) == 1)
+		return 0; /* seconds only */
+	if (i == 3)
+		return -1; /* trailing crap */
+	if (i == 0)
+		if (sscanf(s, ".%ld%c", &nano, &c) != 1)
+			return -1; /* leading or trailing crap */
+
+	s = strchr(s, '.') + 1;
+	n = strlen(s);
+	if (n > 9)
+		return -1; /* too many decimals */
+	while (n < 9) {
+		nano *= 10;
+		n++;
+	}
+	ts->tv_nsec = nano;
+	return 0;
+}
+
 static int scan_pulse(int argc, char **argv)
 {
-	unsigned long frac_ns;
-	char *s;
-	int i, n;
+	char c;
 
-	if (argc != 4) {
+	if (argc != 4 && argc != 6) {
 		fprintf(stderr, "%s: %s: wrong number of arguments\n",
 			prgname, argv[0]);
+		fprintf(stderr, "  Use: %s <channel> <duration> <when> "
+			"[<period> <count>]\n", argv[0]);
 		return -1;
 	}
 	if (sscanf(argv[1], "%hi%c", &cmd->channel, &c) != 1
@@ -42,54 +77,51 @@ static int scan_pulse(int argc, char **argv)
 		return -1;
 	}
 
-	/*
- 	 * Hairy: if we scan "%ld%lf", the 0.009999 will become 9998 micro.
-	 * Thus, scan as integer and string, so we can count leading zeros
-	 */
-	n = strlen(argv[2]) - 1;
-	if (n > 9) {
-		n = 9;
-		argv[2][10] = '\0';
-	}
-	if (sscanf(argv[2], ".%ld%c", &frac_ns, &c) != 1) {
-		fprintf(stderr, "%s: %s: not a fraction \"%s\" (please use "
-			"leading dot)\n", prgname, argv[0], argv[2]);
+	/* Duration is first time argument but position 1 for ioctl */
+	if (parse_ts(argv[2], cmd->t + 1) < 0) {
+		fprintf(stderr, "%s: %s: invalid time \"%s\"\n",
+			prgname, argv[0], argv[2]);
 		return -1;
 	}
-	while (n < 9) {
-		frac_ns *= 10;
-		n++;
+	if (cmd->t[1].tv_sec) {
+		fprintf(stderr, "%s: %s: duration must be < 1s (got \"%s\")\n",
+			prgname, argv[0], argv[2]);
+		return -1;
 	}
 
-	cmd->t[1].tv_nsec = frac_ns;
-
-	/* Same problem with the time. But now it's integer only (FIXME) */
-	frac_ns = 0;
-	if (!strcmp(argv[3], "now"))
+	/* Next argument is the "when", position 0 in ioctl timestamp array */
+	if (!strcmp(argv[3], "now")) {
 		cmd->flags |= WR_DIO_F_NOW;
-	i = sscanf(argv[3], "%ld.%ld%c", &cmd->t[0].tv_sec, &frac_ns, &c);
-	if (i != 1 && i != 2 && !(cmd->flags & WR_DIO_F_NOW)) {
-		fprintf(stderr, "%s: %s: not a time value \"%s\"\n",
-		       prgname, argv[0], argv[3]);
-		return -1;
-	}
-	if (i == 2) {
-		/* FIXME: factorize this scanning of fractions */
-		s = strchr(argv[3], '.') + 1;
-		n = strlen(s);
-		if (n > 9) {
-			n = 9;
-			s[9] = '\0';
-		}
-		while (n < 9) {
-			frac_ns *= 10;
-			n++;
-		}
-	}
-	cmd->t[0].tv_nsec = frac_ns;
+	} else {
+		char *s2 = argv[3];
 
-	if (argv[3][0] == '+')
-		cmd->flags |= WR_DIO_F_REL;
+		if (s2[0] == '+') {
+			cmd->flags |= WR_DIO_F_REL;
+			s2++;
+		}
+
+		if (parse_ts(s2, cmd->t) < 0) {
+			fprintf(stderr, "%s: %s: invalid time \"%s\"\n",
+				prgname, argv[0], argv[3]);
+			return -1;
+		}
+	}
+
+	/* If argc is 6, we have period and count */
+	if (argc == 6) {
+		cmd->flags |= WR_DIO_F_LOOP;
+
+		if (parse_ts(argv[4], cmd->t + 2) < 0) {
+			fprintf(stderr, "%s: %s: invalid time \"%s\"\n",
+				prgname, argv[0], argv[4]);
+			return -1;
+		}
+		if (sscanf(argv[5], "%i%c", &cmd->value, &c) != 1) {
+			fprintf(stderr, "%s: %s: invalid count \"%s\"\n",
+				prgname, argv[0], argv[5]);
+			return -1;
+		}
+	}
 
 	ifr.ifr_data = (void *)cmd;
 	if (ioctl(sock, PRIV_MEZZANINE_CMD, &ifr) < 0) {
@@ -115,18 +147,24 @@ static int scan_stamp(int argc, char **argv, int ismask)
 		ch = 0x1f;
 	} else if (argc == 2) {
 		if (sscanf(argv[1], "%i%c", &ch, &c) != 1) {
-			fprintf(stderr, "%s: %s: not a number \"%s\"\n",
+			fprintf(stderr, "%s: %s: not a channel \"%s\"\n",
 				prgname, argv[0], argv[1]);
 			exit(1);
 		}
 		if (ch < 0 || ch > 31 || (!ismask && ch > 4)) {
-			fprintf(stderr, "%s: %s: out of range value \"%s\"\n",
+			fprintf(stderr, "%s: %s: out of range channel \"%s\"\n",
 				prgname, argv[0], argv[1]);
 			exit(1);
 		}
 	} else {
 		fprintf(stderr, "%s: %s: wrong number of arguments\n",
 			prgname, argv[0]);
+		if (ismask)
+			fprintf(stderr, "  Use: %s [<channel-mask>]\n",
+				argv[0]);
+		else
+			fprintf(stderr, "  Use: %s [<channel>] [wait]\n",
+				argv[0]);
 		return -1;
 	}
 	if (ismask)

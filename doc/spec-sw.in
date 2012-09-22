@@ -754,8 +754,8 @@ The arguments have the following meaning
 
 	The specific command. Supported commands are listed below.
         Each command takes zero or more of arguments. If you pass
-        a wrong number of arguments no help is provided in the error
-        message. If one argument is wrong (e.g., not a number) the
+        a wrong number of arguments you'll get help, and
+        if one argument is wrong (e.g., not a number) the
 	error message is meant to be directly helpful.
 
 @end table
@@ -776,16 +776,18 @@ The current version of the tool supports the following commands:
         for an individual channel, you can add the @code{wait} option
         to have the tool wait for (and report) new timestamps until killed.
 
-@item pulse <channel> <duration> <when>
+@item pulse <channel> <duration> <when> [<period> <count>]
 
 	Channel is an integer in the range 0 to 4. The duration must
-        be specified as a fraction of a second (decimal number, with
-        leading dot), the @code{when} argument can be the string @code{now},
+        be specified as a fraction of a second (decimal number, less than
+        one second), the @code{when} argument can be the string @code{now},
         an absolute time (@code{<seconds>.<fraction>}) or a relative
         time (@code{+<seconds>.<fraction}). In the last case, the
         current second is added to @code{<seconds>} while the fraction
         is not modified. The @code{+} form is useful for simple checks with
-        visual inspection.
+        visual inspection.  @code{period}, if specified, requests for
+        a pulse train, with that separation from the raising edges;
+        @code{count} is the number of instances to run (0 means forever).
 
 @item mode <channel> <mode> [<channel> <mode> ...]
 @itemx mode <mode0><mode1><mode2><mode3><mode4>
@@ -805,6 +807,15 @@ The current version of the tool supports the following commands:
         @i{DIO} mode anyways (without changing the termination).
 
 @end table
+
+Please note that generation of a pulse train is performed in kernel space,
+because the @i{simple DIO} card and gateware can only emit one pulse at
+a requested @i{White Rabbit} time. For this reason you'll have a lower
+limit for the pulse duration, according to how powerful your computer
+is -- and how much you loaded with other tasks.
+
+There is no command to flush the timestamp FIFOs, but you can
+always ``@code{wr-dio-cmd stamp > /dev/null}'' if needed.
 
 Example uses of the tool follow:
 
