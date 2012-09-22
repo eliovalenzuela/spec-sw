@@ -89,9 +89,10 @@ set the following variables in your environment:
 
 	The top directory of the kernel sources for the version you
         are going to run the driver under. I'm testing mostly with 3.4,
-	but this version compiles against Linux-2.6.36 and later ones
-        (2.6.35 had a different interface for hardware timestamping,
-        so @i{fmc} and @i{spec} compile fine, but @i{wr-nic} does not.
+	but this version compiles against Linux-2.6.37 and later ones
+        (2.6.36 had a different interface for hardware timestamping,
+        so @i{fmc} and @i{spec} compile fine, but @i{wr-nic} does not
+        because of its support for timestamping Ethernet frames.
 
 @item CROSS_COMPILE
 
@@ -834,6 +835,9 @@ Example uses of the tool follow:
    # Get timestamps for the output events above
    wr-dio-cmd wr0 stamp 4
 
+   # Make a train of 5 pulses, 0.5ms wide, every ms at next second
+   wr-dio-cmd wr0 stamp 4 0.0005 +1 .001 5
+
    # Configure channel 0 as input with termination, 1 as input, 4 as low
    wr-dio-cmd wr0 mode Ii--0
 @end example
@@ -858,6 +862,148 @@ the channel number is a mandatory argument.
    # run pps on channel 0 of the "second" card
    ./wr-nic-pps wr1 0
 @end example
+
+The following figure shows two such @i{pulse-per-second} signals
+retrieved from two different @i{simple-DIO} cards, connected by a 10km
+roll of fiber, after syncing the two @i{White Rabbit} on-board systems
+(one as master and the other as slave).  Increasing the horizontal
+scale of the scope, found the leading edge of the PPS signal differed
+by exactly 8ns, because of different delay figures in the two pairs of
+boards (the SPEC and the @i{simple-DIO}).  A more complete
+experimental setup would include calibration of the internal delays of
+the boards, like the mechanism in place for the @i{fine-delay}
+mezzanine card (see
+@url{http://www.ohwr.org/projects/fmc-delay-1ns-8cha} and
+@url{http://www.ohwr.org/projects/fine-delay-sw}).
+
+@sp 1
+@center @image{two-pps, 10cm}
+@sp 1
+
+
+@c ==========================================================================
+@node Distributing Output Pulses
+@section Distributing Output Pulses
+
+A typical application for @i{White Rabbit} (or any time
+synchronization system) is being able to generate output signals at the
+same time in different output boards; another typical application is
+time stamping input events.
+
+By using the Ethernet interface included in the SPEC,
+an application can exchange data with other @i{White
+Rabbit} devices; thus, it can easily request output event to
+other output peripherals, or collect remote input events.
+The tool-set offered by the driver
+is made up of the the @code{PRIV_MEZZANINE_CMD} @i{ioctl} command,
+amd the usual Posix API for network communication.
+
+The @i{DIO-specific} @i{ioctl} command is the one used by the
+@code{wr-dio-cmd} tool described above, while network communication
+should be known to most users of this package.  In order to ease new
+@i{White Rabbit} users, though, this package includes sample code to
+implement a simple dual-headed system with concurrent output.  The
+examples are also meant to show the basic code that uses the provided
+@i{ioctl} command, without all the boring parameter parsing that is
+required in more generic tools like @code{wr-dio-cmd}. For this reason,
+the pulse width is hardwired to 1ms.
+
+The example is made up of two programs: @code{wr-dio-agent} and
+@code{wr-dio-ruler} (the former is a dumb actor, while the latter
+states the rules). To keep things simple the two programs
+assume that the SPEC is connected point-to-point to another SPEC
+and both carry the @i{simple-DIO} mezzanine.
+
+Under this simplified assumption, the @i{ruler} transmits RAW Ethernet
+frames to the broadcast address, while the @i{agent} receives almost
+everything that appears the cable.  This also allows plugging two SPEC
+cards in the same computer and running the example, whereas adding IP
+addresses and using UDP would prevent a setup with a single PC to work
+through the fiber.  The simplification above, however, most likely
+prevents this pair of demo programs from working within a more complex
+network topology.  I expect real @i{White Rabbit} users to add proper
+network addressing in the real applications.
+
+If you have a single SPEC card, you can still use the @i{ruler} by
+itself to mirror an input channel to an output channel of the same
+card, with a specified delay.
+
+@sp 1
+
+The @i{agent} program silently listens to the network interface and
+receives a data structure ready to be passed to @i{ioctl}.  Its only
+command line argument is the name of the @i{White Rabbit} interface to
+use (for most users it is @code{wr0}):
+
+@example
+   wr-dio-agent wr0
+@end example
+
+The @i{ruler} command, on the other hand, waits for timestamps
+to appear on its own input channel; when a positive-going edge is detected it
+replicates the edge on one or more outputs. Each output can be
+local or remote, and can have a different delay.
+
+If you lack an input signal, you can make an output pulse with
+@code{wr-dio-cmd} or other means and use it as a trigger. Please note
+that the @i{ruler} does not configure the channel mode, so you might
+want to use the @code{mode} command of @code{wr-dio-cmd} in advance.
+
+The following command waits for input channel 0 on the card connected
+to @i{wr1}, and replicates the evebt with a delay of 1ms on channel 3 of
+both the local and the remote card; it also replicates with a 2ms
+delay to local channel 4.
+
+@example
+   wr-dio-ruler wr1 IN0 L3+0.001 R3+0.001 L4+0.002
+@end example
+
+There is no sample code that generates trains of pulses at this time, nor
+other options than generating 1ms-long pulses, but the code is
+thoroughly commented in order to serve as a starting point for
+more complex lab environments.
+
+As a final remark, please note that all pulse generation is driven by
+host software, after an hardware interrupt reports the input event.
+For this reason, you'll not be able to reliably replicate pulses with
+delays smaller than a few hundred microseconds, depending on the
+processing power of your computer and the load introduced by other
+processes.  For remote connections, you must also count the overhead
+of network communication as well as transmission delays over
+the fiber (a 10km fiber introduces a
+delay of 50 microseconds). 
+
+The following example shows use of the @i{ruler} and @i{agent} on
+two hosts, called @code{spusa} and @code{tornado}. The input events
+on @code{spusa} are replicated to one local channel and two remote channels,
+with a delay of 1ms. The input events in this case are from a @i{pulse-per-second} signal:
+
+@smallexample
+   tornado.root# /tmp/wr-dio-agent wr0 &
+
+   spusa.root# wr-dio-ruler wr1 IN4 L3+.001 R4+.001 R2+.001
+   wr-dio-ruler: configured for  local channel 3, delay 0.001000000
+   wr-dio-ruler: configured for remote channel 4, delay 0.001000000
+   wr-dio-ruler: configured for remote channel 2, delay 0.001000000
+
+   [... wait a few seconds ...]
+
+   spusa.root# wr-dio-cmd wr1 stamp 3
+   ch 3,       385.001000000
+   ch 3,       386.001000000
+   ch 3,       387.001000000
+   ch 3,       388.001000000
+   tornado.root# wr-dio-cmd wr0 stamp 2
+   ch 2,       385.001000000
+   ch 2,       386.001000000
+   ch 2,       387.001000000
+   ch 2,       388.001000000
+   tornado.root# wr-dio-cmd wr0 stamp 4
+   ch 4,       385.001000000
+   ch 4,       386.001000000
+   ch 4,       387.001000000
+   ch 4,       388.001000000
+@end smallexample
 
 @c ==========================================================================
 @node The Future of WR-NIC 
@@ -974,10 +1120,7 @@ will be supported at module load time, not at runtime (for that please
 use the UART).
 
 @item DIO support in @i{wr-nic} is missing some of the features listed
-in @file{wr-dio.h} (i.e., pulse trains and DAC control)>
-
-@item DIO support should use interrupts to allow pulse trains to be generated
-and timestamps to be collected without polling the FIFO.
+in @file{wr-dio.h} (i.e. DAC control)>
 
 @item The @i{wr-nic} functionality should be completely detached from
 the specific mezzanine. This is a longer-term desire.
