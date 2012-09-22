@@ -42,9 +42,10 @@ enum wr_dio_cmd_name {
  * This is how parameters are used (K == reply from kernel):
  *
  *  CMD_PULSE:
- *     cmd->flags: F_NOW, F_REL, F_MASK, F_LOOP
+ *     cmd->flags: F_NOW, F_REL, F_LOOP
  *     cmd->channel: the channel or the mask
- *     cmd->t[]: either 3 or 5 * 3 values (start, duration, loop)
+ *     cmd->t[]: either 2 or 3 values (start, duration, loop)
+ *     cmd->value: count of loops (0 to turn off)
  *
  *  CMD_STAMP:
  *     cmd->flags: F_MASK, F_WAIT
@@ -83,7 +84,7 @@ struct wr_dio_cmd {
 
 #define WR_DIO_F_NOW	0x01	/* Output is now, t[0] ignored */
 #define WR_DIO_F_REL	0x02	/* t[0].tv_sec is relative */
-#define WR_DIO_F_MASK	0x04	/* Channel is 0x00..0x1f, use t[0..4,5..9] */
+#define WR_DIO_F_MASK	0x04	/* Channel is 0x00..0x1f */
 #define WR_DIO_F_LOOP	0x08	/* Output should loop: t[2] is  looping*/
 #define WR_DIO_F_WAIT	0x10	/* Wait for event */
 

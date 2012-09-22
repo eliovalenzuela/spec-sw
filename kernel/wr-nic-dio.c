@@ -11,6 +11,7 @@
 #include <linux/sched.h>
 #include <linux/wait.h>
 #include <linux/ktime.h>
+#include <linux/atomic.h>
 #include <linux/platform_device.h>
 #include <linux/uaccess.h>
 #include <linux/fmc.h>
@@ -25,6 +26,10 @@
 #else
 #define wrn_stat 0
 #endif
+
+/*
+ * FIXME (for the whole file: we use readl/writel, not fmc_read/fmc_writel)
+ */
 
 /* We need a clear mapping for the registers of the various bits */
 struct regmap {
@@ -94,45 +99,84 @@ struct dio_channel {
 	struct timespec tsbuf[WRN_DIO_BUFFER_LEN];
 	int bhead, btail;
 	wait_queue_head_t q;
-	int target_channel; /* -1 == none */
-	struct timespec  delay;
+
+	/* The input event may fire a new pulse on this or another channel */
+	struct timespec delay;
+	atomic_t count;
+	int target_channel;
 };
 
 struct dio_device {
 	struct dio_channel ch[5];
 };
 
+/* Instead of timespec_sub, just subtract the nanos */
 static inline void wrn_ts_sub(struct timespec *ts, int nano)
 {
-	ts->tv_nsec -= nano;
-	if (ts->tv_nsec < 0) {
-		ts->tv_nsec += 1000 * 1000 * 1000;
-		ts->tv_sec--;
-	}
+	set_normalized_timespec(ts, ts->tv_sec, ts->tv_nsec - nano);
 }
 
-/* FIXME: should this access use fmc_readl/writel? */
+/* This programs a new pulse without changing the width */
+static void __wrn_new_pulse(struct wrn_drvdata *drvdata, int ch,
+			    struct timespec *ts)
+{
+	struct DIO_WB __iomem *dio = drvdata->wrdio_base;
+	void __iomem *base = dio;
+	struct regmap *map;
+
+	map = regmap + ch;
+
+	wrn_ts_sub(ts, 8); /* 1 cycle, to account for output latencies */
+	writel(ts->tv_nsec / 8, base + map->cycle);
+	writel(GET_HI32(ts->tv_sec), base + map->trig_h);
+	writel(ts->tv_sec, base + map->trig_l);
+
+	writel(1 << ch, &dio->R_LATCH);
+}
+
 static int wrn_dio_cmd_pulse(struct wrn_drvdata *drvdata,
 			   struct wr_dio_cmd *cmd)
 {
 	struct DIO_WB __iomem *dio = drvdata->wrdio_base;
 	void __iomem *base = dio;
 	struct PPSG_WB __iomem *ppsg = drvdata->ppsg_base;
+	struct dio_device *d = drvdata->mezzanine_data;
+	struct dio_channel *c;
 	struct regmap *map;
 	struct timespec *ts;
 	uint32_t reg;
+	int ch;
 
-	if (cmd->channel > 4)
-		return -EINVAL; /* FIXME: mask */
-	map = regmap + cmd->channel;
-
-	/* First, put this bit as output (FIXME: plain GPIO support?) */
-	reg = readl(&dio->OUT) | (1 << cmd->channel);
-	writel(reg, &dio->OUT);
-
+	ch = cmd->channel;
+	if (ch > 4)
+		return -EINVAL; /* mask not supported */
+	c = d->ch + ch;
+	map = regmap + ch;
 	ts = cmd->t;
 
-	/* if relative, add current second to timespec */
+	/* First, configure this bit as output */
+	reg = readl(&dio->OUT) | (1 << ch);
+	writel(reg, &dio->OUT);
+
+	writel(ts[1].tv_nsec / 8, base + map->pulse); /* width */
+
+	if (cmd->flags & WR_DIO_F_LOOP) {
+		c->target_channel = ch;
+
+		/* c->count is used after the pulse, so remove the first */
+		if (cmd->value > 0)
+			cmd->value--;
+		atomic_set(&c->count, cmd->value);
+		c->delay = ts[2];
+	}
+
+	if (cmd->flags & WR_DIO_F_NOW) {
+		/* if "now" we are done */
+		writel(1 << ch, &dio->PULSE);
+		return 0;
+	}
+
+	/* if relative, add current 40-bit second to timespec */
 	if (cmd->flags & WR_DIO_F_REL) {
 		uint32_t h1, l, h2;
 		unsigned long now;
@@ -147,28 +191,8 @@ static int wrn_dio_cmd_pulse(struct wrn_drvdata *drvdata,
 		ts->tv_sec += now;
 	}
 
-	/* if not "now", set trig, trigh, cycles */
-	if (!(cmd->flags & WR_DIO_F_NOW)) {
-		/* Subtract 1 cycle, to count for output latencies */
-		wrn_ts_sub(ts, 8);
-		writel(ts->tv_nsec / 8, base + map->cycle);
-		writel(GET_HI32(ts->tv_sec), base + map->trig_h);
-		writel(ts->tv_sec, base + map->trig_l);
-	}
-
-	/* set the width */
-	ts++;
-	writel(ts->tv_nsec / 8, base + map->pulse);
-
-	/* no loop yet (FIXME: interrupts) */
-
-	if (cmd->flags & WR_DIO_F_NOW)
-		writel(1 << cmd->channel, &dio->PULSE);
-	else
-		writel(1 << cmd->channel, &dio->R_LATCH);
-
+	__wrn_new_pulse(drvdata, ch, ts);
 	return 0;
-
 }
 
 static int wrn_dio_cmd_stamp(struct wrn_drvdata *drvdata,
@@ -383,11 +407,12 @@ irqreturn_t wrn_dio_interrupt(struct fmc_device *fmc)
 
 		/* Pull the FIFOs to the device structure */
 		map = regmap + ch;
-		h = c->bhead;
+		ts = NULL;
 		while (1) {
 			reg = readl(base + map->fifo_status);
 			if (reg & 0x20000) /* empty */
 				break;
+			h = c->bhead;
 			ts = c->tsbuf + h;
 			c->bhead = (h + 1) % WRN_DIO_BUFFER_LEN;
 			if (c->bhead == c->btail)
@@ -404,11 +429,15 @@ irqreturn_t wrn_dio_interrupt(struct fmc_device *fmc)
 			wrn_ts_sub(ts, 40);
 		}
 		writel(chm, &dio->EIC_ISR); /* ack */
-		wake_up_interruptible(&c->q);
-		if (h != c->bhead) {
-			printk("ch %i, %i samples\n", c - d->ch, c->bhead - h);
-			/* FIXME: if needed, perform the action */
+		if (ts && atomic_read(&c->count) != 0) {
+			struct timespec newts;
+
+			if (atomic_read(&c->count) > 0)
+				atomic_dec(&c->count);
+			newts = timespec_add(*ts, c->delay);
+			__wrn_new_pulse(drvdata, c->target_channel, &newts);
 		}
+		wake_up_interruptible(&c->q);
 	}
 	return IRQ_HANDLED;
 }
