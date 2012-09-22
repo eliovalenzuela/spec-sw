@@ -5,3 +5,5 @@ spec-fwloader
 spec-vuart
 wr-dio-cmd
 wr-dio-pps
+wr-dio-agent
+wr-dio-ruler
