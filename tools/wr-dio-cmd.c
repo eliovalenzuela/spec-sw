@@ -1,3 +1,12 @@
+/*
+ * Copyright (C) 2012 CERN (www.cern.ch)
+ * Author: Alessandro Rubini <rubini@gnudd.com>
+ *
+ * Released to the public domain as sample code to be customized.
+ *
+ * This work is part of the White Rabbit project, a research effort led
+ * by CERN, the European Institute for Nuclear Research.
+ */
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
