@@ -718,7 +718,7 @@ and associated @i{printk} -- the time is usually 5 microseconds for me:
 @end example
 
 @c ==========================================================================
-@node WR-NIC Comamnd Tool
+@node WR-NIC Command Tool
 @section WR-NIC Command Tool
 
 In the @file{tools/} subdirectory of this project, you find the
@@ -884,7 +884,7 @@ portable to the new code arrangement.
 The @i{tools} subdirectory of this package includes a few host-side
 programs that may be useful while working with the SPEC device.  This
 section does not describe the @i{wr-nic} specific tool; for that see
-@ref{WR-NIC User Tool}.
+@ref{WR-NIC Command Tool}.
 
 @b{Warning:} the tools need some more audit and cleanup. For example,
 the tools may fail with a segmentation fault if invoked as a
