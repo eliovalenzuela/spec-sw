@@ -27,6 +27,11 @@ int wrn_phy_read(struct net_device *dev, int phy_id, int location)
 	struct wrn_ep *ep = netdev_priv(dev);
 	u32 val;
 
+	if (1) {
+		WARN_ON(1); /* SPEC: no access */
+		return -1;
+	}
+
 	wrn_ep_write(ep, MDIO_CR, EP_MDIO_CR_ADDR_W(location));
 	while( (wrn_ep_read(ep, MDIO_ASR) & EP_MDIO_ASR_READY) == 0)
 		;
@@ -39,6 +44,12 @@ void wrn_phy_write(struct net_device *dev, int phy_id, int location,
 		      int value)
 {
 	struct wrn_ep *ep = netdev_priv(dev);
+
+	if (1) {
+		WARN_ON(1); /* SPEC: no access */
+		return;
+	}
+
 	wrn_ep_write(ep, MDIO_CR,
 		     EP_MDIO_CR_ADDR_W(location)
 		     | EP_MDIO_CR_DATA_W(value)
@@ -128,6 +139,9 @@ int wrn_ep_open(struct net_device *dev)
 	struct wrn_ep *ep = netdev_priv(dev);
 	unsigned long timerarg = (unsigned long)dev;
 
+	if (1)
+		return 0; /* No access to EP registers in the SPEC */
+
 	/* Prepare hardware registers: first config, then bring up */
 	writel(0
 	       | EP_VCR0_QMODE_W(0x3)		/* unqualified port */
@@ -172,6 +186,13 @@ int wrn_ep_open(struct net_device *dev)
 int wrn_ep_close(struct net_device *dev)
 {
 	struct wrn_ep *ep = netdev_priv(dev);
+
+	if (1)
+		return 0; /* No access to EP registers in the SPEC */
+	/*
+	 * Beware: the system loops in the del_timer_sync below if timer_setup
+	 * had not been called either (see "if (1)"  in ep_open above)
+	 */
 
 	writel(0, &ep->ep_regs->ECR);
 	del_timer_sync(&ep->ep_link_timer);
