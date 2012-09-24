@@ -72,6 +72,7 @@ irqreturn_t wrn_handler(int irq, void *dev_id)
 	fmc->op->irq_ack(fmc);
 	/* after ack, disable and re-enable the irq, so to force an edge */
 	writel(WRN_ALL_MASK, &vic->IDR);
+	udelay(1);
 	writel(WRN_ALL_MASK, &vic->IER);
 
 	return ret;
