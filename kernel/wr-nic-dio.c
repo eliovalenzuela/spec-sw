@@ -101,7 +101,7 @@ struct dio_channel {
 	wait_queue_head_t q;
 
 	/* The input event may fire a new pulse on this or another channel */
-	struct timespec delay;
+	struct timespec prevts, delay;
 	atomic_t count;
 	int target_channel;
 };
@@ -160,16 +160,6 @@ static int wrn_dio_cmd_pulse(struct wrn_drvdata *drvdata,
 
 	writel(ts[1].tv_nsec / 8, base + map->pulse); /* width */
 
-	if (cmd->flags & WR_DIO_F_LOOP) {
-		c->target_channel = ch;
-
-		/* c->count is used after the pulse, so remove the first */
-		if (cmd->value > 0)
-			cmd->value--;
-		atomic_set(&c->count, cmd->value);
-		c->delay = ts[2];
-	}
-
 	if (cmd->flags & WR_DIO_F_NOW) {
 		/* if "now" we are done */
 		writel(1 << ch, &dio->PULSE);
@@ -189,6 +179,17 @@ static int wrn_dio_cmd_pulse(struct wrn_drvdata *drvdata,
 		now = l;
 		SET_HI32(now, h2);
 		ts->tv_sec += now;
+	}
+
+	if (cmd->flags & WR_DIO_F_LOOP) {
+		c->target_channel = ch;
+
+		/* c->count is used after the pulse, so remove the first */
+		if (cmd->value > 0)
+			cmd->value--;
+		atomic_set(&c->count, cmd->value);
+		c->prevts = ts[0]; /* our current setpoint */
+		c->delay = ts[2];
 	}
 
 	__wrn_new_pulse(drvdata, ch, ts);
@@ -375,6 +376,25 @@ out:
 	return ret;
 }
 
+/* This is called from the interrupt handler to program a new pulse */
+static void wrn_trig_next_pulse(struct wrn_drvdata *drvdata,int ch,
+				struct dio_channel *c, struct timespec *ts)
+{
+	struct timespec newts;
+
+	if (c->target_channel == ch) {
+		c->prevts = timespec_add(c->prevts, c->delay); 
+		newts = c->prevts;
+	} else {
+		newts = timespec_add(*ts, c->delay);
+	}
+	__wrn_new_pulse(drvdata, c->target_channel, &newts);
+
+	/* If the count is not-infinite, decrement it */
+	if (atomic_read(&c->count) > 0)
+		atomic_dec(&c->count);
+}
+
 irqreturn_t wrn_dio_interrupt(struct fmc_device *fmc)
 {
 	struct platform_device *pdev = fmc->mezzanine_data;
@@ -430,12 +450,7 @@ irqreturn_t wrn_dio_interrupt(struct fmc_device *fmc)
 		}
 		writel(chm, &dio->EIC_ISR); /* ack */
 		if (ts && atomic_read(&c->count) != 0) {
-			struct timespec newts;
-
-			if (atomic_read(&c->count) > 0)
-				atomic_dec(&c->count);
-			newts = timespec_add(*ts, c->delay);
-			__wrn_new_pulse(drvdata, c->target_channel, &newts);
+			wrn_trig_next_pulse(drvdata, ch, c, ts);
 		}
 		wake_up_interruptible(&c->q);
 	}
