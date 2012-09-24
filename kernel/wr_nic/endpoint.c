@@ -139,8 +139,10 @@ int wrn_ep_open(struct net_device *dev)
 	struct wrn_ep *ep = netdev_priv(dev);
 	unsigned long timerarg = (unsigned long)dev;
 
-	if (1)
+	if (1) {
+		netif_carrier_on(dev);
 		return 0; /* No access to EP registers in the SPEC */
+	}
 
 	/* Prepare hardware registers: first config, then bring up */
 	writel(0
