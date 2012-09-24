@@ -6,7 +6,7 @@ LIB = libspec.a
 LIBOBJ = speclib.o loader-ll.o
 
 PROGS = spec-cl spec-fwloader spec-vuart specmem
-PROGS += wr-dio-cmd wr-dio-pps wr-dio-ruler
+PROGS += wr-dio-cmd wr-dio-pps wr-dio-agent wr-dio-ruler
 
 
 all: $(LIB) $(PROGS)
