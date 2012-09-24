@@ -4,3 +4,4 @@ specmem
 spec-fwloader
 spec-vuart
 wr-dio-cmd
+wr-dio-pps

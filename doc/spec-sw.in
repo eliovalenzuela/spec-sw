@@ -718,12 +718,14 @@ and associated @i{printk} -- the time is usually 5 microseconds for me:
 @end example
 
 @c ==========================================================================
-@node WR-NIC User Tool
-@section WR-NIC User Tool
+@node WR-NIC Comamnd Tool
+@section WR-NIC Command Tool
 
 In the @file{tools/} subdirectory of this project, you find the
 @file{wr-dio-cmd} program, which is a command-line interface to the
-@i{ioctl} command to simplify initial access to the DIO device.
+@i{ioctl} command to simplify initial access to the DIO device. Other
+@code{wr-dio-} tools are provided (and described below) but this is
+the most generic one.
 
 Please note that neither timestamping nor pulse generation work
 if the WR core is not running or has an invalid time: it must either be
@@ -834,6 +836,27 @@ Example uses of the tool follow:
 
    # Configure channel 0 as input with termination, 1 as input, 4 as low
    wr-dio-cmd wr0 mode Ii--0
+@end example
+
+@c ==========================================================================
+@node WR-NIC Pulse per Second
+@section WR-NIC Pulse per Second
+
+To better show how to write your own application with the SPEC driver
+and the @i{simple DIO} mezzanine card, this package includes
+@file{wr-dio-pps}, which features a very small and readable source
+file.
+
+The program just fires a 1ms-long @i{pps} pulse on one of the output
+channels. The NIC defaults to @i{wr0} but can specify a different one;
+the channel number is a mandatory argument.
+
+@example
+   # run pps on channel 2 of the default SPEC card
+   ./wr-nic-pps 2
+
+   # run pps on channel 0 of the "second" card
+   ./wr-nic-pps wr1 0
 @end example
 
 @c ==========================================================================
