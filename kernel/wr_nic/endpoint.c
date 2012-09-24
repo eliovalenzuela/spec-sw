@@ -162,12 +162,6 @@ int wrn_ep_open(struct net_device *dev)
 	       | EP_ECR_RX_EN,
 		&ep->ep_regs->ECR);
 
-	/* Setup DMCR */
-	writel(0
-	       | EP_DMCR_EN
-	       | EP_DMCR_N_AVG_W(256 /* DMTD_AVG_SAMPLES */),
-	       &ep->ep_regs->DMCR);
-
 	wrn_phy_write(dev, 0, MII_LPA, 0);
 	wrn_phy_write(dev, 0, MII_BMCR, BMCR_ANENABLE | BMCR_ANRESTART);
 
