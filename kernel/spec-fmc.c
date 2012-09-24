@@ -107,11 +107,11 @@ static int spec_irq_request(struct fmc_device *fmc, irq_handler_t handler,
 
 	/* Enable gpio interrupts:
 	 * gpio6: tp8: output low
-	 * gpio7: tp7: input (was: interrupt, raising edge
+	 * gpio7: tp7: interrupt, raising edge
 	 * gpio8: IRQ1 from FPGA: interrupt, raising edge
-	 * gpio9: IRQ0 from FPGA: input (was: interrupt, raising edge)
+	 * gpio9: IRQ0 from FPGA: interrupt, raising edge
 	 * gpio10: tp6: output low
-	 * gpio11: tp5: input (was: interrupt, raising edge)
+	 * gpio11: tp5: interrupt, raising edge
 	 */
 
 	/* bypass = alternate function */
@@ -121,11 +121,11 @@ static int spec_irq_request(struct fmc_device *fmc, irq_handler_t handler,
 	gennum_mask_val(spec, 0xb80, 0xb80, GNGPIO_DIRECTION_MODE);
 	gennum_mask_val(spec, 0x440, 0x440, GNGPIO_OUTPUT_ENABLE);
 
-	gennum_mask_val(spec, 0x100, 0x000, GNGPIO_INT_TYPE); /* 0 = edge */
-	gennum_mask_val(spec, 0x100, 0x100, GNGPIO_INT_VALUE); /* 1 = raising */
-	gennum_mask_val(spec, 0x100, 0x000, GNGPIO_INT_ON_ANY);
+	gennum_mask_val(spec, 0xb80, 0x000, GNGPIO_INT_TYPE); /* 0 = edge */
+	gennum_mask_val(spec, 0xb80, 0xb80, GNGPIO_INT_VALUE); /* 1 = raising */
+	gennum_mask_val(spec, 0xb80, 0x000, GNGPIO_INT_ON_ANY);
 
-	gennum_writel(spec, 0x100, GNGPIO_INT_MASK_CLR); /* enable */
+	gennum_writel(spec, 0xb80, GNGPIO_INT_MASK_CLR); /* enable */
 	return 0;
 }
 
