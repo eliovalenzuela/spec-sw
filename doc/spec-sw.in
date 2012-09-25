@@ -592,16 +592,29 @@ The most useful ones are repeated here for your convenience
 @itemx mode master
 @itemx mode slave
 
-	The commands change the current PTP mode.
+	The commands change the current PTP mode. @code{mode}
+        with no arguments reports the current mode.
+
+@item ptp stop
+@itemx ptp start
+
+	Stop and start the daemon running on LM32. You'll most likely
+        need to stop and restart the PTP daemon after changing mode.
 
 @item time raw
 
 	Prints the internal device time as seconds and nanoseconds.
 
+@item gui
+
+	Start a self-refreshing informative display of the @i{White Rabbit}
+        synchronization status. Press @code{<ESC>} to return to
+        command-line mode.
+
 @item mac get
 
 	Reports the MAC address used by WRPC (it should match what is
-        reporte by @code{ifconfig} in Linux.
+        reported by @code{ifconfig} in Linux.
 
 @end table
 
@@ -617,8 +630,8 @@ The @i{wr-nic} driver registers a Linux network interface card for
 each SPEC device it drives.  The cards are called @code{wr%d} (i.e.,
 @i{wr0}, @i{wr1}, ...).
 
-The MAC address of the device is retrieved from the internal White
-Rabbit registers, because at the time when Linux configures the
+The MAC address of the device is retrieved from the internal @i{White
+Rabbit} registers, because at the time when Linux configures the
 interface the WRC code has already configured the Ethernet port and
 generated a MAC address using the serial number of the internal
 thermometer.
@@ -631,11 +644,92 @@ the MAC address, the command you need is something like the following:
    ifconfig wr0 hw ether 12:34:56:78:9a:bc
 @end example
 
-The port supports hardware timestamping for user frames through the
-standard Linux mechanisms, but at this point no sample code is provided
-in this package.
+The fiber controlled by the SPEC can carry normal data traffic. The
+examples related to the @i{simple DIO} device use this data channel
+to exchange Ethernet frames.
 
-@b{Warning}: time stamping is not working, but we are on the problem.
+@c ==========================================================================
+@node Timestamping Frames
+@section Timestamping Frames
+
+The SPEC port supports hardware timestamping for user frames through the
+standard Linux mechanisms.  Time stamps are currently reported with
+a resolution of 8ns only (@i{White Rabbit} does much better, but
+we don't have the code in place for this demo, yet).
+
+Unfortunately such mechanisms are not trivial, as the application must
+enable timestamping on both the hardware interface and the specific
+socket it is using, with different @i{ioctl} and @i{setsockopt}
+commands. Moreover, timestamps are returned to user space using the
+@i{recvmsg} system call, which is more difficult to deal with than the
+normal @i{send} or @i{recv}.
+
+In the @file{tools} directory of this package, you can thus find the
+@file{stamp-frame} example program.  The leading part of its source
+file includes generic library-like functions that deal with the
+intricacies of timestamping; the final part is the actual example,
+which is designed to be simple and readable.
+
+The program is a minimal implementation of the basic
+time-synchronization protocols (like NTP and PTP), but excluding the
+synchronization itself. The idea is sending a frame from one host to
+another, and receiving another frame back; the departure and arrival
+times are recorded and collected in a single place, for reporting to
+the user.
+
+The @file{stamp-frame} example supports two modes of operations. In
+@i{listen} mode, it binds to an Ethernet interface and listens forever
+waiting for the forward frames and replying to them; in normal mode it
+sends a frame and reports data as soon as it gets its reply.  This is
+an example runing on two different hosts:
+
+@smallexample
+   tornado.root# stamp-frame wr0 listen
+   stamp-frame: Using interface wr0, with all timestamp options active
+
+   spusa.root# stamp-frame wr1
+   stamp-frame: Using interface wr1, with all timestamp options active
+   timestamp    T1:      1476.381349032
+   timestamp    T2:      1476.381403352
+   timestamp    T3:      1476.391563248
+   timestamp    T4:      1476.391617560
+   round trip time:         0.000108632
+   forward    time:         0.000054320
+   backward   time:         0.000054312
+@end smallexample
+
+In the data exchange, time stamps T1 and T4 are collected at the
+original sender (here: @i{spusa}) while T2 and T3 are collected at the
+listening side (here: @i{tornado}).  The times above are consistent
+because the two SPEC cards are synchronized with @i{White Rabbit}. The
+reported forward and backward times match the fact that I used
+a 10km fiber to connect the two cards; the difference between them
+is explained by the different speed of light in the two directions,
+because tranceivers use different wave lengths.
+
+The following example shows the output for two forcibly-unsynchronized
+cards.  The difference between the two clocks is apparent; the
+@i{round trip time} is correct nonetheless, because it is a difference of
+differences:
+
+@smallexample
+   timestamp    T1:        13.225249168
+   timestamp    T2:         9.130237600
+   timestamp    T3:         9.140438816
+   timestamp    T4:        13.235559016
+   round trip time:         0.000108632
+   forward    time:        -5.904988432
+   backward   time:         4.095120200
+@end smallexample
+
+While the code is designed to be simple to be reused, there is one
+important detail to remember.  Whereas the receive timestamp is
+returned to user-space together with the frame it refers to, the
+transmit timestamp is only known after the relevant frame left the
+computer.  To communicate the TX timestamp to your peer you'll need to
+send another message, which carries the departure time of the previous
+frame.  This further message is usually called @i{follow-up},
+and @file{stamp-frame} respects this tradition.
 
 @c ==========================================================================
 @node Accessing the DIO Channels
