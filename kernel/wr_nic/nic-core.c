@@ -379,9 +379,9 @@ static void __wrn_rx_descriptor(struct wrn_dev *wrn, int desc)
 
 	/* RX timestamping part */
 
-	//wrn_ppsg_read_time(wrn, &counter_ppsg, &utc);
+	wrn_ppsg_read_time(wrn, &counter_ppsg, &utc);
 
-	if(counter_ppsg < REFCLK_FREQ/4 && ts_r > 3*REFCLK_FREQ/4)
+	if (counter_ppsg < ts_r)
 		utc--;
 
 	ts.tv_sec = (s32)utc & 0x7fffffff;
@@ -396,13 +396,17 @@ static void __wrn_rx_descriptor(struct wrn_dev *wrn, int desc)
 	       ts.tv_nsec & 0x7fffffff,
 	       ts.tv_sec & 0x80000000 ? 1 :0);
 
-	/* If the timestamp was reported as incorrect, pass 0 instead */
-	if (! (r1 & NIC_RX1_D1_TS_INCORRECT)) /* FIXME: bit name possibly? */
-	{
+	if (1) {
+		/* SPEC: don't do the strange stuff for wr-ptp */
+		ts.tv_sec &= ~0x80000000;
+		ts.tv_nsec &= 0x7fffffff;
+	}
+
+	if (! (r1 & NIC_RX1_D1_TS_INCORRECT)) {
 		hwts = skb_hwtstamps(skb);
 		hwts->hwtstamp = timespec_to_ktime(ts);
 	}
-	
+
 	skb->protocol = eth_type_trans(skb, dev);
 	skb->ip_summed = CHECKSUM_UNNECESSARY;
 	dev->last_rx = jiffies;
