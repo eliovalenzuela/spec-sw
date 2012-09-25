@@ -60,16 +60,17 @@ This is the manual for the SPEC device driver. SPEC is the @i{Simple
 PCI-Express Carrier} for FMC cards, developed at
 @url{http://www.ohwr.org/projects/spec}. This manual is part of the
 associated software project, hosted at
-@url{http://www.ohwr.org/projects/spec-sw}, whose @i{git} repository
-hosts the latest version.
+@url{http://www.ohwr.org/projects/spec-sw}. The latest version of
+this work is always available in the @i{git} repository at @code{ohwr.org}.
 
 @c ##########################################################################
 @node History and Overview
 @chapter History and Overview
 
 This driver is pretty different from the initial implementation, such as
-the one used by @i{fine-delay-sw-v1.1}.  If you use such version, please
-compile the manual you find in your source code repository.
+the one used by @i{fine-delay-sw-v1.1}.  If you are using that version, please
+compile the manual you find in your source code repository and avoid
+reading this one.
 
 The package currently includes both the @i{spec} driver and the
 @i{fmc} bus driver (documented separately).
@@ -79,7 +80,7 @@ Moreover, it includes some drivers for fmc cards.
 @node Compiling the Drivers
 @chapter Compiling the Drivers
 
-The kernel modules part of this package live in the @i{kernel}
+The kernel modules that are part of this package live in the @i{kernel}
 subdirectory. To compile them, you need to 
 set the following variables in your environment:
 
@@ -91,8 +92,7 @@ set the following variables in your environment:
         are going to run the driver under. I'm testing mostly with 3.4,
 	but this version compiles against Linux-2.6.37 and later ones
         (2.6.36 had a different interface for hardware timestamping,
-        so @i{fmc} and @i{spec} compile fine, but @i{wr-nic} does not
-        because of its support for timestamping Ethernet frames.
+        so @i{fmc} and @i{spec} compile fine, but @i{wr-nic} does not).
 
 @item CROSS_COMPILE
 
@@ -112,8 +112,9 @@ set the following variables in your environment:
 
 To compile run ``@code{make}'' with the previous variables set.  To
 install run ``@code{make install} to install under
-@code{/lib/modules/3.2.0} (or other version-based directory).  You can
-set @code{INSTALL_MOD_PATH} to set a prefix before @code{/lib/modules}.
+@code{/lib/modules/3.4.0} (or other version-based directory).  You can
+set @code{INSTALL_MOD_PATH} to force and installation directory
+(as a prefix followed by @code{/lib/modules/...}).
 For example, if your target computer's filesystem is mounted under
 @code{/mnt/target} you can run
 
@@ -122,11 +123,11 @@ For example, if your target computer's filesystem is mounted under
 @end example
 
 The modules are installed under the subdirectory @code{extra}. In
-the previous case your driver will end up being installed
+the case shown above your driver will end up being installed
 (together with the other modules) as
 
 @example
-   /mnt/target/lib/modules/3.2.0/extra/spec.ko
+   /mnt/target/lib/modules/3.4.0/extra/spec.ko
 @end example
 
 @c ##########################################################################
@@ -136,8 +137,8 @@ the previous case your driver will end up being installed
 The @code{spec.ko} driver depends on @code{fmc.ko}, that must
 be loaded first (if you don't rely on automatic dependencies).
 
-It registers itself as a PCI driver,
-using both the ``old'' vendor and device ID (the Gennum identifiers)
+@code{spec.ko} registers as a PCI driver,
+using both the ``old'' identifiers (i.e. the Gennum vendor and GN4124 device)
 and the new ones (CERN vendor and SPEC device).
 
 @c ==========================================================================
@@ -164,14 +165,18 @@ from the @i{files} area of the @i{spec-sw} project on @code{ohwr.org}.
 As I write this, the direct link is
 @url{http://www.ohwr.org/attachments/download/1454/spec-init.bin-2012-07-24}.
 
+The EEPROM content that has been read at initialization time
+is still available to sub-drivers after they are loaded, but a
+sub-driver cannot write to the EEPROM using carrier methods.
+The carrier refuses to act on
+registers after the golden gateware is replaced by a new 
+mezzanine-specific binary,
+which by definition is unknown to the carrier itself.
+
 @b{Note:} currently the SPEC driver does not re-write the golden
 binary file when the sub-driver releases control of the card. This
 allows a further driver to make use of an existing binary, and may be
-useful during development. The EEPROM contents are still being
-available to the new sub-driver (even if it cannot write to it, because
-the carrier refused to act on registers after the golden gateware is replaced
-by an new binary unknown to the carrier itself).
-
+useful during development.
 @c ==========================================================================
 @node SPEC Module Parameters
 @section SPEC Module Parameters
@@ -225,7 +230,7 @@ limits itself through parameters (see below)
 @node Sub-Module Parameters
 @section Sub-Module Parameters
 
-Since most of the FMC drivers, also called sub-modules, need the same
+Most of the FMC drivers, also called sub-modules, need the same
 set of kernel parameters, this package includes support
 to implement common parameters, by means of fields
 in the @code{fmc_driver} structure and simple macro definitions.
@@ -233,12 +238,10 @@ in the @code{fmc_driver} structure and simple macro definitions.
 The parameters are carrier-specific, in that they rely on the @i{busid}
 concept, that varies among carriers (here it is a PCI bus-devfn number).
 Drivers for other carriers will most likely offer something similar
-but not identical; some code duplication is unavoidable.
+but not identical to this; some code duplication is unavoidable.
 
 This is the list of parameters, to see how they are used in sub-modules,
 please look at @i{spec-trivial.c}.
-
-These parameters are offered:
 
 @table @code
 
@@ -256,7 +259,7 @@ These parameters are offered:
 	The argument is an array of strings. If no @i{busid=} is
         specified, the first string of @i{gateware=} is used for
         all cards; otherwise the identifiers and gateware names are
-        pared one by one, in the order specified.
+        paired one by one, in the order specified.
 
 @end table
 
@@ -271,15 +274,18 @@ the PCI identifiers:
                          gateware=fmc/fine-delay.bin,fmc/simple-dio.bin
 @end smallexample
 
+Please note that not all sub-modules support all of those parameters.
+You can use @i{modinfo} to check what is supported by each module.
+
 @c ##########################################################################
 @node fmc-trivial.ko
 @chapter fmc-trivial.ko
 
 The simple module @i{fmc-trivial} is just a simple client that
-registers an interrupt handler. I use it to verify the basic mechanism
-of the FMC bus and how interrupts work.
+registers an interrupt handler. I used it to verify the basic mechanism
+of the FMC bus and how interrupts worked.
 
-The module is a user of generic SPEC parameters, so it can program a
+The module implements the generic SPEC parameters, so it can program a
 different gateware file in each card. The whole list of parameters it
 accepts are:
 
@@ -321,9 +327,9 @@ and to write it to the internal EEPROM of the mezzanine card. This
 driver uses the @code{busid} generic parameter, but doesn't use the
 other ones (even if @i{modinfo} reports them).
 
-Overwriting the EEPROM is not something you should do daily, and is
+Overwriting the EEPROM is not something you should do daily, and it is
 expected to only happen during manufacturing. For this reason, the
-module makes it unlikely for the random user to change a working eeprom.
+module makes it unlikely for the random user to change a working EEPROM.
 
 The module takes the following measures:
 
@@ -376,11 +382,12 @@ and is not expected to be developed further.
 @chapter The WR-NIC
 
 With the current code base, the @code{wr-nic.ko} driver is designed
-to run with the simple 5-Channel DIO board, because it includes both
+to run with the simple 5-Channel @i{simple-DIO} mezzanine board,
+because it includes both
 code to access the network card and code to act on the DIO channels,
-using time tags that are provided by the White Rabbit mechanism.
+using time tags that are provided by the @i{White Rabbit} mechanism.
 Similarly, both incoming and outgoing frames can be time-stamped by
-White Rabbit.
+@i{White Rabbit}.
 
 This driver is the most important driver in this package: it is
 a generic implementation of the @i{spec-sw} framework which can be
@@ -452,8 +459,8 @@ register definitions. This is the role of each of them:
 @itemx wr_nic/nic-hardware.h
 @itemx wr_nic/wr-nic.h
 
-	These headers come from @i{wr-switch-sw/wr_nic} with minor spec-
-        related modifications. @i{nic-mem.h} defines the memory map and
+	These headers come from @i{wr-switch-sw/wr_nic} with minor
+        SPEC-related modifications. @i{nic-mem.h} defines the memory map and
         is now almost obsoleted by SDB; @i{nic-hardware.h} is a collection
         of inline functions used by the driver; @i{wr-nic.h} defines
         all the important data structures and @i{ioctl} commands. Because
@@ -515,7 +522,7 @@ to the NIC platform driver hosted in @file{wr_nic/}:
 @section Overview of the Driver
 
 The @i{wr-nic} driver is basically an Ethernet driver with support for
-hardware time stamping.  The DIO mezzanine card can be used by means
+hardware time stamping.  The @i{simple-DIO} mezzanine card can be used by means
 of @i{ioctl} commands. Such commands are designed to be portable, so
 user-space programs should able to identify which mezzanine is
 connected to the SPEC network card and act accordingly.
@@ -523,7 +530,7 @@ connected to the SPEC network card and act accordingly.
 The driver loads two binaries, using the @i{firmware loader} mechanism
 offered by the Linux kernel: one is the gateware file, that is requested
 through the @i{reprogram} carrier method; the other is the LM32 program
-binary, which is only loaded on user request.
+binary, which however is only loaded on user request.
 
 The default file names are as follows:
 
@@ -556,8 +563,10 @@ http://www.ohwr.org/attachments/download/1597/wr_nic_dio-wrc.bin-2012-09-20
 @end example
 
 The date is included in the binary name so we won't need to remove the
-binaries: @i{spec-sw} releases are expected to continue working in the
-future.  You can copy the following command sequence to your shell
+binaries when they are obsoleted by newer ones:
+@i{spec-sw} releases are expected to continue working in the
+future, and if you are using this version you need those very files.
+You can copy the following command sequence to your shell
 in order to fill your @file{/lib/firmware/fmc} with everything that's
 needed to run @i{wr-nic}:
 
@@ -575,16 +584,19 @@ sudo mv wr_nic_dio wr_nic_dio-wrc /lib/firmware/fmc
 @section Controlling the White Rabbit Core
 
 In this release the driver is not controlling the White Rabbit Core
-and the default mode of operation is @i{free-running master}.  You can
+and the default mode of operation is @i{slave}.  You can
 use the serial port and interact with the WRC shell to change the
 operation mode and do other supported interaction with the PTP daemon.
+If you want, you can use the serial port to configure a card as
+@i{free running master} storing such request in EEPROM to make it
+persistent.
 
 The complete reference of the shell commands is included in the
 @i{wrpc-sw} manual in the @i{files} tab of the project.  The direct
 link is
 @url{http://www.ohwr.org/attachments/download/1586/wrpc-v2.0.pdf}.
 
-The most useful ones are repeated here for your convenience
+The most useful commands are repeated here for your convenience
 
 @table @code
 
@@ -633,39 +645,47 @@ each SPEC device it drives.  The cards are called @code{wr%d} (i.e.,
 The MAC address of the device is retrieved from the internal @i{White
 Rabbit} registers, because at the time when Linux configures the
 interface the WRC code has already configured the Ethernet port and
-generated a MAC address using the serial number of the internal
+generated a valid MAC address using the serial number of the internal
 thermometer.
 
 The user is thus only expected to assign an Internet address to the
-Ethernet port and just use it to transfer data. If you need to change
-the MAC address, the command you need is something like the following:
+Ethernet port to be able to use it to transfer data. Note however
+that @i{White Rabbit} synchronization happens even if the interace
+is not configured in Linux.  In case you need to change the MAC
+address as seen by Linux, the command to type is something like the
+following:
 
 @example
    ifconfig wr0 hw ether 12:34:56:78:9a:bc
 @end example
 
-The fiber controlled by the SPEC can carry normal data traffic. The
+The fiber controlled by the SPEC can carry normal data traffic in
+addition to the PTP frames of @i{White Rabbit}, that remain
+invisible to the host computer. The
 examples related to the @i{simple DIO} device use this data channel
-to exchange Ethernet frames.
+to exchange Ethernet frames so you'll need to assign IP addresses to
+your @i{wr} interfaces.
 
 @c ==========================================================================
 @node Timestamping Frames
 @section Timestamping Frames
 
-The SPEC port supports hardware timestamping for user frames through the
+The SPEC Ethernet interface
+supports hardware timestamping for user frames through the
 standard Linux mechanisms.  Time stamps are currently reported with
 a resolution of 8ns only (@i{White Rabbit} does much better, but
 we don't have the code in place for this demo, yet).
 
-Unfortunately such mechanisms are not trivial, as the application must
+Unfortunately the Linux mechanisms are not trivial: the application must
 enable timestamping on both the hardware interface and the specific
-socket it is using, with different @i{ioctl} and @i{setsockopt}
+socket it is using, and it must issue several @i{ioctl} and @i{setsockopt}
 commands. Moreover, timestamps are returned to user space using the
 @i{recvmsg} system call, which is more difficult to deal with than the
 normal @i{send} or @i{recv}.
 
-In the @file{tools} directory of this package, you can thus find the
-@file{stamp-frame} example program.  The leading part of its source
+To simplify use of timestamps for Ethernet frames, 
+this package includes the @file{stamp-frame} program in the
+@file{tools} directory.  The leading part of its source
 file includes generic library-like functions that deal with the
 intricacies of timestamping; the final part is the actual example,
 which is designed to be simple and readable.
@@ -673,14 +693,15 @@ which is designed to be simple and readable.
 The program is a minimal implementation of the basic
 time-synchronization protocols (like NTP and PTP), but excluding the
 synchronization itself. The idea is sending a frame from one host to
-another, and receiving another frame back; the departure and arrival
-times are recorded and collected in a single place, for reporting to
+another, and receiving a second frame back; the departure and arrival
+times are recorded and collected at a single place, so they can
+be reported to
 the user.
 
 The @file{stamp-frame} example supports two modes of operations. In
-@i{listen} mode, it binds to an Ethernet interface and listens forever
-waiting for the forward frames and replying to them; in normal mode it
-sends a frame and reports data as soon as it gets its reply.  This is
+@i{listen} mode, it binds to an Ethernet interface and listens forever:
+it waits for the forward frames and replies to them; in normal mode it
+sends the forward frame and reports data as soon as it gets a reply.  This is
 an example runing on two different hosts:
 
 @smallexample
@@ -698,17 +719,20 @@ an example runing on two different hosts:
    backward   time:         0.000054312
 @end smallexample
 
-In the data exchange, time stamps T1 and T4 are collected at the
+The four times are departure and arrival of the forward frame, followed
+by departure and arrival of the backward frame. Thus,
+time stamps T1 and T4 are collected at the
 original sender (here: @i{spusa}) while T2 and T3 are collected at the
-listening side (here: @i{tornado}).  The times above are consistent
+remote host (here: @i{tornado}).  The times above are all consistent
 because the two SPEC cards are synchronized with @i{White Rabbit}. The
 reported forward and backward times match the fact that I used
 a 10km fiber to connect the two cards; the difference between them
-is explained by the different speed of light in the two directions,
-because tranceivers use different wave lengths.
+is due to the different speed of light in the two directions,
+because the two SFP transceivers I plugged use different wave lengths.
 
 The following example shows the output for two forcibly-unsynchronized
-cards.  The difference between the two clocks is apparent; the
+cards.  The difference between the two clocks is clearly a
+few seconds; the
 @i{round trip time} is correct nonetheless, because it is a difference of
 differences:
 
@@ -722,12 +746,14 @@ differences:
    backward   time:         4.095120200
 @end smallexample
 
-While the code is designed to be simple to be reused, there is one
-important detail to remember.  Whereas the receive timestamp is
+The code in @file{stamp-frame}
+is designed to be simple to be reused, but there is one non-obvious detail
+that is worth describing here.  Whereas the receive timestamp is
 returned to user-space together with the frame it refers to, the
 transmit timestamp is only known after the relevant frame left the
-computer.  To communicate the TX timestamp to your peer you'll need to
-send another message, which carries the departure time of the previous
+computer.  For this reason, in order
+to communicate the TX timestamp of a frame to your peer, you'll need to
+send another message which carries the departure time of the previous
 frame.  This further message is usually called @i{follow-up},
 and @file{stamp-frame} respects this tradition.
 
@@ -746,14 +772,18 @@ for device-specific use:
 
 	The command is used to identify the features of the
         specific NIC device.  It tells user space which mezzanine is
-        currently plugged and also which type of carrier is this.
+        currently plugged and also which type of carrier you are talking to.
         The command exchanges a data structure with user space in order
-        to be able to extend its functionality over time, with a sub-command
+        to be able to extend its functionality over time, and such data
+        structure includes  a sub-command
         field. (For example, we may return EEPROM contents to user space
         on request).
 
         @b{Warning}: the command is not implemented because we still have
-        no mezzanine identification in place
+        no mezzanine identification in place. The error being returned
+        is @code{EAGAIN}; user code can rely on that error to know it
+        is actually talking with a SPEC device, even if no identification
+        is currently possible.
 
 @item PRIV_MEZZANINE_CMD
 
@@ -763,38 +793,28 @@ for device-specific use:
         In the case of the DIO mezzanine this includes generating pulses
         and timestamping input events; other mezzanine drivers will
         be able to use the command in a different way. The application
-        expected to first run @code{PRIV_MEZZANINE_ID} to ensure the
+        is expected to first run @code{PRIV_MEZZANINE_ID} to ensure the
         NIC device is connected to the right mezzanine.
 
 @end table
 
 In the specific case of this @i{wr-nic} driver, the data structure
-is defined in @code{wr-dio.h} and is not repeated here.
+is defined and explained in @code{wr-dio.h} and is not repeated here.
 
 The structure includes a few integer fields and an array of
 @code{struct timespec}.  Such structures define time stamps with
-nanosecond precision, and the simple DIO mezzanine and its gateware
+nanosecond precision, but the @i{simple-DIO} mezzanine and its gateware
 are able to time-stamp input events and generate output events with a
 resolution of 8ns.
 
-When the device is asked to timestamp input events, the array is used
+When the device is asked to timestamp input events, the array of
+@code{struct timespec} is used
 to return such events to user space.  When the device is asked to
 generate output pulses at specific points in time, the array is used
 to pass three values: the beginning of the pulse, the duration of the
-pulse and the period of the pulse train.  It is possible to configure
-several outputs with a single command: in this case the structures are
-used in groups of 5: structures 0..4 represent the starting time,
-structures 5..9 represent the durations and structures 10..14
-represent the periods. By passing a channel mask the application
-selects which channels to act on; @code{timespec} items for
-non-selected channels are ignored by the driver.  To stop output
-generation, the application must request a starting time of 0.0
-seconds for the channels it wants to stop.
+pulse and (optionally) the period of the pulse train.
 
-@b{Warning}: currently the @i{pulse train} mode is not supported
-by software.
-      
-Specifics about the use of individual fields is shown in the header
+Specifics about the use of individual fields are shown in the header
 (in a big comment block), in the driver itself and in the user-space
 programs that call @i{ioctl}.
 
@@ -812,13 +832,18 @@ and associated @i{printk} -- the time is usually 5 microseconds for me:
    make WR_NIC_FLAGS=-DDIO_STAT
 @end example
 
+Previous versions of this manual described how to command pulses on
+several channels with a single @i{ioctl} command, but that feature has
+never been implemented (one of the reasons is that @i{ioctl} revealed
+fast, so calling it several times is acceptable).
+
 @c ==========================================================================
 @node WR-NIC Command Tool
 @section WR-NIC Command Tool
 
 In the @file{tools/} subdirectory of this project, you find the
 @file{wr-dio-cmd} program, which is a command-line interface to the
-@i{ioctl} command to simplify initial access to the DIO device. Other
+@i{ioctl} command that acts on the @i{simple-DIO} mezzanine card.  Other
 @code{wr-dio-} tools are provided (and described below) but this is
 the most generic one.
 
@@ -872,6 +897,10 @@ The current version of the tool supports the following commands:
         in the range 0 to 0x1f (@code{stampm} command). If getting stamps
         for an individual channel, you can add the @code{wait} option
         to have the tool wait for (and report) new timestamps until killed.
+        @b{Warning}: use of @code{wait} is dangerous because it has
+        been implemented against the rules.. You must
+        terminate any waiting process before you unload the driver, or
+        your PC will explode and will destroy your academic career.
 
 @item pulse <channel> <duration> <when> [<period> <count>]
 
@@ -881,10 +910,11 @@ The current version of the tool supports the following commands:
         an absolute time (@code{<seconds>.<fraction>}) or a relative
         time (@code{+<seconds>.<fraction}). In the last case, the
         current second is added to @code{<seconds>} while the fraction
-        is not modified. The @code{+} form is useful for simple checks with
+        is used unchanged. The @code{+} form is useful for simple checks with
         visual inspection.  @code{period}, if specified, requests for
-        a pulse train, with that separation from the raising edges;
-        @code{count} is the number of instances to run (0 means forever).
+        a pulse train, with the specified time period between raising edges;
+        @code{count} is the number of instances to run (-1 means forever,
+        0 means ``stop generating pulses'').
 
 @item mode <channel> <mode> [<channel> <mode> ...]
 @itemx mode <mode0><mode1><mode2><mode3><mode4>
@@ -896,7 +926,7 @@ The current version of the tool supports the following commands:
         ``@code{D}'' (DIO core output) or ``@code{-}'' (unchanged).
         A channel managed by the DIO core is normally low and can
         pulse high on request (see @code{pulse}
-        command. Uppercase @code{D} or @code{I} select the termination
+        command. Uppercase @code{D} or @code{I} activate the 50-ohm termination
         resistor, while lowercase @code{d} or @code{i} disable the termination
         (output is always without termination, but I may add @code{L} and
         @code{H} if needed: the driver supports all combinations).
@@ -905,11 +935,13 @@ The current version of the tool supports the following commands:
 
 @end table
 
-Please note that generation of a pulse train is performed in kernel space,
+Please note that generation of a pulse train is performed by
+software running at interrupt time,
 because the @i{simple DIO} card and gateware can only emit one pulse at
 a requested @i{White Rabbit} time. For this reason you'll have a lower
-limit for the pulse duration, according to how powerful your computer
-is -- and how much you loaded with other tasks.
+limit for the pulse period, according to how powerful your computer
+is -- and how much you loaded with other tasks. In the future, new
+@i{gateware} files may perform pulse trains in hardware.
 
 There is no command to flush the timestamp FIFOs, but you can
 always ``@code{wr-dio-cmd stamp > /dev/null}'' if needed.
@@ -941,12 +973,12 @@ Example uses of the tool follow:
 @section WR-NIC Pulse per Second
 
 To better show how to write your own application with the SPEC driver
-and the @i{simple DIO} mezzanine card, this package includes
+and the @i{simple-DIO} mezzanine card, this package includes
 @file{wr-dio-pps}, which features a very small and readable source
 file.
 
 The program just fires a 1ms-long @i{pps} pulse on one of the output
-channels. The NIC defaults to @i{wr0} but can specify a different one;
+channels. The device name defaults to @i{wr0} but can specify a different one;
 the channel number is a mandatory argument.
 
 @example
@@ -959,9 +991,8 @@ the channel number is a mandatory argument.
 
 The following figure shows two such @i{pulse-per-second} signals
 retrieved from two different @i{simple-DIO} cards, connected by a 10km
-roll of fiber, after syncing the two @i{White Rabbit} on-board systems
-(one as master and the other as slave).  Increasing the horizontal
-scale of the scope, found the leading edge of the PPS signal differed
+roll of fiber, after syncing with @i{White Rabbit}.  Increasing the horizontal
+scale of the scope, I found that the leading edge of the PPS signal differed
 by exactly 8ns, because of different delay figures in the two pairs of
 boards (the SPEC and the @i{simple-DIO}).  A more complete
 experimental setup would include calibration of the internal delays of
@@ -969,6 +1000,10 @@ the boards, like the mechanism in place for the @i{fine-delay}
 mezzanine card (see
 @url{http://www.ohwr.org/projects/fmc-delay-1ns-8cha} and
 @url{http://www.ohwr.org/projects/fine-delay-sw}).
+Since @i{White Rabbit} itself
+synchronizes both the frequency and the phase of the internal
+clocks, the two PPS trains I generated differed by ``exactly'' 8ns
+(with an error less than 100ps).
 
 @sp 1
 @center @image{two-pps, 10cm}
@@ -999,8 +1034,8 @@ should be known to most users of this package.  In order to ease new
 implement a simple dual-headed system with concurrent output.  The
 examples are also meant to show the basic code that uses the provided
 @i{ioctl} command, without all the boring parameter parsing that is
-required in more generic tools like @code{wr-dio-cmd}. For this reason,
-the pulse width is hardwired to 1ms.
+required in more generic tools like @code{wr-dio-cmd}. Becuase of this
+simplification of parameter passing, the pulse width is hardwired to 1ms.
 
 The example is made up of two programs: @code{wr-dio-agent} and
 @code{wr-dio-ruler} (the former is a dumb actor, while the latter
@@ -1008,15 +1043,16 @@ states the rules). To keep things simple the two programs
 assume that the SPEC is connected point-to-point to another SPEC
 and both carry the @i{simple-DIO} mezzanine.
 
-Under this simplified assumption, the @i{ruler} transmits RAW Ethernet
+Under this simplified assumptions, the @i{ruler} transmits raw Ethernet
 frames to the broadcast address, while the @i{agent} receives almost
-everything that appears the cable.  This also allows plugging two SPEC
-cards in the same computer and running the example, whereas adding IP
-addresses and using UDP would prevent a setup with a single PC to work
-through the fiber.  The simplification above, however, most likely
-prevents this pair of demo programs from working within a more complex
+everything that appears on the cable.  This choice allows plugging two SPEC
+cards in the same computer and run the example; if the example
+used an IP-based protocol (like UDP) it couldn't be used
+with two cards on a single PC -- and a fiber through them.
+The simplification above, however, most likely
+prevents the programs from working within a more complex
 network topology.  I expect real @i{White Rabbit} users to add proper
-network addressing in the real applications.
+network addressing in their applications.
 
 If you have a single SPEC card, you can still use the @i{ruler} by
 itself to mirror an input channel to an output channel of the same
@@ -1034,26 +1070,30 @@ use (for most users it is @code{wr0}):
 @end example
 
 The @i{ruler} command, on the other hand, waits for timestamps
-to appear on its own input channel; when a positive-going edge is detected it
+to appear on the specified input channel;
+when notified about a positive-going edge, ot
 replicates the edge on one or more outputs. Each output can be
-local or remote, and can have a different delay.
+local or remote, and can use a different delay from the input pulse.
 
 If you lack an input signal, you can make an output pulse with
-@code{wr-dio-cmd} or other means and use it as a trigger. Please note
+@code{wr-dio-pps} or other means and use it as a trigger. Please note
 that the @i{ruler} does not configure the channel mode, so you might
 want to use the @code{mode} command of @code{wr-dio-cmd} in advance.
 
-The following command waits for input channel 0 on the card connected
-to @i{wr1}, and replicates the evebt with a delay of 1ms on channel 3 of
+The following command waits for events on channel 0 of the card connected
+to @i{wr1}, and replicates the event with a delay of 1ms on channel 3 of
 both the local and the remote card; it also replicates with a 2ms
-delay to local channel 4.
+delay to local channel 4. Please note that the delays should be no
+more than the interval between input pulses, because the tools
+reprograms all output triggers at each input event.
 
 @example
    wr-dio-ruler wr1 IN0 L3+0.001 R3+0.001 L4+0.002
 @end example
 
-There is no sample code that generates trains of pulses at this time, nor
-other options than generating 1ms-long pulses, but the code is
+There is no sample code that generates trains of pulses as a response
+to events, nor support for other than 1ms-long output pulses; anyways,
+the code is
 thoroughly commented in order to serve as a starting point for
 more complex lab environments.
 
@@ -1106,8 +1146,8 @@ with a delay of 1ms. The input events in this case are from a @i{pulse-per-secon
 The @i{grand plan} for this driver is to detach the NIC functionality
 from the mezzanine driver.
 
-Some future version of this package will thus feature a different lay
-out of code, and the NIC will be a mezzanine-independent feature that
+Some future version of this package will thus feature a different layout
+of the code, and the NIC will be a mezzanine-independent feature that
 may be activated on request of the mezzanine driver -- it's the
 mezzanine driver that requests its own gateware to be loaded, and only
 that driver can know whether or not NIC functionality is part of its
@@ -1218,6 +1258,12 @@ in @file{wr-dio.h} (i.e. DAC control)>
 
 @item The @i{wr-nic} functionality should be completely detached from
 the specific mezzanine. This is a longer-term desire.
+
+@item @i{specmem} and other generic tools need more error checking
+and some cleanup.
+
+@item Locking in kenrel code should be verified with a serious audit
+effort.
 
 @end itemize
 
