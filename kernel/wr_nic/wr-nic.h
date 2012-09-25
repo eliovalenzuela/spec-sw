@@ -55,26 +55,20 @@
 #define WRN_IRQ_NAMES {"wr-nic", "wr-tstamp"}
 #define WRN_IRQ_HANDLERS {wrn_interrupt, wrn_tstamp_interrupt}
 
-#define WRN_TS_BUF_SIZE 1024 /* array of timestamp structures */
-
 struct wrn_ep; /* Defined later */
 
-/* A timestamping structure to keep information for user-space */
-struct wrn_tx_tstamp {
+/* We must remember skb, id and tstamp for each pending descriptor, */
+struct wrn_desc_pending {
+	struct sk_buff *skb;
 	u8 valid;
 	u8 port_id;
 	u16 frame_id;
-	u32 ts;
+	u32 cycles;
 };
+
 /* bits for "valid" field */
 #define TS_PRESENT 1
 #define TS_INVALID 2 /* as reported by hw: we return 0 as timestamp */
-
-/* We must remember both skb and id for each pending descriptor */
-struct wrn_desc_pending {
-	struct sk_buff *skb;
-	u32 id; /* only 16 bits, actually */
-};
 
 /*
  * This is the main data structure for our NIC device. As for locking,
@@ -101,7 +95,6 @@ struct wrn_dev {
 	int			id;
 
 	struct net_device	*dev[WRN_NR_ENDPOINTS];
-	struct wrn_tx_tstamp	ts_buf[WRN_TS_BUF_SIZE];
 
 	/* FIXME: all dev fields must be verified */
 
@@ -237,7 +230,7 @@ extern int  wrn_endpoint_probe(struct net_device *netdev);
 extern void wrn_endpoint_remove(struct net_device *netdev);
 
 /* Following functions from timestamp.c */
-extern void wrn_tstamp_find_skb(struct wrn_dev *wrn, int i);
+extern void wrn_tx_tstamp_skb(struct wrn_dev *wrn, int desc);
 extern int wrn_tstamp_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
 extern irqreturn_t wrn_tstamp_interrupt(int irq, void *dev_id);
 extern void wrn_tstamp_init(struct wrn_dev *wrn);

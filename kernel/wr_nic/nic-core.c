@@ -193,7 +193,7 @@ static int wrn_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		/* The timestamp has not been collected: silently discard it */
 	}
 	wrn->skb_desc[desc].skb = skb; /* Save for tx irq and stamping */
-	wrn->skb_desc[desc].id = id; /* Save for tx irq and stamping */
+	wrn->skb_desc[desc].frame_id = id; /* Save for tx irq and stamping */
 
 	//netif_stop_queue(dev); /* Queue stopped until tx is over (FIXME?) */
 
@@ -471,7 +471,7 @@ static void wrn_tx_interrupt(struct wrn_dev *wrn)
 			/* hardware timestamping is enabled */
 			info->tx_flags |= SKBTX_IN_PROGRESS;
 			pr_debug("%s: %i -- in progress\n", __func__, __LINE__);
-			wrn_tstamp_find_skb(wrn, i);
+			wrn_tx_tstamp_skb(wrn, i);
 			/* It has been freed if found; otherwise keep it */
 		} else {
 			dev_kfree_skb_irq(skb);
