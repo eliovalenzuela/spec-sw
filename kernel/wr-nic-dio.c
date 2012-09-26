@@ -409,7 +409,7 @@ irqreturn_t wrn_dio_interrupt(struct fmc_device *fmc)
 	int ch, chm;
 
 	if (unlikely(!fmc->eeprom)) {
-		dev_err(fmc->hwdev, "No mezzanine: disabling interrupts\n");
+		dev_err(fmc->hwdev, "WR-DIO: No mezzanine, disabling irqs\n");
 		writel(0x1f, &dio->EIC_IDR);
 		writel(0x1f, &dio->EIC_ISR);
 		return IRQ_NONE;
