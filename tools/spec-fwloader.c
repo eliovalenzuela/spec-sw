@@ -43,8 +43,8 @@ int main(int argc, char **argv)
 	if(!card)
 	{
 		fprintf(stderr, "Can't detect a SPEC card under the given "
-			"adress. Make sure a SPEC card is present in your PC "
-			"and the driver is loaded.\n");
+			"adress.\nMake sure a SPEC card is present in your PC, "
+			"the driver is loaded and you run the program as root.\n");
 		exit(1);
 	}
 

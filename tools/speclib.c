@@ -104,6 +104,12 @@ void *spec_open(int bus, int dev)
 	card->bar0 = spec_map_area(bus, dev, BASE_BAR0, 0x100000);
 	card->bar4 = spec_map_area(bus, dev, BASE_BAR4, 0x1000);
 
+	if(!card->bar0 && !card->bar4)
+	{
+		free(card);
+		card = NULL;
+	}
+
 	return card;
 }
 
