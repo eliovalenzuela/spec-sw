@@ -43,22 +43,23 @@ int main(int argc, char **argv)
 	}
 
 	if (optind >= argc) {
-		fprintf(stderr, "Expected binary name after options.\n");
+		fprintf(stderr, "%s: Expected binary name after options.\n",
+			argv[0]);
 		exit(1);
 	}
 
 	card = spec_open(bus, dev_fn);
 	if(!card)
 	{
-		fprintf(stderr, "Can't detect a SPEC card under the given "
-			"adress. Make sure a SPEC card is present in your PC "
-			"and the driver is loaded.\n");
+		fprintf(stderr, "%s: Can't detect a SPEC card under the given "
+			"adress.\nMake sure a SPEC card is present in your PC "
+			"and the driver is loaded.\n", argv[0]);
 		exit(1);
 	}
 
 	if(spec_load_lm32(card, argv[optind], lm32_base) < 0)
 	{
-		fprintf(stderr, "Loader failure.\n");
+		fprintf(stderr, "%s: Loader failure.\n", argv[0]);
 		exit(1);
 	}
 

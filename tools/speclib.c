@@ -167,41 +167,42 @@ static char *load_binary_file(const char *filename, size_t *size)
 	FILE *f;
 
 	f = fopen(filename, "r");
-	if (!f)
+	if (!f) {
+		fprintf(stderr, "%s: %s\n", filename, strerror(errno));
 		return NULL;
-
-	if (fstat(fileno(f), &stbuf))
-	{
+	}
+	if (fstat(fileno(f), &stbuf) < 0) {
+		fprintf(stderr, "%s: %s\n", filename, strerror(errno));
 		fclose(f);
 		return NULL;
 	}
 
-	if (!S_ISREG(stbuf.st_mode))
-	{
+	if (!S_ISREG(stbuf.st_mode)) {
+		fprintf(stderr, "%s: not a regular file\n", filename);
 		fclose(f);
 		return NULL;
 	}
 
 	buf = malloc(stbuf.st_size);
-	if (!buf)
-	{
+	if (!buf) {
+		fprintf(stderr, "loading %s: %s\n", filename, strerror(errno));
 		fclose(f);
 		return NULL;
 	}
 
 	i = fread(buf, 1, stbuf.st_size, f);
+	fclose(f);
 	if (i < 0) {
-		fclose(f);
+		fprintf(stderr, "reading %s: %s\n", filename, strerror(errno));
 		free(buf);
 		return NULL;
 	}
 	if (i != stbuf.st_size) {
-		fclose(f);
+		fprintf(stderr, "%s: short read\n", filename, strerror(errno));
 		free(buf);
 		return NULL;
 	}
 
-	fclose(f);
 	*size = stbuf.st_size;
 	return buf;
 }

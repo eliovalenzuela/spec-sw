@@ -91,7 +91,6 @@ int main(int argc, char **argv)
 	}
 
 	ptr = map_base + uarg[0];
-	printf("%p\n", ptr);
 	/* by default, operate quietly (only report read value) */
 	if (!do_write) {
 		uarg[1] = *ptr;
