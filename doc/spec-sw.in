@@ -39,7 +39,7 @@
 
 @titlepage
 @title SPEC Software Support
-@subtitle (@value{update-month})
+@subtitle Version 2.0 (@value{update-month})
 @subtitle A driver for the SPEC card and its FMC modules
 @author Alessandro Rubini for CERN (BE-CO-HT)
 @end titlepage
@@ -162,7 +162,7 @@ Failure of any of the above steps is fatal.
 
 The suggested @code{spec-init.bin} gateware binary is always available
 from the @i{files} area of the @i{spec-sw} project on @code{ohwr.org}.
-As I write this, the direct link is
+The current binary version to be used with this software version is
 @url{http://www.ohwr.org/attachments/download/1454/spec-init.bin-2012-07-24}.
 
 The EEPROM content that has been read at initialization time
@@ -558,8 +558,8 @@ the @i{files} tab of the Open Hardware Repository. The direct
 links are:
 
 @example
-http://www.ohwr.org/attachments/download/1596/wr_nic_dio.bin-2012-09-20
-http://www.ohwr.org/attachments/download/1597/wr_nic_dio-wrc.bin-2012-09-20
+http://www.ohwr.org/attachments/download/1610/wr_nic_dio.bin-2012-09-26
+http://www.ohwr.org/attachments/download/1611/wr_nic_dio-wrc.bin-2012-09-26
 @end example
 
 The date is included in the binary name so we won't need to remove the
@@ -573,9 +573,9 @@ needed to run @i{wr-nic}:
 @smallexample
 cd /tmp
 wget -O wr_nic_dio.bin \
-   http://www.ohwr.org/attachments/download/1596/wr_nic_dio.bin-2012-09-20
+   http://www.ohwr.org/attachments/download/1610/wr_nic_dio.bin-2012-09-26
 wget -O wr_nic_dio-wrc.bin \
-   http://www.ohwr.org/attachments/download/1597/wr_nic_dio-wrc.bin-2012-09-20
+   http://www.ohwr.org/attachments/download/1611/wr_nic_dio-wrc.bin-2012-09-26
 sudo mv wr_nic_dio wr_nic_dio-wrc /lib/firmware/fmc
 @end smallexample
 
@@ -650,7 +650,7 @@ thermometer.
 
 The user is thus only expected to assign an Internet address to the
 Ethernet port to be able to use it to transfer data. Note however
-that @i{White Rabbit} synchronization happens even if the interace
+that @i{White Rabbit} synchronization happens even if the interface
 is not configured in Linux.  In case you need to change the MAC
 address as seen by Linux, the command to type is something like the
 following:
@@ -702,7 +702,7 @@ The @file{stamp-frame} example supports two modes of operations. In
 @i{listen} mode, it binds to an Ethernet interface and listens forever:
 it waits for the forward frames and replies to them; in normal mode it
 sends the forward frame and reports data as soon as it gets a reply.  This is
-an example runing on two different hosts:
+an example running on two different hosts:
 
 @smallexample
    tornado.root# stamp-frame wr0 listen
@@ -898,7 +898,7 @@ The current version of the tool supports the following commands:
         for an individual channel, you can add the @code{wait} option
         to have the tool wait for (and report) new timestamps until killed.
         @b{Warning}: use of @code{wait} is dangerous because it has
-        been implemented against the rules.. You must
+        been implemented against the rules. You must
         terminate any waiting process before you unload the driver, or
         your PC will explode and will destroy your academic career.
 
@@ -989,26 +989,25 @@ the channel number is a mandatory argument.
    ./wr-nic-pps wr1 0
 @end example
 
-The following figure shows two such @i{pulse-per-second} signals
+The following two figures show two such @i{pulse-per-second} signals
 retrieved from two different @i{simple-DIO} cards, connected by a 10km
-roll of fiber, after syncing with @i{White Rabbit}.  Increasing the horizontal
-scale of the scope, I found that the leading edge of the PPS signal differed
-by exactly 8ns, because of different delay figures in the two pairs of
-boards (the SPEC and the @i{simple-DIO}).  A more complete
-experimental setup would include calibration of the internal delays of
-the boards, like the mechanism in place for the @i{fine-delay}
-mezzanine card (see
+roll of fiber, after syncing with @i{White Rabbit}.  In some cases, it
+may happen that the leading edges differ by almost exactly 8ns; this
+happens because in the @i{simple-DIO} all times are quantized by
+8ns-long clock ticks. The differences in internal delays (which depend
+on the carrier, the mezzanine and the FPGA binary), are not
+self-measured and calibrated in this simple design and may appear in
+the output after quantization.  A more complete experimental setup
+would include calibration of the internal delays of the boards, like
+the mechanism in place for the @i{fine-delay} mezzanine card (see
 @url{http://www.ohwr.org/projects/fmc-delay-1ns-8cha} and
 @url{http://www.ohwr.org/projects/fine-delay-sw}).
-Since @i{White Rabbit} itself
-synchronizes both the frequency and the phase of the internal
-clocks, the two PPS trains I generated differed by ``exactly'' 8ns
-(with an error less than 100ps).
 
 @sp 1
-@center @image{two-pps, 10cm}
+@center @image{two-pps-whole, 10cm}
 @sp 1
-
+@center @image{two-pps-detail, 10cm}
+@sp 1
 
 @c ==========================================================================
 @node Distributing Output Pulses
@@ -1034,7 +1033,7 @@ should be known to most users of this package.  In order to ease new
 implement a simple dual-headed system with concurrent output.  The
 examples are also meant to show the basic code that uses the provided
 @i{ioctl} command, without all the boring parameter parsing that is
-required in more generic tools like @code{wr-dio-cmd}. Becuase of this
+required in more generic tools like @code{wr-dio-cmd}. Because of this
 simplification of parameter passing, the pulse width is hardwired to 1ms.
 
 The example is made up of two programs: @code{wr-dio-agent} and
@@ -1166,10 +1165,6 @@ programs that may be useful while working with the SPEC device.  This
 section does not describe the @i{wr-nic} specific tool; for that see
 @ref{WR-NIC Command Tool}.
 
-@b{Warning:} the tools need some more audit and cleanup. For example,
-the tools may fail with a segmentation fault if invoked as a
-non-privileged user.
-
 They are all base on the same @i{speclib}, part of the same directory,
 so all of them accept some parameters in common, in order to identify
 one specific SPEC card if you have more than one:
@@ -1259,11 +1254,9 @@ in @file{wr-dio.h} (i.e. DAC control)>
 @item The @i{wr-nic} functionality should be completely detached from
 the specific mezzanine. This is a longer-term desire.
 
-@item @i{specmem} and other generic tools need more error checking
-and some cleanup.
-
-@item Locking in kenrel code should be verified with a serious audit
-effort.
+@item Locking in kernel code should be verified with a serious audit
+effort. There are no known issues at this point, but some code may
+be made safer.
 
 @end itemize
 
@@ -1275,3 +1268,4 @@ effort.
 @c  LocalWords:  documentencoding setfilename afourpaper paragraphindent EEPROM
 @c  LocalWords:  setchapternewpage finalout eeprom gateware devmem devfn busid
 @c  LocalWords:  speclib Gennum timestamps stampm ifname timespec timestamp
+@c  LocalWords:  timestamping linux FPGA ohwr http
