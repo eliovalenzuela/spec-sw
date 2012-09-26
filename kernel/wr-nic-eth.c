@@ -70,10 +70,19 @@ irqreturn_t wrn_handler(int irq, void *dev_id)
 	}
 
 	fmc->op->irq_ack(fmc);
-	/* after ack, disable and re-enable the irq, so to force an edge */
-	writel(WRN_ALL_MASK, &vic->IDR);
+
+	/*
+	 * The VIC is really level-active, but my Gennum refuses to work
+	 * properly on level interrupts (maybe it's just me). So I'll use
+	 * the typical trick you see in level-irq Ethernet drivers when
+	 * they are plugged to edge-irq gpio lines: force an edge in case
+	 * the line has become active again while we were serving it.
+	 * (with a big thank you to Tomasz for the exact sequence to use)
+	 */
+	writel(VIC_CTL_POL, &vic->CTL); /* not enabled */
 	udelay(1);
-	writel(WRN_ALL_MASK, &vic->IER);
+	writel(VIC_CTL_ENABLE | VIC_CTL_POL, &vic->CTL);
+	writel(0, &vic->EOIR);
 
 	return ret;
 }
