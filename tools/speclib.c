@@ -204,7 +204,7 @@ static char *load_binary_file(const char *filename, size_t *size)
 		return NULL;
 	}
 	if (i != stbuf.st_size) {
-		fprintf(stderr, "%s: short read\n", filename, strerror(errno));
+		fprintf(stderr, "%s: short read\n", filename);
 		free(buf);
 		return NULL;
 	}
