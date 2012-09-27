@@ -77,12 +77,14 @@ irqreturn_t wrn_handler(int irq, void *dev_id)
 	 * the typical trick you see in level-irq Ethernet drivers when
 	 * they are plugged to edge-irq gpio lines: force an edge in case
 	 * the line has become active again while we were serving it.
-	 * (with a big thank you to Tomasz for the exact sequence to use)
+	 * (with a big thank you to Tomasz and Grzegorz for the sequence)
+	 *
+	 * Actually, we should check the input line before doing this...
 	 */
-	writel(VIC_CTL_POL, &vic->CTL); /* not enabled */
-	udelay(1);
-	writel(VIC_CTL_ENABLE | VIC_CTL_POL, &vic->CTL);
-	writel(0, &vic->EOIR);
+	writel(WRN_ALL_MASK, &vic->IDR); /* disable sources */
+	writel(0xff, &vic->EOIR);
+	udelay(5);
+	writel(WRN_ALL_MASK, &vic->IER); /* enable sources again */
 
 	return ret;
 }
