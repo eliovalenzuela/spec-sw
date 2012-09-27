@@ -43,6 +43,15 @@
 /* definitions for field: VIC output polarity in reg: VIC Control Register */
 #define VIC_CTL_POL                           WBGEN2_GEN_MASK(1, 1)
 
+/* definitions for field: Emulate Edge sensitive output in reg: VIC Control Register */
+#define VIC_CTL_EMU_EDGE                      WBGEN2_GEN_MASK(2, 1)
+
+/* definitions for field: Emulated Edge pulse timer in reg: VIC Control Register */
+#define VIC_CTL_EMU_LEN_MASK                  WBGEN2_GEN_MASK(3, 16)
+#define VIC_CTL_EMU_LEN_SHIFT                 3
+#define VIC_CTL_EMU_LEN_W(value)              WBGEN2_GEN_WRITE(value, 3, 16)
+#define VIC_CTL_EMU_LEN_R(reg)                WBGEN2_GEN_READ(reg, 3, 16)
+
 /* definitions for register: Raw Interrupt Status Register */
 
 /* definitions for register: Interrupt Enable Register */

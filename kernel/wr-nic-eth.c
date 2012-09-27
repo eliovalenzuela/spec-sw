@@ -46,7 +46,7 @@ irqreturn_t wrn_handler(int irq, void *dev_id)
 	struct platform_device *pdev = fmc->mezzanine_data;
 	struct wrn_drvdata *drvdata;
 	struct VIC_WB *vic;
-	uint32_t mask;
+	uint32_t vector;
 	irqreturn_t ret = IRQ_HANDLED;
 
 	if (!pdev) {
@@ -57,34 +57,43 @@ irqreturn_t wrn_handler(int irq, void *dev_id)
 	}
 
 	drvdata = pdev->dev.platform_data;
-	vic = (typeof(vic))drvdata->vic_base;
+	vic = (typeof(vic)) drvdata->vic_base;
 
-	while ( (mask = readl(&vic->RISR)) ) {
-		if (mask & WRN_VIC_MASK_NIC)
-			ret = wrn_interrupt(irq, drvdata->wrn);
-		if (mask & WRN_VIC_MASK_TXTSU)
-			ret = wrn_tstamp_interrupt(irq, drvdata->wrn);
-		if (mask & WRN_VIC_MASK_DIO)
-			ret = wrn_dio_interrupt(fmc /* different arg! */);
-		writel(mask, &vic->EOIR);
-	}
+	/*
+	 * VIC operation algorithm:
+	 *   - when a peripheral interrupt arrives (as seen in RISR register),
+	 *     it is masked by IMR and latched in bit of ISR register:
+	 *
+	 *     ISR |= (RISR & IMR);
+	 *     if (ISR != 0) {
+	 *         int current_irq = priority_decode(ISR)
+	 *         VAR = IVT_RAM[current_irq];
+	 *         MASTER_IRQ = CTL.POL;
+	 *
+	 *         wait (write to EOIR)
+	 *
+	 *         if (CTL.EMU_ENA)
+	 *             pulse(MASTER_IRQ, CTL.EMU_LEN, !CTL.POL)
+	 *     } else {
+	 *         MASTER_IRQ = !CTL.POL
+	 *     }   
+	 *
+	 * The VIC was inspired by the original VIC used in NXP's ARM MCUs.
+	 */
+
+	/* read pending vector address - the index of currently pending IRQ. */
+	vector = readl(&vic->VAR);
+
+	if (vector == WRN_VIC_ID_NIC)
+		ret = wrn_interrupt(irq, drvdata->wrn);
+	else if (vector == WRN_VIC_ID_TXTSU)
+		ret = wrn_tstamp_interrupt(irq, drvdata->wrn);
+	else if (vector == WRN_VIC_ID_DIO)
+		ret = wrn_dio_interrupt(fmc /* different arg! */);
 
 	fmc->op->irq_ack(fmc);
 
-	/*
-	 * The VIC is really level-active, but my Gennum refuses to work
-	 * properly on level interrupts (maybe it's just me). So I'll use
-	 * the typical trick you see in level-irq Ethernet drivers when
-	 * they are plugged to edge-irq gpio lines: force an edge in case
-	 * the line has become active again while we were serving it.
-	 * (with a big thank you to Tomasz and Grzegorz for the sequence)
-	 *
-	 * Actually, we should check the input line before doing this...
-	 */
-	writel(WRN_ALL_MASK, &vic->IDR); /* disable sources */
-	writel(0xff, &vic->EOIR);
-	udelay(5);
-	writel(WRN_ALL_MASK, &vic->IER); /* enable sources again */
+	writel(0, &vic->EOIR);
 
 	return ret;
 }
@@ -95,7 +104,15 @@ static int wrn_vic_init(struct fmc_device *fmc)
 	struct wrn_drvdata *drvdata = pdev->dev.platform_data;
 	struct VIC_WB *vic = (typeof(vic))drvdata->vic_base;
 
-	writel(VIC_CTL_ENABLE | VIC_CTL_POL, &vic->CTL);
+	/* fill the vector table */
+	writel(WRN_VIC_ID_TXTSU, &vic->IVT_RAM[WRN_VIC_ID_TXTSU]);
+	writel(WRN_VIC_ID_NIC,   &vic->IVT_RAM[WRN_VIC_ID_NIC]);
+	writel(WRN_VIC_ID_DIO,   &vic->IVT_RAM[WRN_VIC_ID_DIO]);
+
+	/* 4us edge emulation timer (counts in 16ns steps) */
+	writel(VIC_CTL_ENABLE | VIC_CTL_POL | VIC_CTL_EMU_EDGE | \
+	       VIC_CTL_EMU_LEN_W(4000 / 16), &vic->CTL);
+
 	writel(WRN_ALL_MASK, &vic->IER);
 	return 0;
 }
