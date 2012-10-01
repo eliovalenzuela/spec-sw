@@ -27,6 +27,9 @@
 char *spec_fw_name = "fmc/spec-init.bin";
 module_param_named(fw_name, spec_fw_name, charp, 0444);
 
+int spec_use_msi = 0;
+module_param_named(use_msi, spec_use_msi, int, 0444);
+
 /* Load the FPGA. This bases on loader-ll.c, a kernel/user space thing */
 int spec_load_fpga(struct spec_dev *spec, const void *data, int size)
 {
@@ -97,8 +100,16 @@ static int __devinit spec_probe(struct pci_dev *pdev,
 		return -ENOMEM;
 	spec->pdev = pdev;
 
-	if ( (ret = pci_enable_msi_block(pdev, 1)) < 0)
-		dev_err(&pdev->dev, "enable msi block: error %i\n", ret);
+	if (spec_use_msi) {
+		/*
+		 * This should be "4" but arch/x86/kernel/apic/io_apic.c
+		 * says "x86 doesn't support multiple MSI yet".
+		 */
+		ret = pci_enable_msi_block(pdev, 1);
+		if (ret < 0)
+			dev_err(&pdev->dev, "%s: enable msi block: error %i\n",
+				__func__, ret);
+	}
 
 	/* Remap our 3 bars */
 	for (i = ret = 0; i < 3; i++) {
@@ -138,7 +149,8 @@ out_unmap:
 		spec->area[i] = NULL;
 	}
 	pci_set_drvdata(pdev, NULL);
-	pci_disable_msi(pdev);
+	if (spec_use_msi)
+		pci_disable_msi(pdev);
 	pci_disable_device(pdev);
 	kfree(spec);
 	return ret;
@@ -160,7 +172,7 @@ static void __devexit spec_remove(struct pci_dev *pdev)
 	}
 	pci_set_drvdata(pdev, NULL);
 	kfree(spec);
-	pci_disable_msi(pdev);
+	//pci_disable_msi(pdev);
 	pci_disable_device(pdev);
 
 }

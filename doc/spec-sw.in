@@ -185,22 +185,32 @@ The module can receive the following parameters to customize its operation:
 
 @table @code
 
+@item fw_name
+
+	This string parameter can be used to override the default name
+        (@code{fmc/spec-init.bin}) for the initialization binary file.
+
+@item use_msi
+
+	This forces the driver to use @i{message signalled interrupts}.
+        MSI interrupts have some advantages over conventional wire-level
+        interrupts, but on some systems I've not been able to make them work.
+        By default the driver uses the old-fashioned wire-level
+        signalling method, unless you pass @code{use_msi=1} .
+        
 @item test_irq
 
 	If not zero, this parameter requests to self-test interrupt
-        generation, using the Gennum registers. This usually does not
-        work on my host, for yet unknown reasons (and that's why it is
+        generation, using the software-driven interrupt source in
+        Gennum registers. This usually does not
+        work on my host if I use MSI,
+        for yet unknown reasons (and that's why it is
         disabled by default).
 
 @item i2c_dump
 
 	If not zero, this parameter requests to @i{printk} the content
         of the FMC eeprom, for diagnostic purposes.
-
-@item fw_name
-
-	This string parameter can be used to override the default name
-        (@code{fmc/spec-init.bin}) for the initialization binary file.
 
 @end table
 
@@ -276,6 +286,49 @@ the PCI identifiers:
 
 Please note that not all sub-modules support all of those parameters.
 You can use @i{modinfo} to check what is supported by each module.
+
+@c ==========================================================================
+@node Interrupts in spec.ko
+@section Interrupts in spec.ko
+
+Up to version 2.0 of this package, I enabled MSI (@i{message signalled
+interrupts}) in the Gennum chip.  Now the default is using normal
+@i{wire-level} PCI interrupts, with a module parameter called
+@code{use_msi}.
+
+While MSI should perform better than conventional interrupts, we
+didn't manage to make them work on all systems. It's still unclear to
+us whether it depends on the kernel version or some chipset-specific
+(mis)behavior.  Actually, MSI work on both of my development systems,
+but failed to work for three of my mates.
+
+If you want to help with taming the MSI problem, you should load the
+@i{spec} driver with @code{use_msi=1} and run the @i{wr-nic}
+driver. If you are unable to exchange frames, please grep for @code{wr-nic}
+in @file{/proc/interrupts} to see if the counters are moving or not.  If not,
+the problem is most likely in register 0x4a (@code{MSI_CONTROL})
+that lost its correct value of @code{0xa5}. You can check the
+high 16 bits in the output of @code{specmem -g 48} to verify.
+The code is well commented about this MSI issue, please look
+for @code{use_msi} in the source code.
+
+With non-msi interrupts, the lines are shared with other peripherals,
+and you'll something like this (this computer has two SPEC cards plugged):
+
+@smalleexample
+  spusa.root# grep nic /proc/interrupts
+   16:  236      0   0   805   IO-APIC-fasteoi   snd_hda_intel, wr-nic
+   18:    0  14721  16    33   IO-APIC-fasteoi   ahci, ohci_hcd:usb4, wr-nic
+@end smallexample
+
+If you enable MSI, interrupts have higher numbers, allocated specifically
+for the peripheral:
+
+@smallexample
+  spusa.root# grep wr-nic /proc/interrupts
+   47:      0      0      0    124   PCI-MSI-edge  wr-nic
+   48:  70470      0      0     26   PCI-MSI-edge  wr-nic
+@end smallexample
 
 @c ##########################################################################
 @node fmc-trivial.ko

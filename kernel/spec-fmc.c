@@ -96,14 +96,18 @@ static int spec_irq_request(struct fmc_device *fmc, irq_handler_t handler,
 	u32 value;
 
 	ret = request_irq(fmc->irq, handler, flags, name, fmc);
-	if (ret) return ret;
+	if (ret)
+		return ret;
 
-	value = gennum_readl(spec, GNPPCI_MSI_CONTROL);
-	if ((value & 0x810000) != 0x810000)
-		dev_err(&spec->pdev->dev, "invalid msi control: 0x%08x\n",
-			value);
-	value = 0xa50000 | (value & 0xffff);
-	gennum_writel(spec, value, GNPPCI_MSI_CONTROL);
+	if (spec_use_msi) {
+		/* A check and a hack, but doesn't work on all computers */
+		value = gennum_readl(spec, GNPPCI_MSI_CONTROL);
+		if ((value & 0x810000) != 0x810000)
+			dev_err(&spec->pdev->dev, "invalid msi control: "
+				"0x%04x\n", value >> 16);
+		value = 0xa50000 | (value & 0xffff);
+		gennum_writel(spec, value, GNPPCI_MSI_CONTROL);
+	}
 
 	/* Enable gpio interrupts:
 	 * gpio6: tp8: output low
@@ -203,16 +207,18 @@ static int spec_irq_init(struct fmc_device *fmc)
 	uint32_t value;
 	int i;
 
-	/*
-	 * Enable multiple-msi to work around a chip design bug.
-	 * See http://blog.tftechpages.com/?p=595
-	 */
-	value = gennum_readl(spec, GNPPCI_MSI_CONTROL);
-	if ((value & 0x810000) != 0x810000)
-		dev_err(&spec->pdev->dev, "invalid msi control: 0x%08x\n",
-			value);
-	value = 0xa50000 | (value & 0xffff);
-	gennum_writel(spec, value, GNPPCI_MSI_CONTROL);
+	if (spec_use_msi) {
+		/*
+		 * Enable multiple-msi to work around a chip design bug.
+		 * See http://blog.tftechpages.com/?p=595
+		 */
+		value = gennum_readl(spec, GNPPCI_MSI_CONTROL);
+		if ((value & 0x810000) != 0x810000)
+			dev_err(&spec->pdev->dev, "invalid msi control: "
+				"0x%04x\n", value >> 16);
+		value = 0xa50000 | (value & 0xffff);
+		gennum_writel(spec, value, GNPPCI_MSI_CONTROL);
+	}
 
 	/*
 	 * Now check the two least-significant bits of the msi-data register,
@@ -221,14 +227,17 @@ static int spec_irq_init(struct fmc_device *fmc)
 	value = gennum_readl(spec, GNPPCI_MSI_DATA);
 	for (i = 0; i < 7; i++)
 		gennum_writel(spec, 0, GNINT_CFG(i));
-	gennum_writel(spec, 0x800c, GNINT_CFG(value & 0x03));
+	if (spec_use_msi)
+		gennum_writel(spec, 0x800c, GNINT_CFG(value & 0x03));
+	else
+		gennum_writel(spec, 0x800c, GNINT_CFG(0 /* first one */ ));
 
 	/* Finally, ensure we are able to receive it -- if the user asked to */
 	if (spec_test_irq == 0)
 		return 0;
 	spec->irq_count = 0;
 	init_completion(&spec->compl);
-	fmc->op->irq_request(fmc, spec_test_handler, "spec-test", 0);
+	fmc->op->irq_request(fmc, spec_test_handler, "spec-test", IRQF_SHARED);
 	gennum_writel(spec, 8, GNINT_STAT);
 	gennum_writel(spec, 0, GNINT_STAT);
 	wait_for_completion_timeout(&spec->compl, msecs_to_jiffies(50));

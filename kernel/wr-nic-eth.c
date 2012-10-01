@@ -155,7 +155,7 @@ int wrn_eth_init(struct fmc_device *fmc)
 	unsigned long size;
 	int i, ret;
 
-	ret = fmc->op->irq_request(fmc, wrn_handler, "wr-nic", 0);
+	ret = fmc->op->irq_request(fmc, wrn_handler, "wr-nic", IRQF_SHARED);
 	if (ret < 0) {
 		dev_err(dev, "Can't request interrupt\n");
 		return ret;
