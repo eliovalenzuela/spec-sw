@@ -25,6 +25,10 @@ module_param_named(file, wrn_filename, charp, 0444);
 static char *wrn_wrc_filename = WRN_WRC_DEFAULT_NAME;
 module_param_named(wrc, wrn_wrc_filename, charp, 0444);
 
+static int wrn_show_sdb;
+module_param_named(show_sdb, wrn_show_sdb, int, 0444);
+
+
 static int wrn_load_wrc(struct fmc_device *fmc, char *name,
 			unsigned long ram, unsigned long ramsize)
 {
@@ -87,7 +91,8 @@ int wrn_fmc_probe(struct fmc_device *fmc)
 		dev_err(dev, "scan fmc failed %i\n", ret);
 		goto out;
 	}
-	fmc_show_sdb_tree(fmc);
+	if (wrn_show_sdb)
+		fmc_show_sdb_tree(fmc);
 
 	/*
 	 * The gateware may not be including the WRC code, or the

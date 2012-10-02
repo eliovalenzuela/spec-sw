@@ -212,6 +212,11 @@ The module can receive the following parameters to customize its operation:
 	If not zero, this parameter requests to @i{printk} the content
         of the FMC eeprom, for diagnostic purposes.
 
+@item show_sdb
+
+	If not zero, the SDB internal structure of the golden binary
+        is reported through kernel messages. It is disabled by default.
+
 @end table
 
 Any mezzanine-specific action must be performed by the driver for the
@@ -270,6 +275,14 @@ please look at @i{spec-trivial.c}.
         specified, the first string of @i{gateware=} is used for
         all cards; otherwise the identifiers and gateware names are
         paired one by one, in the order specified.
+
+@item show_sdb=
+
+	For modules supporting it, this parameter asks sub-modules to
+        show the SDB internal structure to kernel messages. It is
+        disabled by default because those lines tend to hide more
+        important messages when you look at the system console while
+        loading the drivers.
 
 @end table
 

@@ -17,6 +17,9 @@
 static int spec_test_irq;
 module_param_named(test_irq, spec_test_irq, int, 0444);
 
+static int spec_show_sdb;
+module_param_named(show_sdb, spec_show_sdb, int, 0444);
+
 /* The main role of this file is offering the fmc_operations for the spec */
 
 static int spec_validate(struct fmc_device *fmc, struct fmc_driver *drv)
@@ -284,7 +287,8 @@ static int check_golden(struct fmc_device *fmc)
 		dev_err(&spec->pdev->dev, "unsexpected device in SDB\n");
 		return -ENODEV;
 	}
-	fmc_show_sdb_tree(fmc);
+	if (spec_show_sdb)
+		fmc_show_sdb_tree(fmc);
 	return 0;
 }
 
