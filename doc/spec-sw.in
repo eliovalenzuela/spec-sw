@@ -39,7 +39,7 @@
 
 @titlepage
 @title SPEC Software Support
-@subtitle Version 2.0.1 (@value{update-month})
+@subtitle Version 2.1 (@value{update-month})
 @subtitle A driver for the SPEC card and its FMC modules
 @author Alessandro Rubini for CERN (BE-CO-HT)
 @end titlepage
@@ -596,7 +596,9 @@ connected to the SPEC network card and act accordingly.
 The driver loads two binaries, using the @i{firmware loader} mechanism
 offered by the Linux kernel: one is the gateware file, that is requested
 through the @i{reprogram} carrier method; the other is the LM32 program
-binary, which however is only loaded on user request.
+binary, which however is only loaded on user request. With the
+current version of the gateware binary, the LM32 program is already included
+in its most current version, so you won't need to load it.
 
 The default file names are as follows:
 
@@ -621,10 +623,10 @@ The default file names are as follows:
 
 The binaries suggested for this software release are available from
 the @i{files} tab of the Open Hardware Repository. The direct
-links are:
+links are as follows (the former is required, the latter is optional):
 
 @example
-http://www.ohwr.org/attachments/download/1610/wr_nic_dio.bin-2012-09-26
+http://www.ohwr.org/attachments/download/1633/wr_nic_dio.bin-2012-10-02
 http://www.ohwr.org/attachments/download/1611/wr_nic_dio-wrc.bin-2012-09-26
 @end example
 
@@ -639,7 +641,7 @@ needed to run @i{wr-nic}:
 @smallexample
 cd /tmp
 wget -O wr_nic_dio.bin \
-   http://www.ohwr.org/attachments/download/1610/wr_nic_dio.bin-2012-09-26
+   http://www.ohwr.org/attachments/download/1633/wr_nic_dio.bin-2012-10-02
 wget -O wr_nic_dio-wrc.bin \
    http://www.ohwr.org/attachments/download/1611/wr_nic_dio-wrc.bin-2012-09-26
 sudo mv wr_nic_dio wr_nic_dio-wrc /lib/firmware/fmc
