@@ -113,7 +113,6 @@ int wrn_fmc_probe(struct fmc_device *fmc)
 	}
 	if (need_wrc) {
 		unsigned long j = jiffies + HZ/2;
-		printk("ram %lx syscon %lx\n", ram, syscon);
 		fmc_writel(fmc, 0x1deadbee, syscon);
 		while ( !(fmc_readl(fmc, syscon) & (1 << 28)) )
 			if (time_after(jiffies, j))

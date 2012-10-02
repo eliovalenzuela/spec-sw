@@ -194,7 +194,7 @@ static irqreturn_t spec_test_handler(int irq, void *dev_id)
 	struct fmc_device *fmc = dev_id;
 	struct spec_dev *spec = fmc->carrier_data;
 
-	printk("got %i!\n", irq);
+	dev_info(fmc->hwdev, "received interrupt %i\n", irq);
 	spec->irq_count++;
 	complete(&spec->compl);
 	fmc->op->irq_ack(fmc);

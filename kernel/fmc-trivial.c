@@ -12,7 +12,7 @@ irqreturn_t t_handler(int irq, void *dev_id)
 	struct fmc_device *fmc = dev_id;
 
 	fmc->op->irq_ack(fmc);
-	printk("%s: irq %i\n", __func__, irq);
+	dev_info(fmc->hwdev, "received irq %i\n", irq);
 	return IRQ_HANDLED;
 }
 

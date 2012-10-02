@@ -51,7 +51,7 @@ irqreturn_t wrn_handler(int irq, void *dev_id)
 
 	if (!pdev) {
 		/* too early, just do nothing */
-		printk("%s: irq %i\n", __func__, irq);
+		dev_info(fmc->hwdev, "early irq %i, ignoring\n", irq);
 		fmc->op->irq_ack(fmc);
 		return ret;
 	}
@@ -198,8 +198,6 @@ int wrn_eth_init(struct fmc_device *fmc)
 		/* use c->offset to copy and already-remapped value */
 		*((void **)((u8 *)drvdata + c->offset)) = fmc->base + start;
 	}
-	printk("%p %p %p\n", drvdata->vic_base, drvdata->gpio_base,
-	       drvdata->wrdio_base);
 	pdev->resource = resarr;
 	pdev->num_resources = ARRAY_SIZE(wrn_cores);
 	drvdata->wrn = wrn;
