@@ -315,7 +315,7 @@ for @code{use_msi} in the source code.
 With non-msi interrupts, the lines are shared with other peripherals,
 and you'll something like this (this computer has two SPEC cards plugged):
 
-@smalleexample
+@smallexample
   spusa.root# grep nic /proc/interrupts
    16:  236      0   0   805   IO-APIC-fasteoi   snd_hda_intel, wr-nic
    18:    0  14721  16    33   IO-APIC-fasteoi   ahci, ohci_hcd:usb4, wr-nic
