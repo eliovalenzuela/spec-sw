@@ -213,7 +213,6 @@ static int __devinit wrn_probe(struct platform_device *pdev)
 
 	writel(NIC_CR_RX_EN | NIC_CR_TX_EN, &wrn->regs->CR);
 	writel(WRN_IRQ_ALL, (void *)wrn->regs + 0x24 /* EIC_IER */);
-	printk("imr: %08x\n", readl((void *)wrn->regs + 0x28 /* EIC_IMR */));
 
 	wrn_tstamp_init(wrn);
 	err = 0;
