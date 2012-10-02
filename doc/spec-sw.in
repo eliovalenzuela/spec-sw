@@ -33,13 +33,13 @@
 
 @setchapternewpage off
 
-@set update-month September 2012
+@set update-month October 2012
 
 @finalout
 
 @titlepage
 @title SPEC Software Support
-@subtitle (@value{update-month})
+@subtitle Version 2.0.1 (@value{update-month})
 @subtitle A driver for the SPEC card and its FMC modules
 @author Alessandro Rubini for CERN (BE-CO-HT)
 @end titlepage
