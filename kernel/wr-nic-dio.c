@@ -93,6 +93,13 @@ static struct regmap regmap[] = {
 	}
 };
 
+#define WRN_DIO_IRQ_MASK \
+	(DIO_EIC_ISR_NEMPTY_0 \
+	| DIO_EIC_ISR_NEMPTY_1 \
+	| DIO_EIC_ISR_NEMPTY_2 \
+	| DIO_EIC_ISR_NEMPTY_3\
+	| DIO_EIC_ISR_NEMPTY_4)
+
 /* This is the structure we need to manage interrupts and loop internally */
 #define WRN_DIO_BUFFER_LEN  512
 struct dio_channel {
@@ -410,12 +417,12 @@ irqreturn_t wrn_dio_interrupt(struct fmc_device *fmc)
 
 	if (unlikely(!fmc->eeprom)) {
 		dev_err(fmc->hwdev, "WR-DIO: No mezzanine, disabling irqs\n");
-		writel(0x1f, &dio->EIC_IDR);
-		writel(0x1f, &dio->EIC_ISR);
+		writel(~0, &dio->EIC_IDR);
+		writel(~0, &dio->EIC_ISR);
 		return IRQ_NONE;
 	}
 
-	mask = readl(&dio->EIC_ISR);
+	mask = readl(&dio->EIC_ISR) & WRN_DIO_IRQ_MASK;
 
 	/* Three indexes: channel, channel-mask, channel pointer */
 	for (ch = 0, chm = 1, c = d->ch; mask; ch++, chm <<= 1, c++) {
@@ -477,7 +484,7 @@ int wrn_mezzanine_init(struct net_device *dev)
 	 * Enable interrupts for FIFO, if there's no mezzanine the
 	 * handler will notice and disable the interrupts
 	 */
-	writel(0x1f, &dio->EIC_IER);
+	writel(WRN_DIO_IRQ_MASK, &dio->EIC_IER);
 	return 0;
 }
 
@@ -486,7 +493,7 @@ void wrn_mezzanine_exit(struct net_device *dev)
 	struct wrn_drvdata *drvdata = dev->dev.parent->platform_data;
 	struct DIO_WB __iomem *dio = drvdata->wrdio_base;
 
-	writel(0x1f, &dio->EIC_IDR);
+	writel(~0, &dio->EIC_IDR);
 	if (drvdata->mezzanine_data)
 		kfree(drvdata->mezzanine_data);
 }
