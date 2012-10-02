@@ -39,7 +39,7 @@
 
 @titlepage
 @title SPEC Software Support
-@subtitle Version 2.1 (@value{update-month})
+@subtitle (@value{update-month})
 @subtitle A driver for the SPEC card and its FMC modules
 @author Alessandro Rubini for CERN (BE-CO-HT)
 @end titlepage
@@ -194,9 +194,10 @@ The module can receive the following parameters to customize its operation:
 
 	This forces the driver to use @i{message signalled interrupts}.
         MSI interrupts have some advantages over conventional wire-level
-        interrupts, but on some systems I've not been able to make them work.
+        interrupts, but with the GN4124 we had serious issues. See
+        @ref{Interrupts in spec.ko} for details.
         By default the driver uses the old-fashioned wire-level
-        signalling method, unless you pass @code{use_msi=1} .
+        signalling method; to experiment with MSI pass @code{use_msi=1} .
         
 @item test_irq
 
@@ -306,32 +307,73 @@ You can use @i{modinfo} to check what is supported by each module.
 
 Up to version 2.0 of this package, I enabled MSI (@i{message signalled
 interrupts}) in the Gennum chip.  Now the default is using normal
-@i{wire-level} PCI interrupts, with a module parameter called
-@code{use_msi}.
+@i{wire-level} PCI interrupts; there is a module parameter called
+@code{use_msi} for those who want to experiment with MSI.
 
-While MSI should perform better than conventional interrupts, we
-didn't manage to make them work on all systems. It's still unclear to
-us whether it depends on the kernel version or some chipset-specific
-(mis)behavior.  Actually, MSI work on both of my development systems,
-but failed to work for three of my mates.
+Unless you want to help with making MSI work, you are not interested
+in this section, and you can skip over it.
+
+@sp 1
+
+While MSI should perform better than conventional interrupts, there's
+a misbehaviour in the GN4124 that makes their use pretty difficult.
+
+The @i{message} in MSI includes a data field, chosen by the operating
+system for its own use.  Linux stores the so-called @i{vector number}
+in the data field, which is an index in an kernel-internal array.  The
+PCI-E standards allows for peripheral devices to support several MSI
+signals, if the operating system enables them to do so; the Gennum
+chip supports this, and is able to fire 4 different MSI signals,
+however, it is not able to send the base MSI signal if the
+multiple-MSI feature is kept disabled.
+
+The 4124 is found to choose the MSI interrupt to send according to the
+two least significant bits of the data field.  For this reason, we
+must enable the multiple-MSI feature, and enable in the chip
+the corresponding interrupt configuration register.  The former
+operation involves a standard registers, the latter is Gennum-specific.
+
+Linux, however, does not know that multiple-MSI is enabled, and thus
+it configures the standard register for a single MSI.  When this
+happens, interrupts stop working (because the Gennum would send msi 2,
+for example, but only msi 0 is enabled).
+
+The code of this package, under ``@code{if (use_msi)}'' stanzas, fixes
+the control register after Linux touches it, but it may not be enough.
+We found, for example, that the @i{irqbalance} tool (which is
+installed and runs in background in a number of recent installations)
+will make some configuration attempt after interrupts starts to flow.
+When this happens, Linux will rewrite the control register thus
+disabling SPEC interrupts.  Killing @i{irqbalance} in advance was
+found to fix the problem, but clearly this isn't production-ready.
+@b{Note:} Linux doesn't currently support enabling multiple-MSI unless
+they are MSI-X (a further standard) so we can't just enable all 4 of
+them.
 
 If you want to help with taming the MSI problem, you should load the
 @i{spec} driver with @code{use_msi=1} and run the @i{wr-nic}
-driver. If you are unable to exchange frames, please grep for @code{wr-nic}
-in @file{/proc/interrupts} to see if the counters are moving or not.  If not,
-the problem is most likely in register 0x4a (@code{MSI_CONTROL})
-that lost its correct value of @code{0xa5}. You can check the
-high 16 bits in the output of @code{specmem -g 48} to verify.
-The code is well commented about this MSI issue, please look
-for @code{use_msi} in the source code.
+driver. If you are unable to exchange frames, or data transfer just
+stops, please grep for @code{wr-nic} in @file{/proc/interrupts} to see
+if the counters are moving or not.  If not, the problem is most likely
+in register 0x4a (@code{MSI_CONTROL}) that lost its correct value of
+@code{0xa5}. You can check the high 16 bits in the output of
+@code{specmem -g 48} to verify.  To unlock the situation, you need to
+fix this register and force an edge in the interrupt line from the
+FPGA to the Gennum, by acting on VIC registers. The ``magic'' sequence
+is the same you find at the end of @code{wrn_handler()}, in
+@file{wr-nic-eth.c}.
 
-With non-msi interrupts, the lines are shared with other peripherals,
-and you'll something like this (this computer has two SPEC cards plugged):
+@sp 1
+
+The following snapshot come from a system with two SPEC cards
+plugged. No @i{irqbalance} is running and both kind of interrupts
+work. With non-msi interrupts, the lines are shared with other
+peripherals, and you'll see something like this:
 
 @smallexample
   spusa.root# grep nic /proc/interrupts
-   16:  236      0   0   805   IO-APIC-fasteoi   snd_hda_intel, wr-nic
-   18:    0  14721  16    33   IO-APIC-fasteoi   ahci, ohci_hcd:usb4, wr-nic
+   16:    236      0   0   805   IO-APIC-fasteoi   snd_hda_intel, wr-nic
+   18:      0  14721  16    33   IO-APIC-fasteoi   ahci, ohci_hcd:usb4, wr-nic
 @end smallexample
 
 If you enable MSI, interrupts have higher numbers, allocated specifically
@@ -339,8 +381,8 @@ for the peripheral:
 
 @smallexample
   spusa.root# grep wr-nic /proc/interrupts
-   47:      0      0      0    124   PCI-MSI-edge  wr-nic
-   48:  70470      0      0     26   PCI-MSI-edge  wr-nic
+   47:      0      0   0   124   PCI-MSI-edge  wr-nic
+   48:  70470      0   0    26   PCI-MSI-edge  wr-nic
 @end smallexample
 
 @c ##########################################################################
