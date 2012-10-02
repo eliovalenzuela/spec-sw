@@ -107,7 +107,9 @@ static void wrn_vic_exit(struct fmc_device *fmc)
 	struct VIC_WB *vic = (typeof(vic))drvdata->vic_base;
 
 	writel(0xff, &vic->IDR);
-	writel(0, &vic->CTL);
+
+	/* Interrupt line is !POL when EN == 0, so leave polarity bit on */
+	writel(VIC_CTL_POL, &vic->CTL);
 }
 
 struct wrn_core {
