@@ -64,6 +64,7 @@ int wrn_fmc_probe(struct fmc_device *fmc)
 	struct wrn_drvdata *dd;
 	signed long ram, syscon;
 	unsigned long ramsize;
+	char *filename;
 
 	/* Driver data */
 	dd = devm_kzalloc(&fmc->dev, sizeof(*dd), GFP_KERNEL);
@@ -100,12 +101,17 @@ int wrn_fmc_probe(struct fmc_device *fmc)
 	 */
 	ram = fmc_find_sdb_device(fmc->sdb, SDB_CERN, WRN_SDB_RAM, &ramsize);
 	syscon = fmc_find_sdb_device(fmc->sdb, SDB_CERN, WRN_SDB_SYSCON, NULL);
-	if (ram >= 0 && fmc_readl(fmc, ram) != __be32_to_cpu(0x98000000))
+	if (ram >= 0 && fmc_readl(fmc, ram) != 0x98000000)
 		need_wrc = 1;
+	filename = wrn_wrc_filename;
 	if (strcmp(wrn_wrc_filename, WRN_WRC_DEFAULT_NAME)) {
 		need_wrc = 1;
+		/*
+		 * If the user changed it, use the new name.
+		 * But "1" means "do load the default"
+		 */
 		if (!strcmp(wrn_wrc_filename, "1"))
-			wrn_wrc_filename = WRN_WRC_DEFAULT_NAME;
+			filename = WRN_WRC_DEFAULT_NAME;
 	}
 	if (need_wrc && ((ram < 0) || (syscon < 0))) {
 		dev_err(dev, "can't reprogram WRC: SDB failure\n");
@@ -122,15 +128,15 @@ int wrn_fmc_probe(struct fmc_device *fmc)
 			fmc_writel(fmc, 0x0deadbee, syscon);
 			goto out;
 		}
-		ret = wrn_load_wrc(fmc, wrn_wrc_filename, ram, ramsize);
+		ret = wrn_load_wrc(fmc, filename, ram, ramsize);
 		fmc_writel(fmc, 0x0deadbee, syscon);
 		if (ret)
 			goto out; /* message already reported */
-		if (fmc_readl(fmc, ram) != __be32_to_cpu(0x98000000))
+		if (fmc_readl(fmc, ram) != 0x98000000)
 			dev_warn(dev, "possible failure in wrc load\n");
 		else
 			dev_info(dev, "WRC program reloaded from \"%s\"\n",
-				 wrn_wrc_filename);
+				 filename);
 	}
 	/* After the LM32 started, give it time to set up */
 	msleep(200);
