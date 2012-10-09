@@ -161,6 +161,14 @@ static struct wrn_core wrn_cores2[] = {
 	}
 };
 
+struct fmc_gpio wrn_gpio_cfg[] = {
+	{
+		.gpio = FMC_GPIO_IRQ(1),
+		.mode = GPIOF_DIR_IN,
+		.irqmode = IRQF_TRIGGER_RISING,
+	}
+};
+
 int wrn_eth_init(struct fmc_device *fmc)
 {
 	struct device *dev = fmc->hwdev;
@@ -179,6 +187,8 @@ int wrn_eth_init(struct fmc_device *fmc)
 		dev_err(dev, "Can't request interrupt\n");
 		return ret;
 	}
+	/* FIXME: we should request irq0, self-test and then move to irq1 */
+	fmc->op->gpio_config(fmc, wrn_gpio_cfg, ARRAY_SIZE(wrn_gpio_cfg));
 
 	/* Make a copy of the platform device and register it */
 	ret = -ENOMEM;
