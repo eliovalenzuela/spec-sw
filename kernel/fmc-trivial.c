@@ -2,6 +2,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
+#include <linux/gpio.h>
 #include <linux/fmc.h>
 #include "spec.h"
 
@@ -16,6 +17,18 @@ irqreturn_t t_handler(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
+struct fmc_gpio t_gpio[] = {
+	{
+		.gpio = FMC_GPIO_IRQ(0),
+		.mode = GPIOF_DIR_IN,
+		.irqmode = IRQF_TRIGGER_RISING,
+	}, {
+		.gpio = FMC_GPIO_IRQ(1),
+		.mode = GPIOF_DIR_IN,
+		.irqmode = IRQF_TRIGGER_RISING,
+	}
+};
+
 int t_probe(struct fmc_device *fmc)
 {
 	int ret;
@@ -28,6 +41,8 @@ int t_probe(struct fmc_device *fmc)
 	ret = fmc->op->irq_request(fmc, t_handler, "fmc-trivial", 0);
 	if (ret < 0)
 		return ret;
+	/* ignore error code of call below, we really don't care */
+	fmc->op->gpio_config(fmc, t_gpio, ARRAY_SIZE(t_gpio));
 
 	/* Reprogram, if asked to. ESRCH == no filename specified */
 	ret = fmc->op->reprogram(fmc, &t_drv,"");
