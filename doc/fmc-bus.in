@@ -112,13 +112,19 @@ driver. For this reason the device structure includes a complete copy
 of the EEPROM (actually, the carrier driver may choose to only return
 the leading part of it).
 
-This is the current structure defining a device. Please note that stuff
-is still being defined as I write this, so the structures are going to
-change (if in doubt, please check the header file in the repository rather
-than this document):
+This is the current structure defining a device. Please note that all
+the machinery is in place but some details may still change in the future.
+For this reason, there is a version field at the beginning of the structure.
+As usual, the minor number will change for compatible changes (like a new
+flag) and the minor number will increase when an incompatible change
+happens (for example, a change in layout of some @i{fmc} data structures).
+Device writers should just set it to the
+value @t{FMC_VERSION}, and be ready to get back @t{-EINVAL} at
+registration time.
 
 @smallexample
 struct fmc_device {
+        unsigned long version;          /* to be set to FMC_VERSION */
         struct fmc_device_id id;        /* for the match function */
         struct fmc_operations *op;      /* carrier-provided */
         int irq;                        /* according to host bus. 0 == none */

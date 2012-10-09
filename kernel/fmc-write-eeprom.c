@@ -138,6 +138,7 @@ int fwe_remove(struct fmc_device *fmc)
 }
 
 static struct fmc_driver fwe_drv = {
+	.version = FMC_VERSION,
 	.driver.name = KBUILD_MODNAME,
 	.probe = fwe_probe,
 	.remove = fwe_remove,

@@ -47,6 +47,7 @@ int t_remove(struct fmc_device *fmc)
 }
 
 static struct fmc_driver t_drv = {
+	.version = FMC_VERSION,
 	.driver.name = KBUILD_MODNAME,
 	.probe = t_probe,
 	.remove = t_remove,

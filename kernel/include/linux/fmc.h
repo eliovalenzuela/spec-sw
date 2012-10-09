@@ -18,6 +18,17 @@
 struct fmc_device;
 struct fmc_driver;
 
+/*
+ * This bus abstraction is developed separately from drivers, so we need
+ * to check the version of the data structures we receive.
+ */
+
+#define FMC_MAJOR	1
+#define FMC_MINOR	0
+#define FMC_VERSION	((FMC_MAJOR << 16) | FMC_MINOR)
+#define __FMC_MAJOR(x)	((x) >> 16)
+#define __FMC_MINOR(x)	((x) & 0xffff)
+
 struct fmc_device_id {
 	/* FIXME: the device ID must be defined according to eeprom contents */
 	uint64_t unique_id;
@@ -27,6 +38,7 @@ struct fmc_device_id {
 
 /* The driver is a pretty simple thing */
 struct fmc_driver {
+	unsigned long version;
 	struct device_driver driver;
 	int (*probe)(struct fmc_device *);
 	int (*remove)(struct fmc_device *);
@@ -61,6 +73,7 @@ struct fmc_operations {
 
 /* The device reports all information needed to access hw */
 struct fmc_device {
+	unsigned long version;
 	unsigned long flags;
 	struct fmc_device_id id;	/* for the match function */
 	struct fmc_operations *op;	/* carrier-provided */

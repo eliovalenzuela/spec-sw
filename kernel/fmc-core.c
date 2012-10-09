@@ -14,6 +14,20 @@
 #include <linux/fmc.h>
 #include "spec.h"
 
+static int fmc_check_version(unsigned long version, const char *name)
+{
+	if (__FMC_MAJOR(version) != FMC_MAJOR) {
+		pr_err("%s: \"%s\" has wrong major (has %li, expected %i)\n",
+		       __func__, name, __FMC_MAJOR(version), FMC_MAJOR);
+		return -EINVAL;
+	}
+
+	if (__FMC_MINOR(version) != FMC_MINOR)
+		pr_info("%s: \"%s\" has wrong minor (has %li, expected %i)\n",
+		       __func__, name, __FMC_MINOR(version), FMC_MINOR);
+	return 0;
+}
+
 static int fmc_match(struct device *dev, struct device_driver *drv)
 {
 	//struct fmc_driver *fdrv = to_fmc_driver(drv);
@@ -75,6 +89,8 @@ struct device fmc_bus = {
 /* Functions for client modules */
 int fmc_driver_register(struct fmc_driver *drv)
 {
+	if (fmc_check_version(drv->version, drv->driver.name))
+		return -EINVAL;
 	drv->driver.bus = &fmc_bus_type;
 	return driver_register(&drv->driver);
 }
@@ -88,6 +104,8 @@ EXPORT_SYMBOL(fmc_driver_unregister);
 
 int fmc_device_register(struct fmc_device *fdev)
 {
+	if (fmc_check_version(fdev->version, fdev->carrier_name))
+		return -EINVAL;
 	device_initialize(&fdev->dev);
 	if (!fdev->dev.release)
 		fdev->dev.release = __fmc_release;

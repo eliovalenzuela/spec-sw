@@ -302,7 +302,7 @@ int spec_fmc_create(struct spec_dev *spec)
 	if (!fmc)
 		return -ENOMEM;
 
-	/* FIXME: many fields of the device are still NULL */
+	fmc->version = FMC_VERSION;
 	fmc->carrier_name = "SPEC";
 	fmc->carrier_data = spec;
 	fmc->base = spec->remap[0]; /* 1M window at offset 0 */
