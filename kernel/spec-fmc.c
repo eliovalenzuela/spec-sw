@@ -11,6 +11,7 @@
 #include <linux/fmc.h>
 #include <linux/interrupt.h>
 #include <linux/moduleparam.h>
+#include <linux/gpio.h>
 #include <linux/fmc-sdb.h>
 #include "spec.h"
 
@@ -112,27 +113,7 @@ static int spec_irq_request(struct fmc_device *fmc, irq_handler_t handler,
 		gennum_writel(spec, value, GNPPCI_MSI_CONTROL);
 	}
 
-	/* Enable gpio interrupts:
-	 * gpio6: tp8: output low
-	 * gpio7: tp7: input (was: interrupt, raising edge)
-	 * gpio8: IRQ1 from FPGA: interrupt, raising edge
-	 * gpio9: IRQ0 from FPGA: interrupt, raising edge
-	 * gpio10: tp6: output low
-	 * gpio11: tp5: input (was: interrupt, raising edge)
-	 */
-
-	/* bypass = alternate function */
-	gennum_mask_val(spec, 0xfc0, 0x00, GNGPIO_BYPASS_MODE);
-	/* direction 0 = output */
-	gennum_mask_val(spec, 0x440, 0x000, GNGPIO_DIRECTION_MODE);
-	gennum_mask_val(spec, 0xb80, 0xb80, GNGPIO_DIRECTION_MODE);
-	gennum_mask_val(spec, 0x440, 0x440, GNGPIO_OUTPUT_ENABLE);
-
-	gennum_mask_val(spec, 0x300, 0x000, GNGPIO_INT_TYPE); /* 0 = edge */
-	gennum_mask_val(spec, 0x300, 0x300, GNGPIO_INT_VALUE); /* 1 = raising */
-	gennum_mask_val(spec, 0x300, 0x000, GNGPIO_INT_ON_ANY);
-
-	gennum_writel(spec, 0x300, GNGPIO_INT_MASK_CLR); /* enable */
+	/* Interrupts are enabled by the driver, with gpio_config() */
 	return 0;
 }
 
@@ -157,6 +138,116 @@ static int spec_irq_free(struct fmc_device *fmc)
 	return 0;
 }
 
+/* This is the mapping from virtual GPIO pin numbers to raw gpio numbers */
+struct {
+	int virtual; int raw;
+} spec_gpio_map[] = {
+	/*  0: TCK */
+	/*  1: TMS */
+	/*  2: TDO */
+	/*  3: TDI */
+	/*  4: SDA */
+	/*  5: SCL */
+	/*  6: TP8 */ {FMC_GPIO_TP(3), FMC_GPIO_RAW(6)},
+	/*  7: TP7 */ {FMC_GPIO_TP(2), FMC_GPIO_RAW(7)},
+	/*  8: IRQ */ {FMC_GPIO_IRQ(0), FMC_GPIO_RAW(8)},
+	/*  9: IRQ */ {FMC_GPIO_IRQ(1), FMC_GPIO_RAW(9)},
+	/* 10: TP6 */ {FMC_GPIO_TP(1), FMC_GPIO_RAW(10)},
+	/* 11: TP5 */ {FMC_GPIO_TP(0), FMC_GPIO_RAW(11)},
+	/* 12: flash_cs, 13: spri_din, 14: bootsel1, 15: bootsel0 */
+};
+
+static int spec_map_pin(int virtual)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(spec_gpio_map); i++)
+		if (spec_gpio_map[i].virtual == virtual)
+			return spec_gpio_map[i].raw;
+	return -ENOENT;
+}
+
+static int spec_cfg_pin(struct fmc_device *fmc, int pin, int mode, int imode)
+{
+	struct spec_dev *spec = fmc->carrier_data;
+	int ret = 0;
+	int bit = (1 << pin);
+
+	if (pin < 0 || pin > 15)
+		return -ENODEV;
+	if (mode & (GPIOF_OPEN_DRAIN |GPIOF_OPEN_SOURCE))
+		return -EINVAL;
+	if (mode & GPIOF_DIR_IN) {
+		/* 1 = input */
+		gennum_mask_val(spec, bit, bit, GNGPIO_DIRECTION_MODE);
+		gennum_mask_val(spec, bit, bit, GNGPIO_OUTPUT_ENABLE);
+		ret = !!(gennum_readl(spec, GNGPIO_INPUT_VALUE) & bit);
+	} else {
+		if (mode & GPIOF_INIT_HIGH)
+			gennum_mask_val(spec, bit, bit, GNGPIO_OUTPUT_VALUE);
+		else
+			gennum_mask_val(spec, bit, 0, GNGPIO_OUTPUT_VALUE);
+		gennum_mask_val(spec, bit, 0, GNGPIO_DIRECTION_MODE);
+	}
+
+	/* Then, interrupt configuration, if needed */
+	if (!(imode & IRQF_TRIGGER_MASK)) {
+		gennum_writel(spec, bit, GNGPIO_INT_MASK_SET); /* disable */
+		return ret;
+	}
+
+	if (imode & (IRQF_TRIGGER_HIGH | IRQF_TRIGGER_RISING))
+		gennum_mask_val(spec, bit, bit, GNGPIO_INT_VALUE);
+	else
+		gennum_mask_val(spec, bit, 0, GNGPIO_INT_VALUE);
+
+	if (imode & (IRQF_TRIGGER_HIGH | IRQF_TRIGGER_LOW))
+		gennum_mask_val(spec, bit, bit, GNGPIO_INT_TYPE);
+	else
+		gennum_mask_val(spec, bit, 0, GNGPIO_INT_TYPE);
+
+	gennum_mask_val(spec, bit, 0, GNGPIO_INT_ON_ANY); /* me lazy */
+
+	gennum_writel(spec, bit, GNGPIO_INT_MASK_CLR); /* enable */
+	return ret;
+}
+
+static int spec_gpio_config(struct fmc_device *fmc, struct fmc_gpio *gpio,
+			    int ngpio)
+{
+	int i, done = 0, retval = 0;
+
+	for ( ; ngpio; gpio++, ngpio--) {
+
+		if (gpio->carrier_name && strcmp(gpio->carrier_name, "SPEC")) {
+			/* The array may setup raw pins for various carriers */
+			continue;
+		}
+		if (gpio->carrier_name) {
+			/* so, it's ours */
+			gpio->_gpio = gpio->gpio;
+		}
+		else if (!gpio->_gpio) {
+			/* virtual but not mapped (or poor gpio0) */
+			i = spec_map_pin(gpio->gpio);
+			if (i < 0)
+				return i;
+			gpio->_gpio = i;
+		}
+
+		i = spec_cfg_pin(fmc, gpio->_gpio,
+				    gpio->mode, gpio->irqmode);
+		if (i < 0)
+			return i;
+		retval += i; /* may be the input value */
+		done++;
+	}
+	if (!done)
+		return -ENODEV;
+	return retval;
+}
+
+
 /* The engines for this live in spec-i2c.c, we only shape arguments */
 static int spec_read_ee(struct fmc_device *fmc, int pos, void *data, int len)
 {
@@ -180,6 +271,7 @@ static struct fmc_operations spec_fmc_operations = {
 	.irq_request =		spec_irq_request,
 	.irq_ack =		spec_irq_ack,
 	.irq_free =		spec_irq_free,
+	.gpio_config =		spec_gpio_config,
 	.read_ee =		spec_read_ee,
 	.write_ee =		spec_write_ee,
 };

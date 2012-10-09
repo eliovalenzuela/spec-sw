@@ -127,6 +127,10 @@ static int __devinit spec_probe(struct pci_dev *pdev,
 	if (ret)
 		goto out_unmap;
 
+	/* Put our 6 pins to a sane state (4 test points, 2 from FPGA) */
+	gennum_mask_val(spec, 0xfc0, 0x000, GNGPIO_BYPASS_MODE); /* no AF */
+	gennum_mask_val(spec, 0xfc0, 0xfc0, GNGPIO_DIRECTION_MODE); /* input */
+	gennum_writel(spec, 0xffff, GNGPIO_INT_MASK_SET); /* disable */
 
 	/* Load the golden FPGA binary to read the eeprom */
 	ret = spec_load_fpga_file(spec, spec_fw_name);
