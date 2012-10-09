@@ -57,7 +57,34 @@ struct fmc_driver {
 #define FMC_PARAM_GATEWARE(_d) \
     module_param_array_named(gateware, _d.gw_val, charp, &_d.gw_n, 0444)
 
-/* To be carrier-independent, we need to abstract hardware access */
+/*
+ * Drivers may need to configure gpio pins in the carrier. To read input
+ * (a very uncommon opeation, and definitely not in the hot paths), just
+ * configure one gpio only and get 0 or 1 as retval of the config method
+ */
+struct fmc_gpio {
+	char *carrier_name; /* name or NULL for virtual pins */
+	int gpio;
+	int _gpio;	/* internal use by the carrier */
+	int mode;	/* GPIOF_DIR_OUT etc, from <linux/gpio.h> */
+	int irqmode;	/* IRQF_TRIGGER_LOW and so on */
+};
+
+/* The numbering of gpio pins allows access to raw pins or virtual roles */
+#define FMC_GPIO_RAW(x)		(x)		/* 4096 of them */
+#define __FMC_GPIO_IS_RAW(x)	((x) < 0x1000)
+#define FMC_GPIO_IRQ(x)		((x) + 0x1000)	/*  256 of them */
+#define FMC_GPIO_LED(x)		((x) + 0x1100)	/*  256 of them */
+#define FMC_GPIO_KEY(x)		((x) + 0x1200)	/*  256 of them */
+#define FMC_GPIO_TP(x)		((x) + 0x1300)	/*  256 of them */
+#define FMC_GPIO_USER(x)	((x) + 0x1400)	/*  256 of them */
+/* We may add SCL and SDA, or other roles if the need arises */
+
+/*
+ * The operations are offered by each carrier and should make driver
+ * design completely independent of th carrier. Named GPIO pins may be
+ * the exception.
+ */
 struct fmc_operations {
 	uint32_t (*readl)(struct fmc_device *fmc, int offset);
 	void (*writel)(struct fmc_device *fmc, uint32_t value, int offset);
@@ -67,6 +94,8 @@ struct fmc_operations {
 			   char *name, int flags);
 	void (*irq_ack)(struct fmc_device *fmc);
 	int (*irq_free)(struct fmc_device *fmc);
+	int (*gpio_config)(struct fmc_device *fmc, struct fmc_gpio *gpio,
+			   int ngpio);
 	int (*read_ee)(struct fmc_device *fmc, int pos, void *d, int l);
 	int (*write_ee)(struct fmc_device *fmc, int pos, const void *d, int l);
 };
