@@ -18,6 +18,8 @@
 #include "wr_nic/wr-nic.h"
 
 static struct fmc_driver wrn_drv;
+FMC_PARAM_BUSID(wrn_drv);
+FMC_PARAM_GATEWARE(wrn_drv);
 
 static char *wrn_filename = WRN_GATEWARE_DEFAULT_NAME;
 module_param_named(file, wrn_filename, charp, 0444);
@@ -59,12 +61,20 @@ out:
 
 int wrn_fmc_probe(struct fmc_device *fmc)
 {
-	int need_wrc = 0, ret = 0;
+	int index, need_wrc = 0, ret = 0;
 	struct device *dev = fmc->hwdev;
 	struct wrn_drvdata *dd;
 	signed long ram, syscon;
 	unsigned long ramsize;
 	char *filename;
+
+	/* We accept busid= to limit to some spec only */
+	index = fmc->op->validate(fmc, &wrn_drv);
+	if (index < 0) {
+		dev_info(fmc->hwdev, "not using \"%s\" according to "
+			 "modparam\n", KBUILD_MODNAME);
+		return -ENODEV;
+	}
 
 	/* Driver data */
 	dd = devm_kzalloc(&fmc->dev, sizeof(*dd), GFP_KERNEL);
@@ -72,12 +82,25 @@ int wrn_fmc_probe(struct fmc_device *fmc)
 		return -ENOMEM;
 	fmc_set_drvdata(fmc, dd);
 
-	/* We first write a new binary (and lm32) within the spec */
-	ret = fmc->op->reprogram(fmc, &wrn_drv, wrn_filename);
+	/*
+	 * We first write a new binary within the spec. If the user
+	 * passed "gateware=", use the per-board names instead of the
+	 * global name
+	 */
+	if (wrn_drv.gw_n)
+		ret = fmc->op->reprogram(fmc, &wrn_drv, "");
+	else
+		ret = fmc->op->reprogram(fmc, &wrn_drv, wrn_filename);
 	if (ret <0) {
+		if (ret == -ESRCH) {
+			dev_info(fmc->hwdev, "%s: no gateware at index %i\n",
+				 KBUILD_MODNAME, index);
+			return -ENODEV;
+		}
+
 		dev_err(dev, "write firmware \"%s\": error %i\n",
 			wrn_filename, ret);
-		goto out;
+		return ret;
 	}
 
 	/* Verify that we have SDB at offset 0x63000 */

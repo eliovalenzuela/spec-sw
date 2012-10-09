@@ -648,15 +648,13 @@ The default file names are as follows:
 
 @item fmc/wr_nic_dio.bin
 
-	This is the @i{gateware} file. The default name can be changed
-        using the @code{file=} module parameter.
+	This is the @i{gateware} file.
 
 @item fmc/wr_nic_dio-wrc.bin
 
 	This is the LM32 program file, or @i{White Rabbit Core}, WRC.
-        The file is not loaded automatically, because we expect to deliver
-        a gateware file that already includes the correct LM32 program
-        (but the binary currently suggested does not include it).
+        The file is not loaded automatically, because the official
+        gateware files already includes the correct LM32 program.
         To request loading the file you should pass @code{wrc=1}. To
         request loading a different WRC file name, you should pass
         the actual file name. For example ``@code{wrc=recompiled-wrc.bin}''.
@@ -688,6 +686,41 @@ wget -O wr_nic_dio-wrc.bin \
    http://www.ohwr.org/attachments/download/1611/wr_nic_dio-wrc.bin-2012-09-26
 sudo mv wr_nic_dio wr_nic_dio-wrc /lib/firmware/fmc
 @end smallexample
+
+@c ==========================================================================
+@node Module Parameters
+@section Module Parameters
+
+The module receives the following parameters:
+
+@table @code
+
+@item busid=
+@item gateware=
+
+	These are standard parameters. You can either limit the driver
+        to only bind to some specific SPEC cards (not all of the ones
+        selected by the @i{match} function of @i{fmc-bus}), or to
+        assign different @i{gateware} files for each card. See
+        @ref{Sub-Module Parameters}.
+
+@item show_sdb=
+
+	This is another standard parameter. Set to 1 to get the SDB
+        tree printed to kernel messages.
+
+@item file=
+
+	This parameter is a strings, and it is a global override for
+        the default gateware file name. Please note that @t{gateware=}
+        takes precedence.
+
+@item wrc=
+
+	The name of the LM32 program to load, if any. There is no support
+        currently to load different LM32 programs to different cards.
+
+@end table
 
 @c ==========================================================================
 @node Controlling the White Rabbit Core
