@@ -31,3 +31,6 @@ clean:
 
 spec-test00-cpu: crt0.o spec-test00-cpu.o
 	$(CC) $(LDFLAGS) $^ -o $@
+
+# add the other unused targets, so the rule in ../Makefile works
+modules install modules_install:

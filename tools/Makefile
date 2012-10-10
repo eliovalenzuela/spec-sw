@@ -22,3 +22,6 @@ loader-ll.o:	../kernel/loader-ll.c
 
 clean:
 	rm -f *.o $(LIB) $(PROGS) *~
+
+# add the other unused targets, so the rule in ../Makefile works
+modules install modules_install:

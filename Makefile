@@ -1,5 +1,5 @@
 
 DIRS = kernel tools doc
 
-all clean:
+all clean modules install modules_install:
 	for d in $(DIRS); do $(MAKE) -C $$d $@ || exit 1; done
