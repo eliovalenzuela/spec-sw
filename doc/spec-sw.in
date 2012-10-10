@@ -1112,8 +1112,8 @@ Example uses of the tool follow:
 @end example
 
 @c ==========================================================================
-@node WR-NIC Pulse per Second
-@section WR-NIC Pulse per Second
+@node WR-DIO Pulse per Second
+@section WR-DIO Pulse per Second
 
 To better show how to write your own application with the SPEC driver
 and the @i{simple-DIO} mezzanine card, this package includes
@@ -1126,10 +1126,10 @@ the channel number is a mandatory argument.
 
 @example
    # run pps on channel 2 of the default SPEC card
-   ./wr-nic-pps 2
+   ./wr-dio-pps 2
 
    # run pps on channel 0 of the "second" card
-   ./wr-nic-pps wr1 0
+   ./wr-dio-pps wr1 0
 @end example
 
 The following two figures show two such @i{pulse-per-second} signals
