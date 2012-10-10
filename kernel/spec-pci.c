@@ -183,6 +183,7 @@ DEFINE_PCI_DEVICE_TABLE(spec_idtable) = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_GENNUM, PCI_DEVICE_ID_GN4124) },
 	{ 0,},
 };
+MODULE_DEVICE_TABLE(pci, spec_idtable);
 
 static struct pci_driver spec_driver = {
 	.name = "spec",
