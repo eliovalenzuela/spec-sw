@@ -68,7 +68,7 @@ static struct sdb_array *__fmc_scan_sdb_tree(struct fmc_device *fmc,
 		r = &arr->record[i];
 		arr->subtree[i] = ERR_PTR(-ENODEV);
 		if (r->empty.record_type == sdb_type_bridge) {
-			uint64_t subaddr = r->bridge.sdb_child;
+			uint64_t subaddr = address + r->bridge.sdb_child;
 			struct sdb_component *c;
 
 			c = &r->bridge.sdb_component;
