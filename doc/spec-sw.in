@@ -72,9 +72,9 @@ the one used by @i{fine-delay-sw-v1.1}.  If you are using that version, please
 compile the manual you find in your source code repository and avoid
 reading this one.
 
-The package currently includes both the @i{spec} driver and the
-@i{fmc} bus driver (documented separately).
-Moreover, it includes some drivers for fmc cards.
+The driver is a client of the FMC software bus abstraction. The package
+@i{fmc-bus} is dowloaded as a @i{git} submodule of this package, and
+its latest version can be found at @url{http://www.ohwr.org/projects/fmc-bus}.
 
 @c ##########################################################################
 @node Compiling the Drivers
@@ -130,16 +130,20 @@ the case shown above your driver will end up being installed
    /mnt/target/lib/modules/3.4.0/extra/spec.ko
 @end example
 
+Please note that by default the package compiles an installs the
+@i{fmc-bus} modules, too (the project is a @i{git} submodule).
+
 @c ##########################################################################
 @node Role of spec.ko
 @chapter Role of spec.ko
 
 The @code{spec.ko} driver depends on @code{fmc.ko}, that must
-be loaded first (if you don't rely on automatic dependencies).
+be loaded first (unless you rely on automatic dependencies).
 
 @code{spec.ko} registers as a PCI driver,
 using both the ``old'' identifiers (i.e. the Gennum vendor and GN4124 device)
-and the new ones (CERN vendor and SPEC device).
+and the new ones (CERN vendor and SPEC device). It has a module device table,
+so after installation it will be automatically loaded at the next boot.
 
 @c ==========================================================================
 @node SPEC Initialization
@@ -149,7 +153,7 @@ For each new SPEC device found on the system, the driver performs the
 following steps:
 
 @itemize @bullet
-@item It enables MSI interrupts, the only ones supported in this package.
+@item It enables MSI interrupts if enabled with a parameter.
 @item It loads the @code{fmc/spec-init.bin} ``golden'' gateware file.
 @item It checks that the content of the binary is as expected (using
       a minimal @i{sdb}-based verification).
@@ -165,9 +169,10 @@ from the @i{files} area of the @i{spec-sw} project on @code{ohwr.org}.
 The current binary version to be used with this software version is
 @url{http://www.ohwr.org/attachments/download/1454/spec-init.bin-2012-07-24}.
 
-The EEPROM content that has been read at initialization time
-is still available to sub-drivers after they are loaded, but a
-sub-driver cannot write to the EEPROM using carrier methods.
+The EEPROM content that the carrier driver reads at initialization time
+is still available to mezzanine drivers after they are loaded, but a
+mezzanine driver cannot write to the EEPROM using carrier methods
+after reprogramming the FPGA.
 The carrier refuses to act on
 registers after the golden gateware is replaced by a new 
 mezzanine-specific binary,
@@ -175,8 +180,9 @@ which by definition is unknown to the carrier itself.
 
 @b{Note:} currently the SPEC driver does not re-write the golden
 binary file when the sub-driver releases control of the card. This
-allows a further driver to make use of an existing binary, and may be
+allows a further driver to make use of an existing binary, which may be
 useful during development.
+
 @c ==========================================================================
 @node SPEC Module Parameters
 @section SPEC Module Parameters
@@ -226,12 +232,12 @@ gateware file.  Similarly, the @i{spec} driver is not concerned with
 programming the LM32 image, when it makes sense to. This is different
 from the role splitting in previous versions of the driver.
 
-@b{Note:} the gateware binary is looked-for in @i{/lib/firmware/fmc},
+@b{Note:} the driver looks for the gateware binary in @i{/lib/firmware/fmc},
 which is where all fmc-related external files are expected to live.
 That's because our own installations share firmware for COTS peripherals
 but mount a host-specific NFS subdirectory.
 
-Please refer to the @i{fmc-bus} document for details about the overall
+Please refer to the @i{fmc-bus} manual for details about the overall
 design of the interactions of carriers and mezzanines.
 
 @b{Warning:} currently the @i{match} function of the bus always
@@ -241,65 +247,6 @@ the associated data structures and code.  For this reason there is no
 @i{module_alias} support nor autoprobe of drivers: any @i{fmc} driver
 you load will drive all SPEC cards found on the system unless it
 limits itself through parameters (see below)
-
-@c ==========================================================================
-@node Sub-Module Parameters
-@section Sub-Module Parameters
-
-Most of the FMC drivers, also called sub-modules, need the same
-set of kernel parameters, this package includes support
-to implement common parameters, by means of fields
-in the @code{fmc_driver} structure and simple macro definitions.
-
-The parameters are carrier-specific, in that they rely on the @i{busid}
-concept, that varies among carriers (here it is a PCI bus-devfn number).
-Drivers for other carriers will most likely offer something similar
-but not identical to this; some code duplication is unavoidable.
-
-This is the list of parameters, to see how they are used in sub-modules,
-please look at @i{spec-trivial.c}.
-
-@table @code
-
-@item busid=
-
-	This is an array of integers, specifying the PCI bus and PCI devfn,
-        each of the fields being 8 bits (and the latter is most likely 0).
-        For example: @code{0x0400} (bus 4,
-        slot 0).  If any such ID is specified, the sub-driver will only
-        accept to drive cards that appear in the list (even if the
-        FMC ID matches).
-
-@item gateware=
-
-	The argument is an array of strings. If no @i{busid=} is
-        specified, the first string of @i{gateware=} is used for
-        all cards; otherwise the identifiers and gateware names are
-        paired one by one, in the order specified.
-
-@item show_sdb=
-
-	For modules supporting it, this parameter asks sub-modules to
-        show the SDB internal structure to kernel messages. It is
-        disabled by default because those lines tend to hide more
-        important messages when you look at the system console while
-        loading the drivers.
-
-@end table
-
-For example, if you are using the trivial driver to load two different
-gateware files to two different cards, you can use the following
-parameters to load different binaries to the cards, after looking up
-the PCI identifiers:
-
-@smallexample
-   insmod fmc-trivial.ko \
-                         busid=0x0200,0x0400 \
-                         gateware=fmc/fine-delay.bin,fmc/simple-dio.bin
-@end smallexample
-
-Please note that not all sub-modules support all of those parameters.
-You can use @i{modinfo} to check what is supported by each module.
 
 @c ==========================================================================
 @node Interrupts in spec.ko
@@ -386,110 +333,15 @@ for the peripheral:
 @end smallexample
 
 @c ##########################################################################
-@node fmc-trivial.ko
-@chapter fmc-trivial.ko
-
-The simple module @i{fmc-trivial} is just a simple client that
-registers an interrupt handler. I used it to verify the basic mechanism
-of the FMC bus and how interrupts worked.
-
-The module implements the generic SPEC parameters, so it can program a
-different gateware file in each card. The whole list of parameters it
-accepts are:
-
-@table @code
-
-@item busid=
-@itemx gateware=
-      Generic parameters. See @ref{Sub-Module Parameters}.
-
-@c no docbook is generated, so the following is like "#if 0"
-@ifdocbook
-@item sdb=
-
-	This is an array of integers, specifying the @i{sdb}
-        starting address after programming the gateware. See
-        @ref{Sub-Module Parameters} about how this is used in multi-board
-        environments.
-       
-@item lm32=
-
-	This is a array of strings like @code{gateware=},
-        listing the name or names
-        to be used to reprogram the internal LM32. The same rules as for
-        @code{gateware=} above are used for matching binaries and cards.
-        The carrier will copy the @i{lm32} executable to the first
-        SDB record that is mapped as ``@code{WB4-BlockRAM}'' (thus,
-        it needs the @code{sdb=} values to be specified.
-@end ifdocbook
-@end table
-
-This driver is worth reading, but it is not worth describing here.
-
-@c ##########################################################################
-@node fmc-write-eeprom.ko
-@chapter fmc-write-eeprom.ko
-
-This module is designed to load a binary file from @i{/lib/firmware}
-and to write it to the internal EEPROM of the mezzanine card. This
-driver uses the @code{busid} generic parameter, but doesn't use the
-other ones (even if @i{modinfo} reports them).
-
-Overwriting the EEPROM is not something you should do daily, and it is
-expected to only happen during manufacturing. For this reason, the
-module makes it unlikely for the random user to change a working EEPROM.
-
-The module takes the following measures:
-
-@itemize @bullet
-
-@item It accepts a @code{file=} argument (within @i{/lib/firmware})
-and if no such argument is received, it doesn't write anything
-(i.e. there is no default file name)
-
-@item If the file name ends with @code{.bin} it is written verbatim
-starting at offset 0.
-
-@item If the file name ends with @code{.tlv} it is interpreted as
-type-length-value (i.e., it allows @i{writev(2)}-like operation).
-
-@item If the file name doesn't match any of the patterns above, it is
-ignored and no write is performed.
-
-@item Only cards listed with @code{busid=} are written to. If no
-@i{busid} is specified, no programming is done (and the probe function
-of the driver will fail).
-
-@end itemize
-
-Each TLV tuple is formatted in this way: the header is 5 bytes,
-followed by data. The first byte is @code{w} for @i{write}, the
-next two bytes represent the address, in little-endian byte order, and
-the next two represent the data length, in little-endian order. The length does
-not include the header (it is the actual number of bytes to be
-written).
-
-This is a real example: that writes 5 bytes at position 0x110:
-
-@smallexample
-   spusa.root# od -t x1 -Ax /lib/firmware/try.tlv
-   000000 77 10 01 05 00 30 31 32 33 34
-   00000a
-   spusa.root# insmod /tmp/fmc-write-eeprom.ko busid=0x0200 file=try.tlv
-   [19983.391498] spec 0000:03:00.0: write 5 bytes at 0x0110
-   [19983.414615] spec 0000:03:00.0: write_eeprom: success
-@end smallexample
-
-Please note that you'll most likely want to use SDBFS to build your
-EEPROM image, at least if your mezzanines are being used in the White Rabbit
-environment. For this reason the TLV format is not expected to be used much
-and is not expected to be developed further.
-
-@c ##########################################################################
 @node The WR-NIC
 @chapter The WR-NIC
 
-With the current code base, the @code{wr-nic.ko} driver is designed
+This package is expected to only host the @i{carrier} driver, i.e.
+the one that registers a @i{device} for the FMC bus.  However, at the
+time being the @i{wr-nic} mezzanine driver is part of this package,
+for various reasons.
+
+The @code{wr-nic.ko} mezzanine driver is designed
 to run with the simple 5-Channel @i{simple-DIO} mezzanine board,
 because it includes both
 code to access the network card and code to act on the DIO channels,
@@ -497,7 +349,8 @@ using time tags that are provided by the @i{White Rabbit} mechanism.
 Similarly, both incoming and outgoing frames can be time-stamped by
 @i{White Rabbit}.
 
-This driver is the most important driver in this package: it is
+This driver is the most important driver in this package, from the
+user's point of view. It is
 a generic implementation of the @i{spec-sw} framework which can be
 useful by itself as a White Rabbit starter kit.  Moreover, it is a
 complete driver that can serve as a model for other developments.
@@ -552,11 +405,13 @@ register definitions. This is the role of each of them:
 
 @table @file
 
-@item include/linux/fmc.h
-@itemx include/linux/sdb.h
-@itemx include/linux/fmc-sdb.h
+@item fmc-bus/kernel/include/linux/fmc.h
+@itemx fmc-bus/kernel/include/linux/sdb.h
+@itemx fmc-bus/kernel/include/linux/fmc-sdb.h
 
-	These three headers are used to define the interface to the
+	These three headers are part of the @i{fmc-bus} project,
+        whose repository is a @i{git} submodule of this one.
+        They are used to define the interface to the
         FMC bus abstraction and the SDB self-description of the
 	internal FPGA bus. They are used by other @i{spec-sw} files as well.
         We include them as @code{<linux/fmc.h>} because we plan to
@@ -701,8 +556,8 @@ The module receives the following parameters:
 	These are standard parameters. You can either limit the driver
         to only bind to some specific SPEC cards (not all of the ones
         selected by the @i{match} function of @i{fmc-bus}), or to
-        assign different @i{gateware} files for each card. See
-        @ref{Sub-Module Parameters}.
+        assign different @i{gateware} files for each card. They
+        are fully described in the @i{fmc-bus} manual.
 
 @item show_sdb=
 
@@ -1060,30 +915,33 @@ The current version of the tool supports the following commands:
         0 means ``stop generating pulses'').
 
 @item mode <channel> <mode> [<channel> <mode> ...]
-@itemx mode <mode0><mode1><mode2><mode3><mode4>
+@itemx mode <m0><m1><m2><m3><m4>
 
-	Configure one or more channel for the specified mode. Each mode
-        is one character, so the second form receives a 5-byte
-        string argument. Available modes are ``@code{I}'' (input),
+	Configure one or more channels for the specified mode. Each mode
+        is represented by one character; the latter form above thus
+        configures all 5 channels by means of a since 5-bytes-long string.
+        Supported modes are ``@code{I}'' (input),
         ``@code{0}'' and ``@code{1}'' (output, steady state),
         ``@code{D}'' (DIO core output) or ``@code{-}'' (unchanged).
         A channel managed by the DIO core is normally low and can
         pulse high on request (see @code{pulse}
         command. Uppercase @code{D} or @code{I} activate the 50-ohm termination
-        resistor, while lowercase @code{d} or @code{i} disable the termination
-        (output is always without termination, but I may add @code{L} and
-        @code{H} if needed: the driver supports all combinations).
+        resistor with either WR-DIO or input mode,
+        while lowercase @code{d} or @code{i} disable the termination.
+        Currently output modes are always without termination,
+        but I may add @code{L} and
+        @code{H} if needed: the hardware supports all combinations).
         Please note that the @code{pulse} command turns the affected channel in
         @i{DIO} mode anyways (without changing the termination).
 
 @end table
 
-Please note that generation of a pulse train is performed by
+Generation of a pulse train is performed by
 software running at interrupt time,
-because the @i{simple DIO} card and gateware can only emit one pulse at
-a requested @i{White Rabbit} time. For this reason you'll have a lower
-limit for the pulse period, according to how powerful your computer
-is -- and how much you loaded with other tasks. In the future, new
+because the @i{simple DIO} card and gateware can only emit a single pulse at
+a requested @i{White Rabbit} time. For this reason you'll observe that
+the pulse period cannot be too short, according to how powerful your computer
+is and how much you loaded it with other tasks. In the future, new
 @i{gateware} files may perform pulse trains in hardware.
 
 There is no command to flush the timestamp FIFOs, but you can
