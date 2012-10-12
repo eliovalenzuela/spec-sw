@@ -199,6 +199,8 @@ struct fmc_operations {
                            char *name, int flags);
         void (*irq_ack)(struct fmc_device *fmc);
         int (*irq_free)(struct fmc_device *fmc);
+        int (*gpio_config)(struct fmc_device *fmc, struct fmc_gpio *gpio,
+                           int ngpio);
         int (*read_ee)(struct fmc_device *fmc, int pos, void *d, int l);
         int (*write_ee)(struct fmc_device *fmc, int pos, const void *d, int l);
 };
@@ -254,6 +256,12 @@ The individual methods perform the following tasks:
         The handler will receive the @i{fmc} pointer as @i{dev_id}; the
         @i{flags} argument is still to be defined.
 
+@item gpio_config
+
+	The method allows to configure a GPIO pin in the carrier, and
+        read its current value if it is configured as input. See
+        @ref{The GPIO Abstraction} for details.
+        
 @item read_ee
 @itemx write_ee
 
@@ -270,7 +278,80 @@ The individual methods perform the following tasks:
 
 @end table
 
+@c ##########################################################################
+@node The GPIO Abstraction
+@chapter The GPIO Abstraction
 
+Support for GPIO pins in the @i{fmc-bus} environment is a little
+heavy, and deserves special discussion.
+
+While the general idea of a carrier-independent driver seems to fly,
+configuration of specific signals within the carrier needs at least
+some knowledge of the carrier itself.  For this reason, the specific
+driver can request to configure carrier-specific GPIO pins, numbered
+from 0 to at most 4095.  Configuration is performed by passing
+a pointer to an array of @t{struct fmc_gpio} items, as well as
+the number of those items:
+
+@example
+   struct fmc_gpio {
+           char *carrier_name;
+           int gpio;
+           int _gpio;      /* internal use by the carrier */
+           int mode;       /* GPIOF_DIR_OUT etc, from <linux/gpio.h> */
+           int irqmode;    /* IRQF_TRIGGER_LOW and so on */
+   };
+@end example
+
+By specifying a @i{carrier_name} for each pin, the driver may access
+different pins in different carriers.  The @i{gpio_config} method
+returns the number of pins successfully configured, and each carrier
+just ignores requests for other carriers.  So, for example, a driver
+that has been developed and tested on both the SPEC and the SVEC may
+request configuration of two different GPIO pins, and expect one such
+configuration to succeed -- if none succeeds it most likely means that
+the current carrier is a still-unknown one.  (FIXME: the return value
+is not actually used this way in current code).
+
+If, however, your GPIO pin has a specific known role, you can
+pass a special number in the @t{gpio} field. The header defines
+the following macros:
+
+@example
+   #define FMC_GPIO_RAW(x)         (x)             /* 4096 of them */
+   #define FMC_GPIO_IRQ(x)         ((x) + 0x1000)  /*  256 of them */
+   #define FMC_GPIO_LED(x)         ((x) + 0x1100)  /*  256 of them */
+   #define FMC_GPIO_KEY(x)         ((x) + 0x1200)  /*  256 of them */
+   #define FMC_GPIO_TP(x)          ((x) + 0x1300)  /*  256 of them */
+   #define FMC_GPIO_USER(x)        ((x) + 0x1400)  /*  256 of them */
+@end example
+
+Use of virtual GPIO numbers (anything but @t{FMC_GPIO_RAW}) is allowed
+provided the @i{carrier_name} field is left unspecified (NULL). Each
+carrier is responsible for providing a mapping between virtual and
+physical GPIO numbers (and possibly cache the raw number in the
+@t{_gpio} field).  All carriers must map their I/O lines
+to the sets above starting from zero.  The SPEC, for example, maps
+interrupt 0 and 1, and test points 0 through 3.
+
+If, for example, a driver requires a free led and a test point (for a
+scope probe to be plugged at some point during development) it may ask
+for @t{FMC_GPIO_LED(0)} and @t{FMC_GPIO_TP(0)}. Each carrier will
+provide suitable GPIO pins.  Clearly, the person running the drivers
+will know the order used by the specific carrier driver in assigning
+leds and testpoints, so to make a carrier-dependent use of the diagnostic tools.
+
+In theory, some form of autodetection should be possible: a driver
+like the @i{wr-nic} (which uses IRQ(1) on the SPEC card) should
+configure IRQ(0), make a test with software-generated interrupts and
+configure IRQ(1) if the test fails -- the @i{wr-nic} gateware is
+known to use IRQ1 on the SPEC, but the driver should be
+carrier-independent if possible and thus use IRQ(0) as a first bet.
+
+If a pin is configured as input, the @i{gpio_config} method returns 0
+or 1, to report its current value. Invalid GPIO numbers will cause
+@code{-ENODEV} to be returned for physical numbers and @code{-ENOENT}
+for virtual mappings.
 
 @bye
 @c  LocalWords:  gnudd titlepage iftex texinfo CERN documentlanguage settitle
