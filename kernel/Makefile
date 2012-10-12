@@ -1,17 +1,13 @@
 
 LINUX ?= /lib/modules/$(shell uname -r)/build
 
-ccflags-y += -I$M/include
+KBUILD_EXTRA_SYMBOLS := $M/../fmc-bus/kernel/Module.symvers
+
+ccflags-y += -I$M/include -I$M/../fmc-bus/kernel/include
 ccflags-y += $(WR_NIC_CFLAGS)
 
-obj-m = fmc.o
 obj-m += spec.o
-obj-m += fmc-trivial.o
-obj-m += fmc-write-eeprom.o
 obj-m += wr-nic.o
-
-fmc-y = fmc-core.o
-fmc-y += fmc-sdb.o
 
 spec-y = spec-pci.o
 spec-y += spec-fmc.o
