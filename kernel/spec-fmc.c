@@ -180,7 +180,6 @@ static int spec_cfg_pin(struct fmc_device *fmc, int pin, int mode, int imode)
 	if (mode & GPIOF_DIR_IN) {
 		/* 1 = input */
 		gennum_mask_val(spec, bit, bit, GNGPIO_DIRECTION_MODE);
-		gennum_mask_val(spec, bit, bit, GNGPIO_OUTPUT_ENABLE);
 		ret = !!(gennum_readl(spec, GNGPIO_INPUT_VALUE) & bit);
 	} else {
 		if (mode & GPIOF_INIT_HIGH)
@@ -188,6 +187,7 @@ static int spec_cfg_pin(struct fmc_device *fmc, int pin, int mode, int imode)
 		else
 			gennum_mask_val(spec, bit, 0, GNGPIO_OUTPUT_VALUE);
 		gennum_mask_val(spec, bit, 0, GNGPIO_DIRECTION_MODE);
+		gennum_mask_val(spec, bit, bit, GNGPIO_OUTPUT_ENABLE);
 	}
 
 	/* Then, interrupt configuration, if needed */
