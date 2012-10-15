@@ -170,12 +170,14 @@ static int spec_map_pin(int virtual)
 static int spec_cfg_pin(struct fmc_device *fmc, int pin, int mode, int imode)
 {
 	struct spec_dev *spec = fmc->carrier_data;
+	int valid_bits = GPIOF_DIR_IN | GPIOF_DIR_OUT
+		| GPIOF_INIT_HIGH | GPIOF_INIT_LOW;
 	int ret = 0;
 	int bit = (1 << pin);
 
 	if (pin < 0 || pin > 15)
 		return -ENODEV;
-	if (mode & (GPIOF_OPEN_DRAIN |GPIOF_OPEN_SOURCE))
+	if (mode & ~valid_bits)
 		return -EINVAL;
 	if (mode & GPIOF_DIR_IN) {
 		/* 1 = input */
