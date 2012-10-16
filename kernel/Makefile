@@ -1,9 +1,11 @@
 
 LINUX ?= /lib/modules/$(shell uname -r)/build
 
-KBUILD_EXTRA_SYMBOLS := $M/../fmc-bus/kernel/Module.symvers
+FMC_DRV ?= $(shell $M/../check-fmc-bus)
 
-ccflags-y += -I$M/include -I$M/../fmc-bus/kernel/include
+KBUILD_EXTRA_SYMBOLS := $(FMC_DRV)/Module.symvers
+
+ccflags-y += -I$M/include -I$(FMC_DRV)/include
 ccflags-y += $(WR_NIC_CFLAGS)
 
 obj-m += spec.o
