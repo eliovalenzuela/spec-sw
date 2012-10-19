@@ -103,8 +103,8 @@ int wrn_fmc_probe(struct fmc_device *fmc)
 		return ret;
 	}
 
-	/* Verify that we have SDB at offset 0x63000 */
-	if (fmc_readl(fmc, 0x63000) != 0x5344422d) {
+	/* Verify that we have SDB at offset WRN_SDB_ADDR (0x63000) */
+	if (fmc_readl(fmc, WRN_SDB_ADDR) != 0x5344422d) {
 		dev_err(dev, "Can't find SDB magic\n");
 		ret = -ENODEV;
 		goto out;
