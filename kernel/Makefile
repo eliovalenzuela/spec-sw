@@ -1,7 +1,8 @@
 
 LINUX ?= /lib/modules/$(shell uname -r)/build
 
-FMC_DRV ?= $(shell $M/../check-fmc-bus)
+FMC_DRV ?= $(shell ../check-fmc-bus)
+export FMC_DRV
 
 KBUILD_EXTRA_SYMBOLS := $(FMC_DRV)/Module.symvers
 
