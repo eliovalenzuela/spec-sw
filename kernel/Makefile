@@ -9,8 +9,13 @@ KBUILD_EXTRA_SYMBOLS := $(FMC_DRV)/Module.symvers
 ccflags-y += -I$M/include -I$(FMC_DRV)/include
 ccflags-y += $(WR_NIC_CFLAGS)
 
+# this is a bad hack. Sometimes we are a submodule, and wr-nic can
+# only compile with recent versions, so let the caller disable it
+# FIXME: this is incorrect if we get copied to the kernel proper.
+CONFIG_WR_NIC ?= m
+
 obj-m += spec.o
-obj-m += wr-nic.o
+obj-$(CONFIG_WR_NIC) += wr-nic.o
 
 spec-y = spec-pci.o
 spec-y += spec-fmc.o
