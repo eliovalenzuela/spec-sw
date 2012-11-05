@@ -1,2 +1,5 @@
 *.o
 *~
+.cproject
+.project
+gatewares/*
