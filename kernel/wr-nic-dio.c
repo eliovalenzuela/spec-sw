@@ -228,11 +228,11 @@ again:
 		mask = (1 << ch);
 	}
 	/* handle the 1-channel and mask case in the same loop */
-	for (; ch <= last; ch++) {
+	c = d->ch + ch;
+	for (; ch <= last; ch++, c++) {
 		if (((1 << ch) & mask) == 0)
 			continue;
 		map = regmap + ch;
-		c = d->ch + ch;
 		while (1) {
 			if (nstamp == WR_DIO_N_STAMP)
 				break;
