@@ -27,12 +27,7 @@ struct spec_dev {
 	struct pci_dev		*pdev;
 	struct resource		*area[3];	/* bar 0, 2, 4 */
 	void __iomem		*remap[3];	/* ioremap of bar 0, 2, 4 */
-	char			*submod_name;
-	struct work_struct	work;
-	const struct firmware	*fw;
 	struct list_head	list;
-	unsigned long		irqcount;
-	void			*sub_priv;
 	struct fmc_device	*fmc;
 	int			irq_count;	/* for mezzanine use too */
 	struct completion	compl;
