@@ -410,6 +410,7 @@ int spec_fmc_create(struct spec_dev *spec)
 	ret = check_golden(fmc);
 	if (ret)
 		goto out_free;
+	fmc->flags = FMC_DEVICE_HAS_GOLDEN;
 
 	ret = spec_i2c_init(fmc);
 	if (ret)
