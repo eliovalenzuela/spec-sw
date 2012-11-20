@@ -438,5 +438,6 @@ void spec_fmc_destroy(struct spec_dev *spec)
 	fmc_device_unregister(spec->fmc);
 	spec_irq_exit(spec->fmc);
 	spec_i2c_exit(spec->fmc);
+	kfree(spec->fmc);
 	spec->fmc = NULL;
 }
