@@ -98,6 +98,9 @@ irqreturn_t wrn_tstamp_interrupt(int irq, void *dev_id)
 	struct TXTSU_WB *regs = wrn->txtsu_regs;
 	u32 r0, r1, r2;
 
+	if (!regs)
+		return IRQ_NONE; /* early interrupt? */
+
 	/* printk("%s: %i\n", __func__, __LINE__); */
 	/* FIXME: locking */
 	r0 = readl(&regs->TSF_R0);
