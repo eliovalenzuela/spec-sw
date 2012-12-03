@@ -243,14 +243,16 @@ again:
 			nstamp++;
 			ts++;
 		}
-		if (nstamp) break;
+		if (nstamp) {
+			cmd->channel = ch;
+			break;
+		}
 	}
 	cmd->nstamp = nstamp;
-	if (nstamp)
-		cmd->channel = ch; /* if any, they are all of this channel */
 
 	/* The user may asketo wait for timestamps, but for 1 channel only */
 	if (!nstamp && cmd->flags & WR_DIO_F_WAIT) {
+		ch--; c--; /* The for above incremeted them */
 		/*
 		 * HACK: since 2.1.68 (Nov 1997) the ioctl is called locked.
 		 * So we need to unlock, but that is dangerous for rmmod
