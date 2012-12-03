@@ -6,12 +6,12 @@
  */
 int __weak spec_gpio_init(struct fmc_device *fmc)
 {
-	printk("%s - %s\n", __FILE__,  __func__);
+	pr_debug("%s - %s\n", __FILE__,  __func__);
 	return 0;
 }
 void __weak spec_gpio_exit(struct fmc_device *fmc)
 {
-	printk("%s - %s\n", __FILE__,  __func__);
+	pr_debug("%s - %s\n", __FILE__,  __func__);
 }
 
 
