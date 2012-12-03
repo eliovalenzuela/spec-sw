@@ -963,7 +963,7 @@ Example uses of the tool follow:
    wr-dio-cmd wr0 stamp 4
 
    # Make a train of 5 pulses, 0.5ms wide, every ms at next second
-   wr-dio-cmd wr0 stamp 4 0.0005 +1 .001 5
+   wr-dio-cmd wr0 pulse 4 0.0005 +1 .001 5
 
    # Configure channel 0 as input with termination, 1 as input, 4 as low
    wr-dio-cmd wr0 mode Ii--0
