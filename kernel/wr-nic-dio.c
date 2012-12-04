@@ -255,11 +255,14 @@ again:
 		ch--; c--; /* The for above incremeted them */
 		/*
 		 * HACK: since 2.1.68 (Nov 1997) the ioctl is called locked.
-		 * So we need to unlock, but that is dangerous for rmmod
+		 * So we need to unlock, but that is dangerous for rmmod.
+		 * Let's thus increase the module usage while sleeping
 		 */
+		try_module_get(THIS_MODULE);
 		rtnl_unlock();
 		wait_event_interruptible(c->q, c->bhead != c->btail);
 		rtnl_lock();
+		module_put(THIS_MODULE);
 		if (signal_pending(current))
 			return -ERESTARTSYS;
 		goto again;
