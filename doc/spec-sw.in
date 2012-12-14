@@ -880,6 +880,11 @@ The arguments have the following meaning
 
 @end table
 
+@b{Note}: This command, like everything else in this package, numbers
+channels from 0 through 4, whereas the back panel of the mezzanine
+numbers them 1 through 5.  My devices have no panel, so I just made
+the wrong guess.
+
 The current version of the tool supports the following commands:
 
 @table @code
@@ -981,6 +986,11 @@ file.
 The program just fires a 1ms-long @i{pps} pulse on one of the output
 channels. The device name defaults to @i{wr0} but can specify a different one;
 the channel number is a mandatory argument.
+
+@b{Note}: This command, like everything else in this package, numbers
+channels from 0 through 4, whereas the back panel of the mezzanine
+numbers them 1 through 5.  My devices have no panel, so I just made
+the wrong guess.
 
 @example
    # run pps on channel 2 of the default SPEC card
@@ -1086,6 +1096,8 @@ both the local and the remote card; it also replicates with a 2ms
 delay to local channel 4. Please note that the delays should be no
 more than the interval between input pulses, because the tools
 reprograms all output triggers at each input event.
+
+@b{Note}: As usual, channels are numbered 0 through 4.
 
 @example
    wr-dio-ruler wr1 IN0 L3+0.001 R3+0.001 L4+0.002
