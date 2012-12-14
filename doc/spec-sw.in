@@ -33,13 +33,13 @@
 
 @setchapternewpage off
 
-@set update-month October 2012
+@set update-month December 2012
 
 @finalout
 
 @titlepage
 @title SPEC Software Support
-@subtitle (@value{update-month})
+@subtitle Version 2.2 (@value{update-month})
 @subtitle A driver for the SPEC card and its FMC modules
 @author Alessandro Rubini for CERN (BE-CO-HT)
 @end titlepage
@@ -167,7 +167,7 @@ Failure of any of the above steps is fatal.
 The suggested @code{spec-init.bin} gateware binary is always available
 from the @i{files} area of the @i{spec-sw} project on @code{ohwr.org}.
 The current binary version to be used with this software version is
-@url{http://www.ohwr.org/attachments/download/1454/spec-init.bin-2012-07-24}.
+@url{http://www.ohwr.org/attachments/download/1756/spec-init.bin-2012-12-14}.
 
 The EEPROM content that the carrier driver reads at initialization time
 is still available to mezzanine drivers after they are loaded, but a
@@ -521,14 +521,15 @@ the @i{files} tab of the Open Hardware Repository. The direct
 links are as follows (the former is required, the latter is optional):
 
 @example
-http://www.ohwr.org/attachments/download/1633/wr_nic_dio.bin-2012-10-02
-http://www.ohwr.org/attachments/download/1611/wr_nic_dio-wrc.bin-2012-09-26
+http://www.ohwr.org/attachments/download/1757/wr_nic_dio.bin-2012-12-14
+http://www.ohwr.org/attachments/download/1758/wr_nic_dio-wrc.bin-2012-12-14
 @end example
 
 The date is included in the binary name so we won't need to remove the
 binaries when they are obsoleted by newer ones:
-@i{spec-sw} releases are expected to continue working in the
-future, and if you are using this version you need those very files.
+@i{spec-sw} releases are expected to keep working in the future, with
+no comulsory updates: if you are using this version you need those very files
+to be available over time.
 You can copy the following command sequence to your shell
 in order to fill your @file{/lib/firmware/fmc} with everything that's
 needed to run @i{wr-nic}:
@@ -536,9 +537,9 @@ needed to run @i{wr-nic}:
 @smallexample
 cd /tmp
 wget -O wr_nic_dio.bin \
-   http://www.ohwr.org/attachments/download/1633/wr_nic_dio.bin-2012-10-02
+   http://www.ohwr.org/attachments/download/1757/wr_nic_dio.bin-2012-12-14
 wget -O wr_nic_dio-wrc.bin \
-   http://www.ohwr.org/attachments/download/1611/wr_nic_dio-wrc.bin-2012-09-26
+   http://www.ohwr.org/attachments/download/1758/wr_nic_dio-wrc.bin-2012-12-14
 sudo mv wr_nic_dio wr_nic_dio-wrc /lib/firmware/fmc
 @end smallexample
 
@@ -593,6 +594,8 @@ The complete reference of the shell commands is included in the
 @i{wrpc-sw} manual in the @i{files} tab of the project.  The direct
 link is
 @url{http://www.ohwr.org/attachments/download/1586/wrpc-v2.0.pdf}.
+(Actually, you should get the latest available or, even better, the
+documentation that is part of the package you are running).
 
 The most useful commands are repeated here for your convenience
 
