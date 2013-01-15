@@ -88,9 +88,9 @@ int wrn_fmc_probe(struct fmc_device *fmc)
 	 * global name
 	 */
 	if (wrn_drv.gw_n)
-		ret = fmc->op->reprogram(fmc, &wrn_drv, "");
+		ret = fmc_reprogram(fmc, &wrn_drv, "", 0x630000 /* SDB */);
 	else
-		ret = fmc->op->reprogram(fmc, &wrn_drv, wrn_filename);
+		ret = fmc_reprogram(fmc, &wrn_drv, wrn_filename, 0x63000);
 	if (ret <0) {
 		if (ret == -ESRCH) {
 			dev_info(fmc->hwdev, "%s: no gateware at index %i\n",
@@ -102,19 +102,9 @@ int wrn_fmc_probe(struct fmc_device *fmc)
 			wrn_filename, ret);
 		return ret;
 	}
-
-	/* Verify that we have SDB at offset WRN_SDB_ADDR (0x63000) */
-	if (fmc_readl(fmc, WRN_SDB_ADDR) != 0x5344422d) {
-		dev_err(dev, "Can't find SDB magic\n");
-		ret = -ENODEV;
-		goto out;
-	}
 	dev_info(dev, "Gateware successfully loaded\n");
 
-	if ( (ret = fmc_scan_sdb_tree(fmc, WRN_SDB_ADDR)) < 0) {
-		dev_err(dev, "scan fmc failed %i\n", ret);
-		goto out;
-	}
+	/* FIXME: remove this parameter, fmc.ko shows it already */
 	if (wrn_show_sdb)
 		fmc_show_sdb_tree(fmc);
 

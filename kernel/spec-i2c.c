@@ -139,7 +139,7 @@ int mi2c_scan(struct fmc_device *fmc)
 }
 
 /* FIXME: this is very inefficient: read several bytes in a row instead */
-int spec_eeprom_read(struct fmc_device *fmc, int i2c_addr, uint32_t offset,
+int spec_eeprom_read(struct fmc_device *fmc, uint32_t offset,
 		void *buf, size_t size)
 {
 	int i;
@@ -148,7 +148,7 @@ int spec_eeprom_read(struct fmc_device *fmc, int i2c_addr, uint32_t offset,
 
 	for(i = 0; i < size; i++) {
 		mi2c_start(fmc);
-		if(mi2c_put_byte(fmc, i2c_addr << 1) < 0) {
+		if(mi2c_put_byte(fmc, fmc->eeprom_addr << 1) < 0) {
 			mi2c_stop(fmc);
 			return -EIO;
 		}
@@ -158,7 +158,7 @@ int spec_eeprom_read(struct fmc_device *fmc, int i2c_addr, uint32_t offset,
 		offset++;
 		mi2c_stop(fmc);
 		mi2c_start(fmc);
-		mi2c_put_byte(fmc, (i2c_addr << 1) | 1);
+		mi2c_put_byte(fmc, (fmc->eeprom_addr << 1) | 1);
 		mi2c_get_byte(fmc, &c, 0);
 		*buf8++ = c;
 		mi2c_stop(fmc);
@@ -166,7 +166,7 @@ int spec_eeprom_read(struct fmc_device *fmc, int i2c_addr, uint32_t offset,
 	return size;
 }
 
-int spec_eeprom_write(struct fmc_device *fmc, int i2c_addr, uint32_t offset,
+int spec_eeprom_write(struct fmc_device *fmc, uint32_t offset,
 		 const void *buf, size_t size)
 {
 	int i, busy;
@@ -175,7 +175,7 @@ int spec_eeprom_write(struct fmc_device *fmc, int i2c_addr, uint32_t offset,
 	for(i = 0; i < size; i++) {
 		mi2c_start((fmc));
 
-		if(mi2c_put_byte(fmc, i2c_addr << 1) < 0) {
+		if(mi2c_put_byte(fmc, fmc->eeprom_addr << 1) < 0) {
 			mi2c_stop(fmc);
 			return -1;
 		}
@@ -187,7 +187,7 @@ int spec_eeprom_write(struct fmc_device *fmc, int i2c_addr, uint32_t offset,
 
 		do { /* wait until the chip becomes ready */
 			mi2c_start(fmc);
-			busy = mi2c_put_byte(fmc, i2c_addr << 1);
+			busy = mi2c_put_byte(fmc, fmc->eeprom_addr << 1);
 			mi2c_stop(fmc);
 		} while(busy);
 	}
@@ -210,12 +210,12 @@ int spec_i2c_init(struct fmc_device *fmc)
 	if (!buf)
 		return -ENOMEM;
 
-	i = spec_eeprom_read(fmc, SPEC_I2C_EEPROM_ADDR, 0, buf,
-			     SPEC_I2C_EEPROM_SIZE);
+	i = spec_eeprom_read(fmc, 0, buf, SPEC_I2C_EEPROM_SIZE);
 	if (i != SPEC_I2C_EEPROM_SIZE) {
-		dev_err(&spec->pdev->dev, "EEPROM read error: retval is %i\n",
-			i);
+		dev_err(&spec->pdev->dev, "EEPROM read error %i\n", i);
 		kfree(buf);
+		fmc->eeprom = NULL;
+		fmc->eeprom_len = 0;
 		return -EIO;
 	}
 	fmc->eeprom = buf;

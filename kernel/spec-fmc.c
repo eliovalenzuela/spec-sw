@@ -7,6 +7,7 @@
  * This work is part of the White Rabbit project, a research effort led
  * by CERN, the European Institute for Nuclear Research.
  */
+#include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/fmc.h>
 #include <linux/interrupt.h>
@@ -256,7 +257,7 @@ static int spec_read_ee(struct fmc_device *fmc, int pos, void *data, int len)
 {
 	if (!(fmc->flags & FMC_DEVICE_HAS_GOLDEN))
 		return -ENOTSUPP;
-	return spec_eeprom_read(fmc, SPEC_I2C_EEPROM_ADDR, pos, data, len);
+	return spec_eeprom_read(fmc, pos, data, len);
 }
 
 static int spec_write_ee(struct fmc_device *fmc, int pos,
@@ -264,7 +265,7 @@ static int spec_write_ee(struct fmc_device *fmc, int pos,
 {
 	if (!(fmc->flags & FMC_DEVICE_HAS_GOLDEN))
 		return -ENOTSUPP;
-	return spec_eeprom_write(fmc, SPEC_I2C_EEPROM_ADDR, pos, data, len);
+	return spec_eeprom_write(fmc, pos, data, len);
 }
 
 static struct fmc_operations spec_fmc_operations = {
@@ -391,6 +392,7 @@ static int check_golden(struct fmc_device *fmc)
 int spec_fmc_create(struct spec_dev *spec)
 {
 	struct fmc_device *fmc;
+        struct pci_dev *pdev;
 	int ret;
 
 	fmc = kzalloc(sizeof(*fmc), GFP_KERNEL);
@@ -398,13 +400,26 @@ int spec_fmc_create(struct spec_dev *spec)
 		return -ENOMEM;
 
 	fmc->version = FMC_VERSION;
+	fmc->owner = THIS_MODULE;
 	fmc->carrier_name = "SPEC";
 	fmc->carrier_data = spec;
-	fmc->base = spec->remap[0]; /* 1M window at offset 0 */
+
+	/* 1M window at offset 0 */
+	fmc->fpga_base = spec->remap[0];
+	fmc->memlen = 1 << 20;
+
 	fmc->irq = spec->pdev->irq;
 	fmc->op = &spec_fmc_operations;
 	fmc->hwdev = &spec->pdev->dev; /* for messages */
 	spec->fmc = fmc;
+
+	/* We have one slot only, and the i2c address is mandated */
+	fmc->slot_id = 0;
+	fmc->eeprom_addr = SPEC_I2C_EEPROM_ADDR;
+
+	/* The device id is needed to build mezzanine unique names */
+	pdev = spec->pdev;
+	fmc->device_id = (pdev->bus->number << 8) | pdev->devfn;
 
 	/* Check that the golden binary is actually correct */
 	ret = check_golden(fmc);

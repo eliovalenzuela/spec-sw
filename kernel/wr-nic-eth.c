@@ -223,7 +223,8 @@ int wrn_eth_init(struct fmc_device *fmc)
 			continue;
 		}
 		/* use c->offset to copy and already-remapped value */
-		*((void **)((u8 *)drvdata + c->offset)) = fmc->base + start;
+		*((void **)((u8 *)drvdata + c->offset)) =
+			fmc->fpga_base + start;
 	}
 	pdev->resource = resarr;
 	pdev->num_resources = ARRAY_SIZE(wrn_cores);
