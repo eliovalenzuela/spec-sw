@@ -105,7 +105,7 @@ static int __devinit spec_probe(struct pci_dev *pdev,
 		 * This should be "4" but arch/x86/kernel/apic/io_apic.c
 		 * says "x86 doesn't support multiple MSI yet".
 		 */
-		ret = pci_enable_msi_block(pdev, 1);
+		ret = pci_enable_msi(pdev);
 		if (ret < 0)
 			dev_err(&pdev->dev, "%s: enable msi block: error %i\n",
 				__func__, ret);
