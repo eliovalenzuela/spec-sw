@@ -13,7 +13,6 @@
 #include <linux/firmware.h>
 #include <linux/completion.h>
 #include <linux/fmc.h>
-#include <linux/gpio.h>
 
 #define PCI_VENDOR_ID_CERN	0x10dc
 #define PCI_DEVICE_ID_SPEC		0x018d
