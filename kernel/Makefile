@@ -12,7 +12,8 @@ ccflags-y += $(WR_NIC_CFLAGS)
 # this is a bad hack. Sometimes we are a submodule, and wr-nic can
 # only compile with recent versions, so let the caller disable it
 # FIXME: this is incorrect if we get copied to the kernel proper.
-CONFIG_WR_NIC ?= m
+CONFIG_WR_NIC ?= n
+# This is the backport branch, so fix it straight ahead: no wr-nic here.
 
 obj-m += spec.o
 obj-$(CONFIG_WR_NIC) += wr-nic.o
