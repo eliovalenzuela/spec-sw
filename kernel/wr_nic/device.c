@@ -182,7 +182,7 @@ static int __devinit wrn_probe(struct platform_device *pdev)
 		err = wrn_mezzanine_init(netdev);
 		if (err)
 			dev_err(&pdev->dev, "Init mezzanine code: "
-				    "error %i\n", err);
+				"error %i\n", err);
 	}
 	if (i == 0)
 		return -ENODEV; /* no endpoints */
