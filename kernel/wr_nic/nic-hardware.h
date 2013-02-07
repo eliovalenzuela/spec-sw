@@ -80,14 +80,18 @@ enum fpga_blocks {
 };
 
 /* In addition to the above enumeration, we scan for those many endpoints */
-#define WRN_NR_ENDPOINTS		1
+#if WR_IS_NODE
+#  define WRN_NR_ENDPOINTS		1
+#else
+#  define WRN_NR_ENDPOINTS		18
+#endif
 
 /* 8 tx and 8 rx descriptors */
 #define WRN_NR_DESC	8
 #define WRN_NR_TXDESC	WRN_NR_DESC
 #define WRN_NR_RXDESC	WRN_NR_DESC
 
-/* Magic number for endpoint (missing, I fear) */
+/* Magic number for endpoint */
 #define WRN_EP_MAGIC 0xcafebabe
 
 /*
