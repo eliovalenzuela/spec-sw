@@ -27,7 +27,7 @@ int wrn_phy_read(struct net_device *dev, int phy_id, int location)
 	struct wrn_ep *ep = netdev_priv(dev);
 	u32 val;
 
-	if (1) {
+	if (WR_IS_NODE) {
 		/*
 		 * We cannot access the phy from Linux, because the phy
 		 * is managed by the lm32 core. However, network manager
@@ -50,7 +50,7 @@ void wrn_phy_write(struct net_device *dev, int phy_id, int location,
 {
 	struct wrn_ep *ep = netdev_priv(dev);
 
-	if (1) {
+	if (WR_IS_NODE) {
 		/*
 		 * We cannot access the phy from Linux, because the phy
 		 * is managed by the lm32 core. However, network manager
@@ -81,7 +81,7 @@ static void wrn_update_link_status(struct net_device *dev)
 //	printk("%s: read %x %x %x\n", __func__, bmsr, bmcr);
 
 		/* Link wnt down? */
-	if (!mii_link_ok(&ep->mii)) {	
+	if (!mii_link_ok(&ep->mii)) {
 		if(netif_carrier_ok(dev)) {
 			netif_carrier_off(dev);
 			clear_bit(WRN_EP_UP, &ep->ep_flags);
@@ -149,7 +149,7 @@ int wrn_ep_open(struct net_device *dev)
 	struct wrn_ep *ep = netdev_priv(dev);
 	unsigned long timerarg = (unsigned long)dev;
 
-	if (1) {
+	if (WR_IS_NODE) {
 		netif_carrier_on(dev);
 		return 0; /* No access to EP registers in the SPEC */
 	}
@@ -193,11 +193,11 @@ int wrn_ep_close(struct net_device *dev)
 {
 	struct wrn_ep *ep = netdev_priv(dev);
 
-	if (1)
+	if (WR_IS_NODE)
 		return 0; /* No access to EP registers in the SPEC */
 	/*
 	 * Beware: the system loops in the del_timer_sync below if timer_setup
-	 * had not been called either (see "if (1)"  in ep_open above)
+	 * had not been called either (see "if (WR_IS_NODE)" in ep_open above)
 	 */
 
 	writel(0, &ep->ep_regs->ECR);
