@@ -25,6 +25,19 @@
 
 #ifdef __KERNEL__ /* The rest is kernel-only */
 
+/* The NIC can build for both the switch and the node. Prefer if to ifdef */
+#ifdef WR_NODE
+#  define WR_IS_NODE 1
+#  define WR_IS_SWITCH 0
+#else
+#  ifndef WR_SWITCH
+#    error "Please define WR_NODE or WR_SWITCH"
+#  else
+#    define WR_IS_NODE 0
+#    define WR_IS_SWITCH 1
+#  endif
+#endif
+
 #include <linux/interrupt.h>
 #include <linux/spinlock.h>
 #include <linux/mii.h>		/* Needed for stuct mii_if_info in wrn_dev */

@@ -1,3 +1,5 @@
+# This builds ./wr_nic as well, but wr_nic/Makefile is designed for the switch
+ccflags-y += -DWR_NODE
 
 LINUX ?= /lib/modules/$(shell uname -r)/build
 
