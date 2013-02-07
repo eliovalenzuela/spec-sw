@@ -46,7 +46,6 @@
 
 #include "nic-hardware.h" /* Magic numbers: please fix them as needed */
 
-#define DRV_NAME "wr-nic" /* Used in messages and device/driver names */
 #define DRV_VERSION "0.1" /* For ethtool->get_drvinfo -- FIXME: auto-vers */
 
 /*
