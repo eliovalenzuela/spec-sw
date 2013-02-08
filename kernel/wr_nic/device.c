@@ -105,13 +105,10 @@ static int wrn_probe(struct platform_device *pdev)
 	struct wrn_dev *wrn = drvdata->wrn;
 	int i, err = 0;
 
-#if 0
 	/* Lazily: irqs are not in the resource list */
 	static int irqs[] = WRN_IRQ_NUMBERS;
 	static char *irq_names[] = WRN_IRQ_NAMES;
 	static irq_handler_t irq_handlers[] = WRN_IRQ_HANDLERS;
-#endif
-
 
 	/* No need to lock_irq: we only protect count and continue unlocked */
 	if (WR_IS_SWITCH) {
@@ -138,15 +135,16 @@ static int wrn_probe(struct platform_device *pdev)
 		printk("regs %p, txd %p, rxd %p, buffer %p\n",
 		       wrn->regs, wrn->txd, wrn->rxd, wrn->databuf);
 
-#if 0
-	/* Register the interrupt handlers (not shared) */
-	for (i = 0; i < ARRAY_SIZE(irq_names); i++) {
-		err = request_irq(irqs[i], irq_handlers[i],
-			      IRQF_TRIGGER_LOW, irq_names[i], wrn);
-		if (err) goto out;
-		wrn->irq_registered |= 1 << i;
+	if (WR_IS_SWITCH) {
+		/* Register the interrupt handlers (not shared) */
+		for (i = 0; i < ARRAY_SIZE(irq_names); i++) {
+			err = request_irq(irqs[i], irq_handlers[i],
+					  IRQF_TRIGGER_LOW, irq_names[i], wrn);
+			if (err) goto out;
+			wrn->irq_registered |= 1 << i;
+		}
 	}
-#endif
+
 	/* Reset the device, just to be sure, before making anything */
 	writel(0, &wrn->regs->CR);
 	mdelay(10);
