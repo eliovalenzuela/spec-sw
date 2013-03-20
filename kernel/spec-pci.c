@@ -74,7 +74,7 @@ int spec_load_fpga_file(struct spec_dev *spec, char *name)
 		dev_err(dev, "request firmware \"%s\": error %i\n", name, err);
 		return err;
 	}
-	dev_info(dev, "got file \"%s\", %i (0x%x) bytes\n",
+	dev_info(dev, "got file \"%s\", %zi (0x%zx) bytes\n",
 		 spec_fw_name, fw->size, fw->size);
 
 	err = spec_load_fpga(spec, fw->data, fw->size);

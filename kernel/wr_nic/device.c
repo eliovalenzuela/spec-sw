@@ -85,13 +85,13 @@ static int __devinit __wrn_map_resources(struct platform_device *pdev)
 			continue;
 		ptr = ioremap(res->start, res->end + 1 - res->start);
 		if (!ptr) {
-			dev_err(&pdev->dev, "Remap for res %i (%08x) failed\n",
-				i, res->start);
+			dev_err(&pdev->dev, "Remap for res %i (%08lx) failed\n",
+				i, (long)res->start);
 			return -ENOMEM;
 		}
 		/* Hack: find the block number and fill the array */
-		pr_debug("Remapped %08x (block %i) to %p\n",
-			 res->start, i, ptr);
+		pr_debug("Remapped %08lx (block %i) to %p\n",
+			 (long)res->start, i, ptr);
 		wrn->bases[i] = ptr;
 	}
 	return 0;
