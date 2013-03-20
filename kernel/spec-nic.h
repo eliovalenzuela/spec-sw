@@ -62,7 +62,7 @@
 /* This is somehow generic, but I find no better place at this time */
 #ifndef SET_HI32
 #  if BITS_PER_LONG > 32
-#    define SET_HI32(var, value)	((var) |= (value) << 32)
+#    define SET_HI32(var, value)	((var) |= (long)(value) << 32)
 #    define GET_HI32(var)		((var) >> 32)
 #  else
 #    define SET_HI32(var, value)	((var) |= 0)
