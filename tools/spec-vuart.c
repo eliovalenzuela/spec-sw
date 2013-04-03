@@ -86,7 +86,7 @@ void term_main(int keep_term)
 int main(int argc, char **argv)
 {
 	int bus = -1, dev_fn = -1, c;
-	uint32_t vuart_base = 0xe0500;
+	uint32_t vuart_base = 0x20500;
 	int keep_term = 0;
 
 	while ((c = getopt (argc, argv, "b:d:u:k")) != -1)
