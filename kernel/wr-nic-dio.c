@@ -20,6 +20,7 @@
 #include "spec-nic.h"
 #include "wr_nic/wr-nic.h"
 #include "wr-dio.h"
+#include "wbgen-regs/vic-regs.h"
 
 #ifdef DIO_STAT
 #define wrn_stat 1
@@ -411,9 +412,12 @@ irqreturn_t wrn_dio_interrupt(struct fmc_device *fmc)
 {
 	struct platform_device *pdev = fmc->mezzanine_data;
 	struct wrn_drvdata *drvdata = pdev->dev.platform_data;
+	struct VIC_WB __iomem *vic = drvdata->vic_base;
 	struct DIO_WB __iomem *dio = drvdata->wrdio_base;
 	void __iomem *base = drvdata->wrdio_base;
 	struct dio_device *d = drvdata->mezzanine_data;
+	static ktime_t t_ini, t_end;
+	static int rate_avg;
 	struct dio_channel *c;
 	struct timespec *ts;
 	struct regmap *map;
@@ -425,6 +429,29 @@ irqreturn_t wrn_dio_interrupt(struct fmc_device *fmc)
 		writel(~0, &dio->EIC_IDR);
 		writel(~0, &dio->EIC_ISR);
 		return IRQ_NONE;
+	}
+
+	/* Protect against interrupts taking 100% of cpu time */
+	if (ktime_to_ns(t_end)) {
+		int rate;
+		u64 offtime, ontime;
+
+		ontime = ktime_to_ns(t_end) - ktime_to_ns(t_ini);
+		t_ini = ktime_get();
+		offtime = ktime_to_ns(t_ini) - ktime_to_ns(t_end);
+
+		/* avoid __udivdi3 */
+		if (offtime > 100 * ontime)
+			rate = 0;
+		else
+			rate = ((int)ontime * 100) / (int)offtime;
+
+		rate_avg = (rate_avg * 1023 + rate) / 1024;
+		if (rate_avg > 80) {
+			dev_warn(fmc->hwdev, "DIO irq takes > 80%% CPU time: "
+				 "disabling\n");
+			writel(WRN_VIC_MASK_DIO, &vic->IDR);
+		}
 	}
 
 	mask = readl(&dio->EIC_ISR) & WRN_DIO_IRQ_MASK;
@@ -466,6 +493,7 @@ irqreturn_t wrn_dio_interrupt(struct fmc_device *fmc)
 		}
 		wake_up_interruptible(&c->q);
 	}
+	t_end = ktime_get();
 	return IRQ_HANDLED;
 }
 

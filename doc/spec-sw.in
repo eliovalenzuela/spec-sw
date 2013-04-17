@@ -33,13 +33,13 @@
 
 @setchapternewpage off
 
-@set update-month December 2012
+@set update-month April 2013
 
 @finalout
 
 @titlepage
 @title SPEC Software Support
-@subtitle Version 2.2 (@value{update-month})
+@c @subtitle Version 2.2 (@value{update-month})
 @subtitle A driver for the SPEC card and its FMC modules
 @author Alessandro Rubini for CERN (BE-CO-HT)
 @end titlepage
@@ -976,6 +976,39 @@ Example uses of the tool follow:
    # Configure channel 0 as input with termination, 1 as input, 4 as low
    wr-dio-cmd wr0 mode Ii--0
 @end example
+
+@c ==========================================================================
+@node Timestamping Fast Input Signals
+@section Timestamping Fast Input Signals
+
+When timestamping pulses in the @i{simple-DIO} mezzanine board, an
+interrupt is generated to notify the driver that a new timestamp is
+pending.  On recent computers this works reliably up to more than
+100kHz, but clearly there is a point where the system locks up,
+because it spends all of its time in interrupt handling.
+
+This problem is transient: as soon as you remove the offending cable
+the system recovers. However, you need a 10MHz input signal if you
+want to run your SPEC device to be a White Rabbit @i{grandmaster}.  In
+order to support that, the driver disables DIO interrupts when the
+time spent in interrupt management exceeds 80% of the total time,
+averaged over one thousand interrupt events.  Ethernet interrupts
+are not affected.  The fact is reported by a kernel message, using
+the PCI address of the card that triggered the problem.
+
+@example
+  spec 0000:04:00.0: DIO irq takes > 80% CPU time: disabling
+@end example
+
+This choice allows stamping your pulse trains up to a few dozen
+kilohertz and still be able to feed higher frequencies without manual
+intervention.  However, after DIO interrupts are disabled, the only
+way to re-enable them is removing and reloading the device driver.
+
+@b{Note}: if you run two SPEC cards, and one is fed with high frequency
+pulses, it may happen that interrupts are disabled on both boards.
+The safeguard is currently not very refined, as it was implemented in
+a hurry.
 
 @c ==========================================================================
 @node WR-DIO Pulse per Second
