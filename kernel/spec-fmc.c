@@ -449,10 +449,12 @@ out_free:
 
 void spec_fmc_destroy(struct spec_dev *spec)
 {
+	/* undo the things in the reverse order, but pin the device first */
+	get_device(&spec->fmc->dev);
 	spec_gpio_exit(spec->fmc);
 	fmc_device_unregister(spec->fmc);
 	spec_irq_exit(spec->fmc);
 	spec_i2c_exit(spec->fmc);
-	kfree(spec->fmc);
+	put_device(&spec->fmc->dev);
 	spec->fmc = NULL;
 }
