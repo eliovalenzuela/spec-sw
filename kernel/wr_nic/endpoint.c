@@ -46,7 +46,12 @@ void wrn_phy_write(struct net_device *dev, int phy_id, int location,
 	struct wrn_ep *ep = netdev_priv(dev);
 
 	if (1) {
-		WARN_ON(1); /* SPEC: no access */
+		/*
+		 * We cannot access the phy from Linux, because the phy
+		 * is managed by the lm32 core. However, network manager
+		 * insists on doing that, so we'd better not warn about it
+		 * /
+		//WARN_ON(1); /* SPEC: no access */
 		return;
 	}
 
