@@ -88,9 +88,9 @@ int wrn_fmc_probe(struct fmc_device *fmc)
 	 * global name
 	 */
 	if (wrn_drv.gw_n)
-		ret = fmc_reprogram(fmc, &wrn_drv, "", 0x630000 /* SDB */);
+		ret = fmc_reprogram(fmc, &wrn_drv, "", WRN_SDB_ADDR);
 	else
-		ret = fmc_reprogram(fmc, &wrn_drv, wrn_filename, 0x63000);
+		ret = fmc_reprogram(fmc, &wrn_drv, wrn_filename, WRN_SDB_ADDR);
 	if (ret <0) {
 		if (ret == -ESRCH) {
 			dev_info(fmc->hwdev, "%s: no gateware at index %i\n",
