@@ -24,8 +24,6 @@ struct wrn_gpio_block {
 
 /* And this is our bit mapping */
 #define WRN_GPIO_VALUE(bit)	(1 << ((4 * (bit)) + 0))
-#define WRN_GPIO_OE_N(bit)	(1 << ((4 * (bit)) + 1))
-#define WRN_GPIO_TERM(bit)	(1 << ((4 * (bit)) + 2))
 
 extern irqreturn_t wrn_dio_interrupt(struct fmc_device *fmc);
 

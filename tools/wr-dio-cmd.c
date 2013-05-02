@@ -205,12 +205,25 @@ static int one_mode(int c, int index)
 
 	switch(c) {
 	case 'D':
-		cmd->value |= WR_DIO_INOUT_DIO << index;
 		cmd->value |= WR_DIO_INOUT_TERM << index;
-		break;
-
 	case 'd':
 		cmd->value |= WR_DIO_INOUT_DIO << index;
+		cmd->value |= WR_DIO_INOUT_OUTPUT << index;
+		break;
+
+	case 'C':
+		cmd->value |= WR_DIO_INOUT_TERM << index;
+	case 'c':
+		cmd->value |= WR_DIO_INOUT_DIO << index;
+		cmd->value |= WR_DIO_INOUT_VALUE << index;
+		break;
+
+	case 'P':
+		cmd->value |= WR_DIO_INOUT_TERM << index;
+	case 'p':
+		cmd->value |= WR_DIO_INOUT_DIO << index;
+		cmd->value |= WR_DIO_INOUT_VALUE << index;
+		cmd->value |= WR_DIO_INOUT_OUTPUT << index;
 		break;
 
 	case 'I':
@@ -223,6 +236,7 @@ static int one_mode(int c, int index)
 	case '0':
 		cmd->value |= WR_DIO_INOUT_OUTPUT << index;
 		break;
+
 	default:
 		fprintf(stderr, "%s: mode: invalid mode '%c'\n",
 			prgname, c);

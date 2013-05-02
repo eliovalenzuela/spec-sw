@@ -155,13 +155,37 @@
 #define DIO_CYC4_CYC_W(value)                 WBGEN2_GEN_WRITE(value, 0, 28)
 #define DIO_CYC4_CYC_R(reg)                   WBGEN2_GEN_READ(reg, 0, 28)
 
-/* definitions for register: FMC-DIO output configuration register.  */
+/* definitions for register: FMC-DIO input/output configuration register.  */
 
-/* definitions for field: outmode in reg: FMC-DIO output configuration register.  */
-#define DIO_OUT_MODE_MASK                     WBGEN2_GEN_MASK(0, 5)
-#define DIO_OUT_MODE_SHIFT                    0
-#define DIO_OUT_MODE_W(value)                 WBGEN2_GEN_WRITE(value, 0, 5)
-#define DIO_OUT_MODE_R(reg)                   WBGEN2_GEN_READ(reg, 0, 5)
+/* definitions for field: channel0 in reg: FMC-DIO input/output configuration register.  */
+#define DIO_IOMODE_CH0_MASK                   WBGEN2_GEN_MASK(0, 4)
+#define DIO_IOMODE_CH0_SHIFT                  0
+#define DIO_IOMODE_CH0_W(value)               WBGEN2_GEN_WRITE(value, 0, 4)
+#define DIO_IOMODE_CH0_R(reg)                 WBGEN2_GEN_READ(reg, 0, 4)
+
+/* definitions for field: channel1 in reg: FMC-DIO input/output configuration register.  */
+#define DIO_IOMODE_CH1_MASK                   WBGEN2_GEN_MASK(4, 4)
+#define DIO_IOMODE_CH1_SHIFT                  4
+#define DIO_IOMODE_CH1_W(value)               WBGEN2_GEN_WRITE(value, 4, 4)
+#define DIO_IOMODE_CH1_R(reg)                 WBGEN2_GEN_READ(reg, 4, 4)
+
+/* definitions for field: channel2 in reg: FMC-DIO input/output configuration register.  */
+#define DIO_IOMODE_CH2_MASK                   WBGEN2_GEN_MASK(8, 4)
+#define DIO_IOMODE_CH2_SHIFT                  8
+#define DIO_IOMODE_CH2_W(value)               WBGEN2_GEN_WRITE(value, 8, 4)
+#define DIO_IOMODE_CH2_R(reg)                 WBGEN2_GEN_READ(reg, 8, 4)
+
+/* definitions for field: channel3 in reg: FMC-DIO input/output configuration register.  */
+#define DIO_IOMODE_CH3_MASK                   WBGEN2_GEN_MASK(12, 4)
+#define DIO_IOMODE_CH3_SHIFT                  12
+#define DIO_IOMODE_CH3_W(value)               WBGEN2_GEN_WRITE(value, 12, 4)
+#define DIO_IOMODE_CH3_R(reg)                 WBGEN2_GEN_READ(reg, 12, 4)
+
+/* definitions for field: channel4 in reg: FMC-DIO input/output configuration register.  */
+#define DIO_IOMODE_CH4_MASK                   WBGEN2_GEN_MASK(16, 4)
+#define DIO_IOMODE_CH4_SHIFT                  16
+#define DIO_IOMODE_CH4_W(value)               WBGEN2_GEN_WRITE(value, 16, 4)
+#define DIO_IOMODE_CH4_R(reg)                 WBGEN2_GEN_READ(reg, 16, 4)
 
 /* definitions for register: Time-programmable output strobe signal */
 
@@ -594,8 +618,8 @@ PACKED struct DIO_WB {
   uint32_t TRIGH4;
   /* [0x38]: REG fmc-dio 4 cycles to  trigger a pulse generation */
   uint32_t CYC4;
-  /* [0x3c]: REG FMC-DIO output configuration register.  */
-  uint32_t OUT;
+  /* [0x3c]: REG FMC-DIO input/output configuration register.  */
+  uint32_t IOMODE;
   /* [0x40]: REG Time-programmable output strobe signal */
   uint32_t R_LATCH;
   /* [0x44]: REG FMC-DIO time trigger is ready to accept a new trigger generation request */

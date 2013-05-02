@@ -162,9 +162,9 @@ static int wrn_dio_cmd_pulse(struct wrn_drvdata *drvdata,
 	map = regmap + ch;
 	ts = cmd->t;
 
-	/* First, configure this bit as output */
-	reg = readl(&dio->OUT) | (1 << ch);
-	writel(reg, &dio->OUT);
+	/* First, configure this bit as DIO output */
+	reg = readl(&dio->IOMODE);
+	writel(reg | (1 << 4*ch), &dio->IOMODE);
 
 	writel(ts[1].tv_nsec / 8, base + map->pulse); /* width */
 
@@ -208,7 +208,7 @@ static int wrn_dio_cmd_stamp(struct wrn_drvdata *drvdata,
 			     struct wr_dio_cmd *cmd)
 {
 	struct dio_device *d = drvdata->mezzanine_data;
-	struct dio_channel *c;
+	struct dio_channel *c = 0;
 	struct timespec *ts = cmd->t;
 	struct regmap *map;
 	int mask, ch, last;
@@ -280,7 +280,7 @@ static int wrn_dio_cmd_inout(struct wrn_drvdata *drvdata,
 	struct DIO_WB __iomem *dio = drvdata->wrdio_base;
 	struct wrn_gpio_block __iomem *gpio = drvdata->gpio_base;
 	int mask, ch, last, bits;
-	uint32_t reg;
+	uint32_t reg, iomode;
 
 	if (cmd->flags & WR_DIO_F_MASK) {
 		ch = 0;
@@ -300,35 +300,29 @@ static int wrn_dio_cmd_inout(struct wrn_drvdata *drvdata,
 		/* select the bits by shifting back the value field */
 		bits = cmd->value >> ch;
 
-		/* termination is bit 2 (0x4); register 0 clears, reg 4 sets */
-		if (bits & WR_DIO_INOUT_TERM)
-			writel(WRN_GPIO_TERM(ch), &gpio->set);
-		else
-			writel(WRN_GPIO_TERM(ch), &gpio->clear);
+		/* Obtain the current value in iomode */
+		reg = readl(&dio->IOMODE) & ~(0xF << 4*ch);
 
-		reg = readl(&dio->OUT) & ~(1 << ch);
+		/* Select IO mode */
 		if (bits & WR_DIO_INOUT_DIO) {
-			writel(reg | (1 << ch), &dio->OUT);
-			continue; /* if DIO, nothing more to do */
+			if(bits & WR_DIO_INOUT_VALUE)
+				iomode = 2; /* WRPC connection */
+			else
+				iomode = 1; /* DIO connection */
+		} else {
+			iomode = 0; /* GPIO  connection */
+
+			/* Output value is bit 0 (0x1) */
+			if (bits & WR_DIO_INOUT_VALUE)
+				writel(WRN_GPIO_VALUE(ch), &gpio->set);
+			else
+				writel(WRN_GPIO_VALUE(ch), &gpio->clear);
 		}
-		/* If not DIO, wait after we know if input or output */
 
-		if (!(bits & WR_DIO_INOUT_OUTPUT)) {
-			/* output-enable is low-active, so set bit 1 (0x2) */
-			writel(WRN_GPIO_OE_N(ch), &gpio->set);
-			writel(reg, &dio->OUT); /* not DIO */
-			continue; /* input, no value to be set */
-		}
-
-		/* Output value is bit 0 (0x1) */
-		if (bits & WR_DIO_INOUT_VALUE)
-			writel(WRN_GPIO_VALUE(ch), &gpio->set);
-		else
-			writel(WRN_GPIO_VALUE(ch), &gpio->clear);
-		/* Then clear the low-active output enable, bit 1 (0x2) */
-		writel(WRN_GPIO_OE_N(ch), &gpio->clear);
-
-		writel(reg, &dio->OUT); /* not DIO */
+		/* Appends to iomode TERM and OUTPUT_ENABLE_N bits */
+		iomode |= (((bits & WR_DIO_INOUT_TERM) != 0) << 3)
+			| (((bits & WR_DIO_INOUT_OUTPUT) == 0) << 2);
+		writel(reg | (iomode << 4*ch), &dio->IOMODE);
 	}
 	return 0;
 }

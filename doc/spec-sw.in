@@ -602,8 +602,8 @@ the @i{files} tab of the Open Hardware Repository. The direct
 links are as follows (the former is required, the latter is optional):
 
 @example
-http://www.ohwr.org/attachments/download/1757/wr_nic_dio.bin-2012-12-14
-http://www.ohwr.org/attachments/download/1758/wr_nic_dio-wrc.bin-2012-12-14
+http://www.ohwr.org/attachments/download/2687/wr_nic_dio.bin-2014-02-14
+http://www.ohwr.org/attachments/download/2688/wr_nic_dio-wrc.bin-2014-02-14
 @end example
 
 The date is included in the binary name so we won't need to remove the
@@ -618,9 +618,9 @@ needed to run @i{wr-nic}:
 @smallexample
 cd /tmp
 wget -O wr_nic_dio.bin \
-   http://www.ohwr.org/attachments/download/1757/wr_nic_dio.bin-2012-12-14
+   http://www.ohwr.org/attachments/download/2687/wr_nic_dio.bin-2014-02-14
 wget -O wr_nic_dio-wrc.bin \
-   http://www.ohwr.org/attachments/download/1758/wr_nic_dio-wrc.bin-2012-12-14
+   http://www.ohwr.org/attachments/download/2688/wr_nic_dio-wrc.bin-2014-02-14
 sudo mv wr_nic_dio wr_nic_dio-wrc /lib/firmware/fmc
 @end smallexample
 
