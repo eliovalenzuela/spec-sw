@@ -15,6 +15,7 @@
 #include <linux/time.h>
 #include <linux/pci.h>
 #include <linux/slab.h>
+#include <linux/delay.h>
 #include <linux/fmc.h>
 #include "spec.h"
 #include "hw/wrc_syscon_regs.h"
@@ -45,6 +46,7 @@ static void set_sda(struct fmc_device *fmc, int val)
 		fmc_writel(fmc, SYSC_GPSR_FMC_SDA, SYSC_REG_GPSR);
 	else
 		fmc_writel(fmc, SYSC_GPCR_FMC_SDA, SYSC_REG_GPCR);
+	ndelay(1250); /* 400kHz -> 2.5us/loop */
 }
 
 static void set_scl(struct fmc_device *fmc, int val)
@@ -53,6 +55,7 @@ static void set_scl(struct fmc_device *fmc, int val)
 		fmc_writel(fmc, SYSC_GPSR_FMC_SCL, SYSC_REG_GPSR);
 	else
 		fmc_writel(fmc, SYSC_GPCR_FMC_SCL, SYSC_REG_GPCR);
+	ndelay(1250); /* 400kHz -> 2.5us/loop */
 }
 
 static int get_sda(struct fmc_device *fmc)
