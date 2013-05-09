@@ -82,7 +82,7 @@ int spec_load_fpga_file(struct spec_dev *spec, char *name)
         return err;
 }
 
-static int __devinit spec_probe(struct pci_dev *pdev,
+static int spec_probe(struct pci_dev *pdev,
 				const struct pci_device_id *id)
 {
 	struct spec_dev *spec;
@@ -160,7 +160,7 @@ out_unmap:
 	return ret;
 }
 
-static void __devexit spec_remove(struct pci_dev *pdev)
+static void spec_remove(struct pci_dev *pdev)
 {
 	struct spec_dev *spec = pci_get_drvdata(pdev);
 	int i;

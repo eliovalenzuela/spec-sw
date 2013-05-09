@@ -67,7 +67,7 @@ static int wrn_remove(struct platform_device *pdev)
 }
 
 /* This helper is used by probe below */
-static int __devinit __wrn_map_resources(struct platform_device *pdev)
+static int __wrn_map_resources(struct platform_device *pdev)
 {
 	int i;
 	struct resource *res;
@@ -97,7 +97,7 @@ static int __devinit __wrn_map_resources(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devinit wrn_probe(struct platform_device *pdev)
+static int wrn_probe(struct platform_device *pdev)
 {
 	struct net_device *netdev;
 	struct wrn_ep *ep;
