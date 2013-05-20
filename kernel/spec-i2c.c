@@ -201,6 +201,7 @@ int spec_eeprom_write(struct fmc_device *fmc, uint32_t offset,
 			busy = mi2c_put_byte(fmc, fmc->eeprom_addr << 1);
 			mi2c_stop(fmc);
 		} while(busy);
+		fmc->eeprom[offset++] = *buf8++;
 	}
 	return size;
 }
