@@ -131,13 +131,17 @@ void mi2c_init(struct fmc_device *fmc)
 
 int mi2c_scan(struct fmc_device *fmc)
 {
-	int i, found = 0;
-	for(i = 0; i < 256; i += 2) {
-		mi2c_start(fmc);
-		if(!mi2c_put_byte(fmc, i))
-			found++;
-		mi2c_stop(fmc);
-	}
+	int found = 0;
+
+	/* ensure the bus is reset */
+	mi2c_start(fmc);
+	mi2c_stop(fmc);
+
+	/* only look for our own device */
+	mi2c_start(fmc);
+	if(mi2c_put_byte(fmc,  fmc->eeprom_addr << 1) == 0)
+		found++;
+	mi2c_stop(fmc);
 	return found;
 }
 
