@@ -24,6 +24,11 @@
 static int spec_i2c_dump;
 module_param_named(i2c_dump, spec_i2c_dump, int, 0444);
 
+/* The following parameter is to pass fake eeprom images to spec cards */
+static char *spec_eeprom[FMC_MAX_CARDS];
+static int spec_nr_eeprom;
+module_param_array_named(eeprom, spec_eeprom, charp, &spec_nr_eeprom, 0444);
+
 /* Stupid dumping tool */
 static void dumpstruct(char *name, void *ptr, int size)
 {
@@ -148,9 +153,13 @@ int mi2c_scan(struct fmc_device *fmc)
 int spec_eeprom_read(struct fmc_device *fmc, uint32_t offset,
 		void *buf, size_t size)
 {
+	struct spec_dev *spec = fmc->carrier_data;
 	int ret = size;
 	uint8_t *buf8 = buf;
 	unsigned char c;
+
+	if (spec->flags & SPEC_FLAG_FAKE_EEPROM)
+		return size; /* no hw access */
 
 	if (offset > SPEC_I2C_EEPROM_SIZE)
 		return -EINVAL;
@@ -180,10 +189,23 @@ int spec_eeprom_read(struct fmc_device *fmc, uint32_t offset,
 int spec_eeprom_write(struct fmc_device *fmc, uint32_t offset,
 		 const void *buf, size_t size)
 {
+	struct spec_dev *spec = fmc->carrier_data;
 	int i, busy;
 	const uint8_t *buf8 = buf;
 
+	if (offset > SPEC_I2C_EEPROM_SIZE)
+		return -EINVAL;
+	if (offset + size > SPEC_I2C_EEPROM_SIZE)
+		return -EINVAL;
+
 	for(i = 0; i < size; i++) {
+
+		/* if (we are using a fake eeprom, don't access hw */
+		if (spec->flags & SPEC_FLAG_FAKE_EEPROM) {
+			fmc->eeprom[offset++] = *buf8++;
+			continue;
+		}
+
 		mi2c_start((fmc));
 
 		if(mi2c_put_byte(fmc, fmc->eeprom_addr << 1) < 0) {
@@ -192,8 +214,7 @@ int spec_eeprom_write(struct fmc_device *fmc, uint32_t offset,
 		}
 		mi2c_put_byte(fmc, (offset >> 8) & 0xff);
 		mi2c_put_byte(fmc, offset & 0xff);
-		mi2c_put_byte(fmc, *buf8++);
-		offset++;
+		mi2c_put_byte(fmc, *buf8);
 		mi2c_stop(fmc);
 
 		do { /* wait until the chip becomes ready */
@@ -211,6 +232,7 @@ int spec_i2c_init(struct fmc_device *fmc)
 	struct spec_dev *spec = fmc->carrier_data;
 	void *buf;
 	int i, found;
+	static int eeprom_index;
 
 	found = mi2c_scan(fmc);
 	if (!found) {
@@ -218,9 +240,28 @@ int spec_i2c_init(struct fmc_device *fmc)
 		return 0;
 	}
 
-	buf = kmalloc(SPEC_I2C_EEPROM_SIZE, GFP_KERNEL);
+	buf = kzalloc(SPEC_I2C_EEPROM_SIZE, GFP_KERNEL);
 	if (!buf)
 		return -ENOMEM;
+
+	if (eeprom_index < spec_nr_eeprom) {
+		const struct firmware *fw;
+
+		/* We got a modparam request to fake an eeprom */
+		i = request_firmware(&fw, spec_eeprom[eeprom_index],
+				     &spec->pdev->dev);
+		if (i < 0) {
+			dev_warn(&spec->pdev->dev,
+				 "Can't load eeprom file \"%s\"\n",
+				 spec_eeprom[eeprom_index]);
+		} else {
+			spec->flags |= SPEC_FLAG_FAKE_EEPROM;
+			memcpy(buf, fw->data, min(fw->size,
+						  SPEC_I2C_EEPROM_SIZE));
+		}
+		release_firmware(fw);
+		eeprom_index++;
+	}
 
 	i = spec_eeprom_read(fmc, 0, buf, SPEC_I2C_EEPROM_SIZE);
 	if (i != SPEC_I2C_EEPROM_SIZE) {

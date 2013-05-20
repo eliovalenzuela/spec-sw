@@ -27,12 +27,15 @@ struct spec_dev {
 	struct pci_dev		*pdev;
 	struct resource		*area[3];	/* bar 0, 2, 4 */
 	void __iomem		*remap[3];	/* ioremap of bar 0, 2, 4 */
+	unsigned long		flags;		/* see below */
 	struct list_head	list;
 	struct fmc_device	*fmc;
 	int			irq_count;	/* for mezzanine use too */
 	struct completion	compl;
 	struct gpio_chip	*gpio;
 };
+
+#define SPEC_FLAG_FAKE_EEPROM		0x00000001
 
 /* Registers for GN4124 access */
 enum {
@@ -132,7 +135,7 @@ extern int spec_eeprom_write(struct fmc_device *fmc, uint32_t offset,
 
 /* The eeprom is at address 0x50 */
 #define SPEC_I2C_EEPROM_ADDR 0x50
-#define SPEC_I2C_EEPROM_SIZE (8 * 1024)
+#define SPEC_I2C_EEPROM_SIZE ((size_t)(8 * 1024))
 
 /* Functions in spec-gpio.c */
 extern int spec_gpio_init(struct fmc_device *fmc);

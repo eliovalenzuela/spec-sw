@@ -33,7 +33,7 @@
 
 @setchapternewpage off
 
-@set update-month April 2013
+@set update-month May 2013
 
 @finalout
 
@@ -223,6 +223,20 @@ The module can receive the following parameters to customize its operation:
 
 	If not zero, the SDB internal structure of the golden binary
         is reported through kernel messages. It is disabled by default.
+
+@item eeprom
+
+	The parameter accepts one or more comma-separated filenames,
+        to be used as fake @sc{eeprom} images for the various cards
+        in their probe order. The probe order is unpredictable, but it's
+        always the same when you unload and reload the module. This is
+        a tool for developers, to allow experimenting with eeprom
+        images (likely related to @sc{sdb} configurations)
+        without the need to wear the real i2c device.
+        Please note that the fake eeprom is only used with the @i{golden}
+        firmware: mezzanine-specific drivers that read and write the
+        @sc{eeprom} with their own gateware-specific code will still
+        access the real I2C device.
 
 @end table
 
