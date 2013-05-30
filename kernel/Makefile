@@ -6,8 +6,12 @@ export FMC_DRV
 
 KBUILD_EXTRA_SYMBOLS := $(FMC_DRV)/Module.symvers
 
+GIT_VERSION = $(shell cd $(src); git describe --dirty --long --tags)
+
 ccflags-y += -I$M/include -I$(FMC_DRV)/include
 ccflags-y += $(WR_NIC_CFLAGS)
+ccflags-y += -DGIT_VERSION=\"$(GIT_VERSION)\"
+
 
 # this is a bad hack. Sometimes we are a submodule, and wr-nic can
 # only compile with recent versions, so let the caller disable it
