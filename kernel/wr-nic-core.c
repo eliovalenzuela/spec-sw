@@ -214,4 +214,5 @@ void __weak wrn_gpio_exit(struct fmc_device *fmc)
 {
 }
 
+MODULE_VERSION(GIT_VERSION);
 MODULE_LICENSE("GPL");

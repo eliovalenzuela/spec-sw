@@ -210,4 +210,5 @@ static void __exit spec_exit(void)
 module_init(spec_init);
 module_exit(spec_exit);
 
+MODULE_VERSION(GIT_VERSION);
 MODULE_LICENSE("GPL");
