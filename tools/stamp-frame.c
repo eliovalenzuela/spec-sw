@@ -215,8 +215,10 @@ ssize_t send_and_stamp(int sock, void *buf, size_t len, int flags,
 	while ( (i = recvmsg(sock, &msg, MSG_ERRQUEUE)) < 0 && j--)
 		usleep(10000); /* retry for 1 second */
 	if (i < 0) {
-		memset(tstamp, 0, sizeof(*tstamp));
-		tstamp->error = ETIMEDOUT;
+		if (tstamp) {
+			memset(tstamp, 0, sizeof(*tstamp));
+			tstamp->error = ETIMEDOUT;
+		}
 		return ret;
 	}
 	if (getenv("STAMP_VERBOSE")) {
