@@ -1346,8 +1346,9 @@ the @i{Makefile} supports the configuration variable
 
 With this in place, the package compiles without any warning on a
 32-bit PC from version 2.6.30 onwards, and I tested up to 3.5.
-If you remove MSI code, you can compile back to version 2.6.27; earlier
-than that, the backporting effort increases seriously.
+By using the backport branch of the 2013-05 release you can build
+for all kernels back to 2.6.27 and also 2.6.24 (the one we are still
+using in production).
 
 @c ##########################################################################
 @bye
