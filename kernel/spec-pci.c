@@ -94,6 +94,7 @@ static int spec_probe(struct pci_dev *pdev,
 	ret = pci_enable_device(pdev);
 	if (ret < 0)
 		return ret;
+	 pci_set_master(pdev);
 
 	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
 	if (!spec)
