@@ -34,12 +34,14 @@
 @setchapternewpage off
 
 @set update-month February 2014
+@c the release name below is substituted at build time
+@set release __RELEASE_GIT_ID__
 
 @finalout
 
 @titlepage
 @title SPEC Software Support
-@c @subtitle Version 2.2 (@value{update-month})
+@subtitle @value{update-month} (@value{release})
 @subtitle A driver for the SPEC card and its FMC modules
 @author Alessandro Rubini for CERN (BE-CO-HT)
 @end titlepage
@@ -1440,11 +1442,11 @@ be made safer.
 @chapter Portability
 
 This package should be portable. However I didn't test it on a wide
-variety of systems.  I used the core @code{spec.ko} on a 32-bit x86
-host, running version 2.6.32 and 3.4 of the kernel.
+variety of systems.  Currently most of my use is
+on a 32-bit x86 host, running version 3.4 of the kernel.
 
-The complete package compiles without any warning from version 2.6.37
-up to 3.5 (I didn't try later versions, yet).  Frame timestamping
+The complete package builds without any warning from version 2.6.37
+up to 3.13 (I didn't try later versions, yet).  Frame timestamping
 changed seriously after 2.6.36, so the @code{wr-nic.ko} driver is not
 easily backward portable.
 
@@ -1457,10 +1459,10 @@ the @i{Makefile} supports the configuration variable
 @end smallexample
 
 With this in place, the package compiles without any warning on a
-32-bit PC from version 2.6.30 onwards, and I tested up to 3.5.
+32-bit PC from version 2.6.30 onwards.
 By using the backport branch of the 2013-05 release you can build
-for all kernels back to 2.6.27 and also 2.6.24 (the one we are still
-using in production).
+for all kernels back to 2.6.27 and also 2.6.24 (the one we were still
+using in production). Later releases have no associated backport branch.
 
 @c ##########################################################################
 @bye
