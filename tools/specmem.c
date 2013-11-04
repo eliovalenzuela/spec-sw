@@ -67,7 +67,7 @@ int main(int argc, char **argv)
 	}
 	if (uarg[0] & 3) {
 		fprintf(stderr, "%s: address \"%s\" not multiple of 4\n",
-			argv[0], argv[1]);
+			argv[0], argv[optind + 0]);
 		exit(1);
 	}
 
