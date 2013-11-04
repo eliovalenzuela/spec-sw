@@ -71,15 +71,12 @@ int main(int argc, char **argv)
 		exit(1);
 	}
 
-
-
-
 	card = spec_open(bus, dev_fn);
-	if(!card)
-	{
-		fprintf(stderr, "Can't detect a SPEC card under the given "
-			"adress. Make sure a SPEC card is present in your PC, "
-			"the driver is loaded and you run the program as root.\n");
+	if (!card) {
+		fprintf(stderr, "%s: No SPEC card at bus %i, devfn %i\n",
+			argv[0], bus, dev_fn);
+		fprintf(stderr, "  please make sure the address is correct,\n"
+			"  spec.ko is loaded and you run as superuser.\n");
 		exit(1);
 	}
 
