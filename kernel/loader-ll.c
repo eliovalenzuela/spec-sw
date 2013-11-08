@@ -146,3 +146,18 @@ int loader_low_level(int fd, void __iomem *bar4, const void *data, int size8)
 	/* Checking for the "interrupt" condition is left to the caller */
 	return wrote;
 }
+
+void waitdone_low_level(int fd, void __iomem *bar4)
+{
+	while ( (lll_read(fd, bar4, FCL_IRQ) & 0x8) == 0 )
+		;
+}
+
+/* After programming, we fix gpio lines so pci can access the flash */
+void gpiofix_low_level(int fd, void __iomem *bar4)
+{
+	gpio_out(fd, bar4, GNGPIO_OUTPUT_VALUE, GPIO_BOOTSEL0, 0);
+	gpio_out(fd, bar4, GNGPIO_OUTPUT_VALUE, GPIO_BOOTSEL1, 0);
+	gpio_out(fd, bar4, GNGPIO_OUTPUT_ENABLE, GPIO_BOOTSEL0, 0);
+	gpio_out(fd, bar4, GNGPIO_OUTPUT_ENABLE, GPIO_BOOTSEL1, 0);
+}

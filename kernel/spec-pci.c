@@ -47,7 +47,7 @@ int spec_load_fpga(struct spec_dev *spec, const void *data, int size)
 		i = readl(spec->remap[2] + FCL_IRQ);
 		if (i & 0x8) {
 			dev_info(dev, "FPGA programming successful\n");
-			return 0;
+			break;
 		}
 
 		if(i & 0x4) {
@@ -61,6 +61,8 @@ int spec_load_fpga(struct spec_dev *spec, const void *data, int size)
 			return -ETIMEDOUT;
 		}
 	}
+	gpiofix_low_level(0 /* unused fd */, spec->remap[2]);
+	return 0;
 }
 
 int spec_load_fpga_file(struct spec_dev *spec, char *name)

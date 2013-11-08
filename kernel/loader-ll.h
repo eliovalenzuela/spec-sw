@@ -7,11 +7,10 @@
 #define __iomem /* nothing, for user space */
 #endif
 
-extern int loader_low_level(
-	int fd,			/* This is ignored in kernel space */
-	void __iomem *bar4,	/* This is ignored in user space */
-	const void *data,
-	int size8);
+/* "fd" was relevant in user space, but now it is ignored */
+extern int loader_low_level(int fd, void __iomem *bar4, const void *, int);
+extern void waitdone_low_level(int fd, void __iomem *bar4);
+extern void gpiofix_low_level(int fd, void __iomem *bar4);
 
 
 /* The following part implements a different access rule for user and kernel */

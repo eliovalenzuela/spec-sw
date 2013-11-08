@@ -218,12 +218,15 @@ int spec_load_bitstream(void *card, const char *filename)
 	struct spec_private *p = (struct spec_private *) card;
 	char *buf;
 	size_t size;
+	int rv;
 
 	buf = load_binary_file(filename, &size);
 	if(!buf)
 		return -1;
 
-	int rv = loader_low_level(0, p->bar4, buf, size);
+	rv = loader_low_level(0, p->bar4, buf, size);
+	waitdone_low_level(0, p->bar4);
+	gpiofix_low_level(0, p->bar4);
 
 	free(buf);
 	return rv;
