@@ -119,8 +119,6 @@ int wrn_tstamp_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 
 	if (copy_from_user(&config, rq->ifr_data, sizeof(config)))
 		return -EFAULT;
-	if (0) netdev_dbg(dev, "%s: tx type %i, rx filter %i\n", __func__,
-		   config.tx_type, config.rx_filter);
 
 	switch (config.tx_type) {
 		/* Set up time stamping on transmission */
