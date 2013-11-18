@@ -396,10 +396,10 @@ static void wrn_trig_next_pulse(struct wrn_drvdata *drvdata,int ch,
 	struct timespec newts;
 
 	if (c->target_channel == ch) {
-		c->prevts = timespec_add(c->prevts, c->delay); 
+		c->prevts = timespec_add_safe(c->prevts, c->delay); 
 		newts = c->prevts;
 	} else {
-		newts = timespec_add(*ts, c->delay);
+		newts = timespec_add_safe(*ts, c->delay);
 	}
 	__wrn_new_pulse(drvdata, c->target_channel, &newts);
 
