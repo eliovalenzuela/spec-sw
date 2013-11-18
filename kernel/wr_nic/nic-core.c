@@ -158,7 +158,6 @@ static int wrn_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct wrn_ep *ep = netdev_priv(dev);
 	struct wrn_dev *wrn = ep->wrn;
-	struct skb_shared_info *info = skb_shinfo(skb);
 	//unsigned long flags;
 	int desc;
 	int id;
@@ -196,12 +195,6 @@ static int wrn_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	wrn->skb_desc[desc].frame_id = id; /* Save for tx irq and stamping */
 
 	//netif_stop_queue(dev); /* Queue stopped until tx is over (FIXME?) */
-
-	/* FIXME: check the WRN_EP_STAMPING_TX flag and its meaning */
-	if (info->tx_flags & SKBTX_HW_TSTAMP) {
-		/* hardware timestamping is enabled */
-		do_stamp = 1;
-	}
 
 	/* This both copies the data to the descriptr and fires tx */
 	__wrn_tx_desc(ep, desc, data, len, id, do_stamp);
@@ -451,7 +444,6 @@ static void wrn_tx_interrupt(struct wrn_dev *wrn)
 {
 	struct wrn_txd *tx;
 	struct sk_buff *skb;
-	struct skb_shared_info *info;
 
 	u32 reg;
 	int i;
@@ -469,18 +461,8 @@ static void wrn_tx_interrupt(struct wrn_dev *wrn)
 			pr_err("no socket in descriptor %i\n", i);
 			return;
 		}
-		info = skb_shinfo(skb);
-
-		if (info->tx_flags & SKBTX_HW_TSTAMP) {
-			/* hardware timestamping is enabled */
-			info->tx_flags |= SKBTX_IN_PROGRESS;
-			pr_debug("%s: %i -- in progress\n", __func__, __LINE__);
-			wrn_tx_tstamp_skb(wrn, i);
-			/* It has been freed if found; otherwise keep it */
-		} else {
-			dev_kfree_skb_irq(skb);
-			wrn->skb_desc[i].skb = 0;
-		}
+		dev_kfree_skb_irq(skb);
+		wrn->skb_desc[i].skb = 0;
 		wrn->next_tx_tail = __wrn_next_desc(i);
 	}
 }
