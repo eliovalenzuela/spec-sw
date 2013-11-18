@@ -12,15 +12,8 @@ ccflags-y += -I$M/include -I$(FMC_DRV)/include
 ccflags-y += $(WR_NIC_CFLAGS)
 ccflags-y += -DGIT_VERSION=\"$(GIT_VERSION)\"
 
-
-# this is a bad hack. Sometimes we are a submodule, and wr-nic can
-# only compile with recent versions, so let the caller disable it
-# FIXME: this is incorrect if we get copied to the kernel proper.
-CONFIG_WR_NIC ?= n
-# This is the backport branch, so fix it straight ahead: no wr-nic here.
-
 obj-m += spec.o
-obj-$(CONFIG_WR_NIC) += wr-nic.o
+obj-m += wr-nic.o
 
 spec-y = spec-pci.o
 spec-y += spec-fmc.o
