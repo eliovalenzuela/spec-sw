@@ -11,7 +11,7 @@
 #include <linux/sched.h>
 #include <linux/wait.h>
 #include <linux/ktime.h>
-#include <linux/atomic.h>
+#include <asm/atomic.h>
 #include <linux/platform_device.h>
 #include <linux/uaccess.h>
 #include <linux/fmc.h>
