@@ -203,6 +203,13 @@ static int one_mode(int c, int index)
 		return 0;
 	cmd->channel |= 1 << index;
 
+	//Add error message for channel 0 
+	if(index==0 && strchr("dD01",c))
+	{
+		fprintf(stderr, "Error: Only p/P modes are available as ouput mode for channel 0\n");
+		return -1;
+	}
+	
 	switch(c) {
 	case 'D':
 		cmd->value |= WR_DIO_INOUT_TERM << index;
@@ -216,6 +223,9 @@ static int one_mode(int c, int index)
 	case 'c':
 		cmd->value |= WR_DIO_INOUT_DIO << index;
 		cmd->value |= WR_DIO_INOUT_VALUE << index;
+		if(index!=4)
+			fprintf(stdout, "Warning: Clock mode is only available for last channel (ch4)\n,"
+			 "(on other channel it corresponds to input mode without interruptions)\n");
 		break;
 
 	case 'P':

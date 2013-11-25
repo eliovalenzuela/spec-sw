@@ -23,7 +23,13 @@
 #include "wr_nic/wr-nic.h"
 #include "wr-dio.h"
 
-/* This takes two arguments: interface name and channel number */
+/**
+ * This takes two arguments: interface name and channel number
+ *
+ * This simple tools just show an example of how to program with wr-nic/dio.
+ * If you want to measure WR timing we suggest to use the hardwire PPS on channel 0
+ * that gives a more accurate precision.
+ **/
 
 int main(int argc, char **argv)
 {
@@ -49,7 +55,7 @@ int main(int argc, char **argv)
 			prgname, argv[charg]);
 		exit(1);
 	}
-	if (ch < 0 || ch > 4) {
+	if (ch < 1 || ch > 4) {
 		fprintf(stderr, "%s: Out of range channel number \"%s\"\n",
 			prgname, argv[charg]);
 		exit(1);
@@ -83,11 +89,15 @@ int main(int argc, char **argv)
 	memset(cmd, 0, sizeof(*cmd));
 
 	cmd->command = WR_DIO_CMD_PULSE;
-	cmd->flags = WR_DIO_F_REL | WR_DIO_F_LOOP;
-	cmd->value = -1;
 	cmd->channel = ch;
+	cmd->flags = WR_DIO_F_REL | WR_DIO_F_LOOP;
+	/* Number of loops: -1 <=> Inf */
+	cmd->value = -1;
+	/* 2s delay to have time to send and process this command */
 	cmd->t[0].tv_sec = 2;
-	cmd->t[1].tv_nsec = 1000 * 1000; /* 1ms */
+	/* 1ms pulse width */
+	cmd->t[1].tv_nsec = 1000 * 1000;
+	/* Loop period */
 	cmd->t[2].tv_sec = 1;
 
 
