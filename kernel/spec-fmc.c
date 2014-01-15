@@ -93,14 +93,15 @@ out:
 	return ret;
 }
 
-static int spec_irq_request(struct fmc_device *fmc, irq_handler_t handler,
-			    char *name, int flags)
+/* Low-level IRQ request function: set up handler, with or without the VIC */
+static int spec_shared_irq_request(struct fmc_device *fmc,
+				   irq_handler_t handler, char *name, int flags)
 {
 	struct spec_dev *spec = fmc->carrier_data;
 	int ret;
 	u32 value;
 
-	ret = request_irq(fmc->irq, handler, flags, name, fmc);
+	ret = request_irq(spec->pdev->irq, handler, flags, name, fmc);
 	if (ret)
 		return ret;
 
@@ -118,7 +119,67 @@ static int spec_irq_request(struct fmc_device *fmc, irq_handler_t handler,
 	return 0;
 }
 
-static void spec_irq_ack(struct fmc_device *fmc)
+static void spec_shared_irq_ack(struct fmc_device *fmc);
+
+static irqreturn_t spec_vic_irq_handler(int id, void *data)
+{
+	struct fmc_device *fmc = (struct fmc_device *)data;
+	irqreturn_t rv;
+
+	rv = spec_vic_irq_dispatch((struct spec_dev *)fmc->carrier_data);
+
+	spec_shared_irq_ack(fmc);
+	return IRQ_HANDLED;
+}
+
+static struct fmc_gpio spec_vic_gpio_cfg[] = {
+	{
+	 .gpio = FMC_GPIO_IRQ(1),
+	 .mode = GPIOF_DIR_IN,
+	 .irqmode = IRQF_TRIGGER_RISING,
+	 }
+};
+
+static int spec_irq_request(struct fmc_device *fmc, irq_handler_t handler,
+			    char *name, int flags)
+{
+	struct spec_dev *spec = fmc->carrier_data;
+	int rv;
+
+	/* VIC mode interrupt */
+	if (!(flags & IRQF_SHARED)) {
+		int first_time = !spec->vic;
+
+		/* configure the VIC */
+		rv = spec_vic_irq_request(spec, fmc, fmc->irq, handler);
+
+		if (rv)
+			return rv;
+
+		/* on first IRQ, configure VIC "master" handler and GPIO too */
+		if (first_time) {
+			rv = spec_shared_irq_request(fmc, spec_vic_irq_handler,
+						     "spec-vic", IRQF_SHARED);
+			if (rv)
+				return rv;
+
+			fmc->op->gpio_config(fmc, spec_vic_gpio_cfg,
+					     ARRAY_SIZE(spec_vic_gpio_cfg));
+		}
+
+	} else {
+		rv = spec_shared_irq_request(fmc, handler, name, flags);
+		printk("Requesting irq '%s' in shared mode (rv %d)\n", name,
+		       rv);
+	}
+
+	if (!rv)
+		spec->flags |= SPEC_FLAG_IRQS_REQUESTED;
+
+	return rv;
+}
+
+static void spec_shared_irq_ack(struct fmc_device *fmc)
 {
 	struct spec_dev *spec = fmc->carrier_data;
 
@@ -130,13 +191,33 @@ static void spec_irq_ack(struct fmc_device *fmc)
 	gennum_readl(spec, GNGPIO_INT_STATUS);
 }
 
+static void spec_irq_ack(struct fmc_device *fmc)
+{
+	struct spec_dev *spec = fmc->carrier_data;
+
+	if (!spec->vic)
+		spec_shared_irq_ack(fmc);
+
+	/* Nothing for VIC here, all irqs are acked by master VIC handler */
+}
+
+static int spec_shared_irq_free(struct fmc_device *fmc)
+{
+	struct spec_dev *spec = fmc->carrier_data;
+
+	gennum_writel(spec, 0xffff, GNGPIO_INT_MASK_SET);	/* disable */
+	free_irq(spec->pdev->irq, fmc);
+	return 0;
+}
+
 static int spec_irq_free(struct fmc_device *fmc)
 {
 	struct spec_dev *spec = fmc->carrier_data;
 
-	gennum_writel(spec, 0xffff, GNGPIO_INT_MASK_SET); /* disable */
-	free_irq(fmc->irq, fmc);
-	return 0;
+	if (spec->vic)
+		return spec_vic_irq_free(spec, spec->pdev->irq);
+	else
+		return spec_shared_irq_free(fmc);
 }
 
 /* This is the mapping from virtual GPIO pin numbers to raw gpio numbers */
@@ -230,8 +311,7 @@ static int spec_gpio_config(struct fmc_device *fmc, struct fmc_gpio *gpio,
 		if (gpio->carrier_name) {
 			/* so, it's ours */
 			gpio->_gpio = gpio->gpio;
-		}
-		else if (!gpio->_gpio) {
+		} else if (!gpio->_gpio) {
 			/* virtual but not mapped (or poor gpio0) */
 			i = spec_map_pin(gpio->gpio);
 			if (i < 0)
@@ -360,6 +440,13 @@ static void spec_irq_exit(struct fmc_device *fmc)
 	for (i = 0; i < 7; i++)
 		gennum_writel(spec, 0, GNINT_CFG(i));
 	fmc->op->irq_ack(fmc); /* just to be safe */
+
+	/* VIC mode: release VIC resources and disable VIC master IRQ line */
+	if (spec->vic) {
+		spec_vic_cleanup(spec);
+		gennum_writel(spec, 0xffff, GNGPIO_INT_MASK_SET); /* disable */
+		free_irq(spec->pdev->irq, fmc);
+	}
 }
 
 static int check_golden(struct fmc_device *fmc)
@@ -392,7 +479,7 @@ static int check_golden(struct fmc_device *fmc)
 int spec_fmc_create(struct spec_dev *spec)
 {
 	struct fmc_device *fmc;
-        struct pci_dev *pdev;
+	struct pci_dev *pdev;
 	int ret;
 
 	fmc = kzalloc(sizeof(*fmc), GFP_KERNEL);
@@ -408,7 +495,6 @@ int spec_fmc_create(struct spec_dev *spec)
 	fmc->fpga_base = spec->remap[0];
 	fmc->memlen = 1 << 20;
 
-	fmc->irq = spec->pdev->irq;
 	fmc->op = &spec_fmc_operations;
 	fmc->hwdev = &spec->pdev->dev; /* for messages */
 	spec->fmc = fmc;

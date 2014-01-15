@@ -24,6 +24,7 @@ obj-$(CONFIG_WR_NIC) += wr-nic.o
 spec-y = spec-pci.o
 spec-y += spec-fmc.o
 spec-y += spec-i2c.o
+spec-y += spec-vic.o
 spec-y += loader-ll.o
 spec-y += spec-gpio-no.o
 spec-$(CONFIG_GPIOLIB) += spec-gpio.o
