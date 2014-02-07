@@ -9,16 +9,19 @@
  */
 #ifndef __SPEC_H__
 #define __SPEC_H__
-#include <linux/pci.h>
-#include <linux/firmware.h>
-#include <linux/completion.h>
-#include <linux/fmc.h>
-#include <linux/gpio.h>
 
 #define PCI_VENDOR_ID_CERN	0x10dc
 #define PCI_DEVICE_ID_SPEC		0x018d
 #define PCI_VENDOR_ID_GENNUM	0x1a39
 #define PCI_DEVICE_ID_GN4124		0x0004
+
+#ifdef __KERNEL__
+
+#include <linux/pci.h>
+#include <linux/firmware.h>
+#include <linux/completion.h>
+#include <linux/fmc.h>
+#include <linux/gpio.h>
 
 #define SPEC_DEFAULT_LM32_ADDR 0x80000 /* used if "1" is passed */
 
@@ -141,5 +144,6 @@ extern int spec_eeprom_write(struct fmc_device *fmc, uint32_t offset,
 extern int spec_gpio_init(struct fmc_device *fmc);
 extern void spec_gpio_exit(struct fmc_device *fmc);
 
+#endif /* __KERNEL__ */
 
 #endif /* __SPEC_H__ */
