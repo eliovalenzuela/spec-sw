@@ -33,7 +33,7 @@
 
 @setchapternewpage off
 
-@set update-month May 2013
+@set update-month February 2014
 
 @finalout
 
@@ -363,6 +363,13 @@ using time tags that are provided by the @i{White Rabbit} mechanism.
 Similarly, both incoming and outgoing frames can be time-stamped by
 @i{White Rabbit}.
 
+When loaded as a kernel module, the @i{wr-nic} driver will only take
+hold of @i{simple-DIO} mezzanines whose @sc{eeprom} is correctly
+programmed. So, if your computer hosts several @i{spec} devices,
+only the ones with a DIO card will become @i{wr-nic}.
+If your @sc{eeprom} is blank, you are urged to reprogram it as
+described in @ref{Writing the DIO EEPROM}.
+
 This driver is the most important driver in this package, from the
 user's point of view. It is
 a generic implementation of the @i{spec-sw} framework which can be
@@ -495,6 +502,66 @@ to the NIC platform driver hosted in @file{wr_nic/}:
 @end table
 
 @c ==========================================================================
+@node Writing the DIO EEPROM
+@section Writing the DIO EEPROM
+
+As said, the @i{wr-nic} driver requires that the @sc{eeprom} of the
+mezzanine is correctly programmed.  While recently-shipped cards are
+preprogrammed, the early ones were shipped with a blank eeprom.
+
+Upon loading @i{spec.ko}, the carrier driver identifies all
+mezzanines. If your @sc{eeprom} is properly programmed, you'll see
+messages like the following ones:
+
+@smallexample
+   spec 0000:02:00.0: FPGA programming successful
+   spec 0000:02:00.0: mezzanine 0
+         Manufacturer: CERN
+         Product name: FmcDio5cha
+@end smallexample
+
+If the memory is blank, you'll see this:
+
+@smallexample
+   spec 0000:04:00.0: FPGA programming successful
+   spec 0000:04:00.0: mezzanine 0
+         EEPROM has no FRU information
+@end smallexample
+
+In this case, if you are sure the @i{spec} device in PCIe slot
+number 4 hosts a DIO card, you can write the proper binary
+image into @t{/sys/bus/fmc/devices/fmc-0400/eeprom}.
+A suitable memory image is shipped as @i{binaries/fmc-dio-eeprom.bin},
+so the following commands, run as superuser, will work:
+
+@smallexample
+   cat binaries/fmc-dio-eeprom.bin > /sys/bus/fmc/devices/fmc-0400/eeprom
+   rmmod spec
+   insmod kernel/spec.ko
+@end smallexample
+
+Please remember to che the bus/slot number: the @t{0400} above must
+be adapted to your own system.
+
+By removing and reloading the @i{spec} driver, as suggested, you force
+it to read the new identifiers. The new device in @i{sysfs}, therefore,
+will be called @t{FmcDio5cha-0400} instead of @t{fmc-0400}.
+
+The provided @sc{eeprom} image has been generated with
+@i{fru-generator}, part of the package @i{fmc-bus}, with
+the following command:
+
+@smallexample
+    FRU_VENDOR="CERN" \
+    FRU_NAME="FmcDio5cha" \
+    FRU_PART="EDA-02408-V2-0" \
+      fru-generator -s 7S-DIO-v2-Sxx-XXX > fmc-dio-eeprom.bin
+@end smallexample
+
+The above serial number is fake, and users with a pre-programmed @sc{eeprom}
+are not expected to overwrite it.
+
+@c ==========================================================================
 @node Overview of the Driver
 @section Overview of the Driver
 
@@ -523,7 +590,7 @@ The default file names are as follows:
 
 	This is the LM32 program file, or @i{White Rabbit Core}, WRC.
         The file is not loaded automatically, because the official
-        gateware files already includes the correct LM32 program.
+        gateware file already includes the correct LM32 program.
         To request loading the file you should pass @code{wrc=1}. To
         request loading a different WRC file name, you should pass
         the actual file name. For example ``@code{wrc=recompiled-wrc.bin}''.
@@ -542,7 +609,7 @@ http://www.ohwr.org/attachments/download/1758/wr_nic_dio-wrc.bin-2012-12-14
 The date is included in the binary name so we won't need to remove the
 binaries when they are obsoleted by newer ones:
 @i{spec-sw} releases are expected to keep working in the future, with
-no comulsory updates: if you are using this version you need those very files
+no compulsory updates: if you are using this version you need those very files
 to be available over time.
 You can copy the following command sequence to your shell
 in order to fill your @file{/lib/firmware/fmc} with everything that's

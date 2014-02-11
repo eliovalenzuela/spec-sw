@@ -175,12 +175,21 @@ int wrn_fmc_remove(struct fmc_device *fmc)
 	return 0;
 }
 
+static struct fmc_fru_id fd_fru_id[] = {
+	{
+		.product_name = "FmcDio5cha",
+	},
+};
+
 static struct fmc_driver wrn_fmc_drv = {
 	.version = FMC_VERSION,
 	.driver.name = KBUILD_MODNAME,
 	.probe = wrn_fmc_probe,
 	.remove = wrn_fmc_remove,
-	/* no table, as the current match just matches everything */
+	.id_table = {
+		.fru_id = fd_fru_id,
+		.fru_id_nr = ARRAY_SIZE(fd_fru_id),
+	},
 };
 
 static int wrn_init(void)
