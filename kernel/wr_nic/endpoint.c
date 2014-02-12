@@ -28,7 +28,12 @@ int wrn_phy_read(struct net_device *dev, int phy_id, int location)
 	u32 val;
 
 	if (1) {
-		WARN_ON(1); /* SPEC: no access */
+		/*
+		 * We cannot access the phy from Linux, because the phy
+		 * is managed by the lm32 core. However, network manager
+		 * insists on doing that, so we'd better not warn about it
+		 */
+		//WARN_ON(1); /* SPEC: no access */
 		return -1;
 	}
 
