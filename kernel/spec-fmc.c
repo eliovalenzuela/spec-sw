@@ -137,6 +137,12 @@ static struct fmc_gpio spec_vic_gpio_cfg[] = {
 	 .gpio = FMC_GPIO_IRQ(1),
 	 .mode = GPIOF_DIR_IN,
 	 .irqmode = IRQF_TRIGGER_RISING,
+	 },
+
+	{
+	 .gpio = FMC_GPIO_IRQ(0),
+	 .mode = GPIOF_DIR_IN,
+	 .irqmode = IRQF_TRIGGER_RISING,
 	 }
 };
 
@@ -169,7 +175,7 @@ static int spec_irq_request(struct fmc_device *fmc, irq_handler_t handler,
 
 	} else {
 		rv = spec_shared_irq_request(fmc, handler, name, flags);
-		printk("Requesting irq '%s' in shared mode (rv %d)\n", name,
+		pr_debug("Requesting irq '%s' in shared mode (rv %d)\n", name,
 		       rv);
 	}
 
