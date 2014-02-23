@@ -8,6 +8,14 @@ KBUILD_EXTRA_SYMBOLS := $(FMC_DRV)/Module.symvers
 
 GIT_VERSION = $(shell cd $(src); git describe --dirty --long --tags)
 
+# The "Cern Super-Module" is an internal undocumented thing. it has
+# no effect on normal users of the package outside CERN
+ifdef CONFIG_CSM_VERSION
+  ccflags-y += -D"CERN_SUPER_MODULE=MODULE_VERSION(\"$(CONFIG_CSM_VERSION)\")"
+else
+  ccflags-y += -DCERN_SUPER_MODULE=""
+endif
+
 ccflags-y += -I$M/include -I$(FMC_DRV)/include
 ccflags-y += $(WR_NIC_CFLAGS)
 ccflags-y += -DGIT_VERSION=\"$(GIT_VERSION)\"
