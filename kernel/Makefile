@@ -8,6 +8,13 @@ KBUILD_EXTRA_SYMBOLS := $(FMC_DRV)/Module.symvers
 
 GIT_VERSION = $(shell cd $(src); git describe --dirty --long --tags)
 
+# For this CSM_VERSION, please see ohwr.org/csm documentation
+ifdef CONFIG_CSM_VERSION
+  ccflags-y += -D"CERN_SUPER_MODULE=MODULE_VERSION(\"$(CONFIG_CSM_VERSION)\")"
+else
+  ccflags-y += -DCERN_SUPER_MODULE=""
+endif
+
 ccflags-y += -I$(src)/include -I$(FMC_DRV)/include
 ccflags-y += $(WR_NIC_CFLAGS)
 ccflags-y += -DGIT_VERSION=\"$(GIT_VERSION)\"
