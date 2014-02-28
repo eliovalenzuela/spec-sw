@@ -50,7 +50,7 @@
 @contents
 @end iftex
 
-@paragraphindent 3mm
+@paragraphindent 1
 
 @c ##########################################################################
 @node Top
