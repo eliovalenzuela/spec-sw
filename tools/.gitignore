@@ -1,4 +1,5 @@
 libspec.a
+libspec.so
 spec-cl
 specmem
 spec-fwloader

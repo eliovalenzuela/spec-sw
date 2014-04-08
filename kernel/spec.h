@@ -9,16 +9,19 @@
  */
 #ifndef __SPEC_H__
 #define __SPEC_H__
-#include <linux/pci.h>
-#include <linux/firmware.h>
-#include <linux/completion.h>
-#include <linux/fmc.h>
-#include <linux/gpio.h>
 
 #define PCI_VENDOR_ID_CERN	0x10dc
 #define PCI_DEVICE_ID_SPEC		0x018d
 #define PCI_VENDOR_ID_GENNUM	0x1a39
 #define PCI_DEVICE_ID_GN4124		0x0004
+
+#ifdef __KERNEL__
+
+#include <linux/pci.h>
+#include <linux/firmware.h>
+#include <linux/completion.h>
+#include <linux/fmc.h>
+#include <linux/gpio.h>
 
 #define SPEC_DEFAULT_LM32_ADDR 0x80000 /* used if "1" is passed */
 
@@ -150,5 +153,6 @@ int spec_vic_irq_request(struct spec_dev *spec, struct fmc_device *fmc,
 int spec_vic_irq_free(struct spec_dev *spec, unsigned long id);
 irqreturn_t spec_vic_irq_dispatch(struct spec_dev *spec);
 void spec_vic_cleanup(struct spec_dev *spec);
+#endif /* __KERNEL__ */
 
 #endif /* __SPEC_H__ */
