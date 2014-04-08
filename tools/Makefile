@@ -1,6 +1,6 @@
 
-CFLAGS = -ggdb -Wall -fPIC -I../kernel 
-LDFLAGS = -L. -lspec 
+CFLAGS = -ggdb -Wall -fPIC -I../kernel
+LDFLAGS = -L. -lspec
 
 LIB = libspec.a
 LIBOBJ = speclib.o loader-ll.o

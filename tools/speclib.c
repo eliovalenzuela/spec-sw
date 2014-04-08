@@ -100,7 +100,7 @@ static int spec_scan(int *bus, int *devfn)
 						    "0000:%02x:%02x.0",
 						    &my_bus, &my_devfn) == 2)
 				{
-					if (spec_check_id(my_bus, my_devfn)) 
+					if (spec_check_id(my_bus, my_devfn))
 					{
 						*bus = my_bus;
 						*devfn = my_devfn;
@@ -115,7 +115,7 @@ static int spec_scan(int *bus, int *devfn)
 
 	} else {
 		// Check if the requested card is available
-		if (spec_check_id(*bus, *devfn)) 
+		if (spec_check_id(*bus, *devfn))
 			found = 1;
 	}
 
