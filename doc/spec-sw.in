@@ -33,7 +33,7 @@
 
 @setchapternewpage off
 
-@set update-month February 2014
+@set update-month June 2014
 @c the release name below is substituted at build time
 @set release __RELEASE_GIT_ID__
 
@@ -347,6 +347,217 @@ for the peripheral:
    47:      0      0   0   124   PCI-MSI-edge  wr-nic
    48:  70470      0   0    26   PCI-MSI-edge  wr-nic
 @end smallexample
+
+@c ==========================================================================
+@node The spec-raw.ko Driver
+@section The spec-raw.ko Driver
+
+The @i{spec-raw} is a low level driver which allows user-space applications
+to perform simple tasks like read/write a memory register, read/write the
+DDR memory on the SPEC (DMA transfers) and listening for interrupts. You can
+find the source of this module at @i{kernel/spec-raw}.
+
+The @i{spec-raw} accepts the following module parameters defined in the
+fmc-bus subsystem: @b{gateware}, @b{busid}. Please, refers to the fmc-bus
+documentation for meaning of these module parameters. In addition, it
+supports also the @b{show_sdb} parameter: if you assign any value greater
+than 0, it will print out the SDB layout information
+
+The driver is partially copied from the @i{fmc-chardev.ko} driver. The
+char device creation and the register read/write operations are exactly the
+same. Again, refers to the fmc-bus documentation to understand how to use
+these capabilities.
+
+The main difference between this driver and the fmc-chardev is the DMA
+transfer, mmap, interrupt management and debugging interface. The fmc-chardev.ko
+was not upgraded with this capabilities because they are SPEC specifics.
+
+Following, a loading example
+
+@smallexample
+insmod spec-raw.ko gateware=<firmware-name>
+@end smallexample
+
+Remember that the <firmware-name> is the relative path to the firmware
+starting from the directory @i{/lib/firmware/}
+
+@c ---------------------------------------------------------------------------
+
+@node DMA Transfer and mmap
+@subsection DMA Transfer and mmap
+The user-space application can gain access to the DMA interface by using the
+@t{dma} misc device (e.g. @t{/dev/FmcAdc100m14b4cha-0400-dma}). On this chardevice
+the application can: read, write, poll/select and mmap.
+
+In order to request a DMA transfer from user-space you have to fill the
+@t{sr_dma_request} structure and send it to the char device throught the ioctl
+interface
+
+
+@smallexample
+struct sr_dma_request {
+        unsigned long int dev_mem_off;
+        unsigned long int length;
+        unsigned long int flags;
+};
+@end smallexample
+
+@itemize @bullet
+@item @t{dev_mem_off} is the DDR memory offset where start to DMA.
+@item @t{length} is the amount of bytes to transfer.
+@item @t{flags} describe transfer charateristics
+@end itemize
+
+For the time being, the only supported @t{flags} is @t{SR_IOCTL_DMA_FLAG_WRITE}
+to set the DMA direction to @i{host to device}; if it is not set, it is
+automatically configured as @i{device to host} transfer. In order to execute a
+@i{host to device} transfer you have to acquire the buffer by performing
+a @i{device to host} transfer.
+
+By polling/selecting the dma char device you know if can read new data from the
+buffer or not.
+
+Read the source code of the @t{spec-dma-dump} program to have an idea on
+how to use this interface.
+
+@c ---------------------------------------------------------------------------
+@node User-Space Interrupts
+@subsection User-Space Interrupts
+
+The spec-raw driver use a misc device to export to user-space information
+about interrupts (e.g. @t{FmcAdc100m14b4cha-0400-irq}). The misc device has
+two operations: read and poll/select.
+
+By reading the char device, you gets the history of the last
+interrupts. By polling, you know when new interrupts occur.
+
+By default the driver do not save the interrupt history. By
+subscribing to an interrupt event you are telling to the driver to save its
+hitory. The user can subscribe (or update a previous subscription) to an
+interrupt by writing the sysfs attribute in
+@t{/sys/class/misc/<device-name>-irq/sr_irq_subscription}; the string
+format for the subscription is:
+
+@smallexample
+     + 0x<base-address> 0x<status-reg-offset> 0x<irq-mask>
+@end smallexample
+
+@itemize @bullet
+@item @t{+} is for subscribe/update.
+@item @t{base-address} is the base address of the component that generate
+interrupts
+@item @t{status-reg-offset} is the status register offset of the source of
+interrupt
+@item @t{irq-mask} is a bit mask used to choose to which interrupt subscribe
+@end itemize
+
+By reading back the sysfs attribute, it shows the list of interrupt's
+subscription. You can unsubscribe from an interrupt event by writing on the
+same sysfs attribute:
+
+@smallexample
+     - 0x<base-address>
+@end smallexample
+
+@itemize @bullet
+@item @t{-} is for subscribe/update.
+@item @t{base-address} is the base address of the component that generate
+interrupts
+@end itemize
+
+@c ---------------------------------------------------------------------------
+@node Debugging
+@subsection Debugging
+
+This driver export some debugging features on the @i{debugfs}. Under the
+directory @i{spec-raw} in the debugfs, you will find a directory for each
+detected SPEC. In each of these directories, you have the following
+debugging file:
+
+@itemize @bullet
+
+@item @i{test_dma_loopback} it is read only, on read it automatically
+starts a DMA loop test. It writes some value in the DDR and
+than it reads back and compere the buffers.
+
+@item @i{write_seq} it is write only. To use it, you have to write the
+desired DDR offset (in hexadecimal format 0x0000) where write a sequence
+of 512 numbers
+
+@item @i{write_zero} it is write only. To use it, you have to write the
+desired DDR offset (in hexadecimal format 0x0000) where write a sequence
+of 512 zeros
+
+@end itemize
+
+@c ---------------------------------------------------------------------------
+@node spec-dma-dump
+@subsection spec-dma-dump
+
+This program use the spec-raw.ko driver to read the DDR memory of a SPEC
+card. You can find this tool under the @i{tools} directory.
+
+@smallexample
+sr-dma-dump [options] <file>
+-l <num>: buffer byte length
+-o 0x<hex>: offset in device memory in HEX format
+-f 0x<hex>: bit mask of flags in HEX format
+-h      : print this help
+
+
+FLAGS
+    bit 0 : 1 for write, 0 for read
+@end smallexample
+
+Following an example of usage with a SPEC + ADC mezzanine:
+
+@smallexample
+./tools/sr-dma-dump -o 0x100 -l 12 /dev/FmcAdc100m14b4cha-0400 
+[srdd] open device /dev/FmcAdc100m14b4cha-0400
+[srdd] configure DMA transfer
+       off 0x100 len 12 flags 0
+[srdd] DDR Memory content:
+0x00000100    e7 5f  5f ea
+0x00000104    a1 5e  c8 2d
+0x00000108    ed 19  eb ff
+@end smallexample
+
+@c ---------------------------------------------------------------------------
+@node spec-irq-wait
+@subsection spec-irq-wait
+
+This program use the spec-raw.ko driver to read the interrupt history.
+
+@smallexample
+spec-irq-wait [options] -D <cdev>
+-D <cdev>: char device to use
+-n <num>: number of interrupts to wait
+-s <seconds> : seconds timeout
+-u <micro seconds> : microseconds timeout
+@end smallexample
+
+Following an example of usage with SPEC + ADC mezzanine:
+
+@smallexample
+echo "+ 0x1400 0xC 0x3" > /sys/class/misc/FmcAdc100m14b4cha-0400-irq/sr_irq_subscription
+
+./tools/spec-irq-wait -D /dev/FmcAdc100m14b4cha-0400-irq -n 5
+[sriw] received interrupt 0
+       source: 0x1400   status 0x1
+[sriw] received interrupt 1
+       source: 0x1400   status 0x1
+[sriw] received interrupt 2
+       source: 0x1400   status 0x1
+[sriw] received interrupt 3
+       source: 0x1400   status 0x1
+[sriw] timeout while waiting interrupt 4
+[sriw] timeout while waiting interrupt 4
+[sriw] received interrupt 4
+       source: 0x1400   status 0x1
+@end smallexample
+
+For this example, in order to generate an interrupt I ran the spec-dma-dump
+program 5 times to generate 5 @i{dma done} interrupts.
 
 @c ##########################################################################
 @node The WR-NIC
