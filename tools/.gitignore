@@ -10,3 +10,4 @@ wr-dio-agent
 wr-dio-ruler
 stamp-frame
 Makefile.specific
+spec-dma-dump

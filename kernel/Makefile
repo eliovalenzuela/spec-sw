@@ -27,6 +27,7 @@ CONFIG_WR_NIC ?= m
 
 obj-m += spec.o
 obj-$(CONFIG_WR_NIC) += wr-nic.o
+obj-$(CONFIG_SPEC_RAW) += spec-raw/
 
 spec-y = spec-pci.o
 spec-y += spec-fmc.o
@@ -59,3 +60,4 @@ clean:
 	rm -rf *.o *~  .*.cmd *.ko *.mod.c .tmp_versions Module.symvers \
 		Module.markers modules.order
 	rm -rf wr_nic/*.o wr_nic/*~
+	$(MAKE) -C $(LINUX) M=$(shell /bin/pwd) clean
