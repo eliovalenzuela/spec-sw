@@ -51,3 +51,4 @@ install modules_install:
 clean:
 	rm -rf *.o *~  .*.cmd *.ko *.mod.c .tmp_versions Module.symvers \
 		Module.markers modules.order
+	rm -rf wr_nic/*.o wr_nic/*~
