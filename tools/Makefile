@@ -18,7 +18,7 @@ $(LIB): $(LIBOBJ)
 	ar r $@ $^
 
 loader-ll.o:	../kernel/loader-ll.c
-		${CC} -c $^ -I .
+		${CC} $(CFLAGS) -c $^ -I .
 
 clean:
 	rm -f *.o $(LIB) $(PROGS) *~
