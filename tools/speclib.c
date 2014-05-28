@@ -82,42 +82,37 @@ static int spec_check_id(int bus, int dev)
 static int spec_scan(int *bus, int *devfn)
 {
 	struct dirent **namelist;
-	int n, found = 0;
+	int n, i, found = 0;
 	int my_bus, my_devfn;
 
-	if (*bus < 0 || *devfn < 0)
+	// Automatic search for the first availabe card
+	n = scandir("/sys/bus/pci/devices/", &namelist, 0, 0);
+	if (n < 0)
 	{
-		// Automatic search for the first availabe card
-		n = scandir("/sys/bus/pci/devices/", &namelist, 0, 0);
-		if (n < 0)
-		{
-			perror("scandir");
-			exit(-1);
-		} else {
-			while (n--)
-			{
-				if(!found && sscanf(namelist[n]->d_name,
-						    "0000:%02x:%02x.0",
-						    &my_bus, &my_devfn) == 2)
-				{
-					if (spec_check_id(my_bus, my_devfn)) 
-					{
-						*bus = my_bus;
-						*devfn = my_devfn;
-						found = 1;
-					}
-
-				}
-				free(namelist[n]);
-			}
-			free(namelist);
-		}
-
+		perror("scandir");
+		exit(-1);
 	} else {
-		// Check if the requested card is available
-		if (spec_check_id(*bus, *devfn)) 
-			found = 1;
+		for(i=0; i<n; i++)
+		{
+			if(!found && sscanf(namelist[i]->d_name,
+					    "0000:%02x:%02x.0",
+					    &my_bus, &my_devfn) == 2)
+			{
+				if (*bus >= 0) my_bus = *bus;
+				if (*devfn >= 0) my_devfn = *devfn;
+				if (spec_check_id(my_bus, my_devfn)) 
+				{
+					*bus = my_bus;
+					*devfn = my_devfn;
+					found = 1;
+				}
+
+			}
+			free(namelist[i]);
+		}
+		free(namelist);
 	}
+
 
 	if(!found)
 	{
