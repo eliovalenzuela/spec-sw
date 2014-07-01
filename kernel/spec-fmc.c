@@ -398,6 +398,7 @@ static int spec_irq_init(struct fmc_device *fmc)
 	uint32_t value;
 	int i;
 
+	spin_lock_init(&spec->irq_lock);
 	if (spec_use_msi) {
 		/*
 		 * Enable multiple-msi to work around a chip design bug.
