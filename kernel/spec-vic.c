@@ -196,12 +196,11 @@ void spec_vic_irq_free(struct spec_dev *spec, unsigned long id)
 	int i;
 
 	for (i = 0; i < VIC_MAX_VECTORS; i++) {
-		uint32_t vec = spec->vic->vectors[i].saved_id;
-		if (vec == id) {
+		if (spec->vic->vectors[i].saved_id == id) {
 			spin_lock(&spec->vic->vec_lock);
 
 			vic_writel(spec->vic, 1 << i, VIC_REG_IDR);
-			vic_writel(spec->vic, vec, VIC_IVT_RAM_BASE + 4 * i);
+			vic_writel(spec->vic, id, VIC_IVT_RAM_BASE + 4 * i);
 			spec->vic->vectors[i].handler = NULL;
 
 			spin_unlock(&spec->vic->vec_lock);

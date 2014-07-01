@@ -150,11 +150,11 @@ static int spec_irq_request(struct fmc_device *fmc, irq_handler_t handler,
 			    char *name, int flags)
 {
 	struct spec_dev *spec = fmc->carrier_data;
-	int rv;
+	int rv, first_time;
 
 	/* VIC mode interrupt */
 	if (!(flags & IRQF_SHARED)) {
-		int first_time = !spec->vic;
+		first_time = !spec->vic;
 
 		/* configure the VIC */
 		rv = spec_vic_irq_request(spec, fmc, fmc->irq, handler);
@@ -207,13 +207,12 @@ static void spec_irq_ack(struct fmc_device *fmc)
 	/* Nothing for VIC here, all irqs are acked by master VIC handler */
 }
 
-static int spec_shared_irq_free(struct fmc_device *fmc)
+static void spec_shared_irq_free(struct fmc_device *fmc)
 {
 	struct spec_dev *spec = fmc->carrier_data;
 
 	gennum_writel(spec, 0xffff, GNGPIO_INT_MASK_SET);	/* disable */
 	free_irq(spec->pdev->irq, fmc);
-	return 0;
 }
 
 static int spec_irq_free(struct fmc_device *fmc)
@@ -228,7 +227,7 @@ static int spec_irq_free(struct fmc_device *fmc)
 	 * release the PCI IRQ handler
 	 */
 	if (!spec->vic)
-		return spec_shared_irq_free(fmc);
+		spec_shared_irq_free(fmc);
 	return 0;
 }
 
