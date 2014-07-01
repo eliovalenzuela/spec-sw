@@ -24,6 +24,8 @@
 
 /* A Vectored Interrupt Controller object */
 struct vic_irq_controller {
+	/* It protects the handlers' vector */
+	spinlock_t vec_lock;
 	/* already-initialized flag */
 	int initialized;
 	/* Base address (FPGA-relative) */
@@ -79,6 +81,7 @@ static int spec_vic_init(struct spec_dev *spec, struct fmc_device *fmc)
 	if (!vic)
 		return -ENOMEM;
 
+	spin_lock_init(&vic->vec_lock);
 	vic->kernel_va = spec->remap[0] + vic_base;
 	vic->base = (uint32_t) vic_base;
 
@@ -156,14 +159,14 @@ int spec_vic_irq_request(struct spec_dev *spec, struct fmc_device *fmc,
 	for (i = 0; i < VIC_MAX_VECTORS; i++) {
 		/* find vector in stored table, assign handle, enable */
 		if (vic->vectors[i].saved_id == id) {
-			spin_lock(&spec->irq_lock);
+			spin_lock(&spec->vic->vec_lock);
 
 			vic_writel(vic, i, VIC_IVT_RAM_BASE + 4 * i);
 			vic->vectors[i].requestor = fmc;
 			vic->vectors[i].handler = handler;
 			vic_writel(vic, (1 << i), VIC_REG_IER);
 
-			spin_unlock(&spec->irq_lock);
+			spin_unlock(&spec->vic->vec_lock);
 			return 0;
 		}
 	}
@@ -195,13 +198,13 @@ int spec_vic_irq_free(struct spec_dev *spec, unsigned long id)
 	for (i = 0; i < VIC_MAX_VECTORS; i++) {
 		uint32_t vec = spec->vic->vectors[i].saved_id;
 		if (vec == id) {
-			spin_lock(&spec->irq_lock);
+			spin_lock(&spec->vic->vec_lock);
 
 			vic_writel(spec->vic, 1 << i, VIC_REG_IDR);
 			vic_writel(spec->vic, vec, VIC_IVT_RAM_BASE + 4 * i);
 			spec->vic->vectors[i].handler = NULL;
 
-			spin_unlock(&spec->irq_lock);
+			spin_unlock(&spec->vic->vec_lock);
 		}
 	}
 
