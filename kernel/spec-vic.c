@@ -191,7 +191,7 @@ static inline int vic_handler_count(struct vic_irq_controller *vic)
 }
 
 
-int spec_vic_irq_free(struct spec_dev *spec, unsigned long id)
+void spec_vic_irq_free(struct spec_dev *spec, unsigned long id)
 {
 	int i;
 
@@ -213,8 +213,6 @@ int spec_vic_irq_free(struct spec_dev *spec, unsigned long id)
 		spec_vic_exit(spec->vic);
 		spec->vic = NULL;
 	}
-
-	return 0;
 }
 
 void spec_vic_irq_ack(struct spec_dev *spec, unsigned long id)
