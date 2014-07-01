@@ -113,12 +113,15 @@ static void spec_vic_exit(struct vic_irq_controller *vic)
 	kfree(vic);
 }
 
+/* NOTE: this function must be called while holding irq_lock */
 irqreturn_t spec_vic_irq_dispatch(struct spec_dev *spec)
 {
 	struct vic_irq_controller *vic = spec->vic;
 	int index, rv;
 	struct vector *vec;
 
+	if (unlikely(!vic))
+		goto fail;
 	/*
 	 * Our parent IRQ handler: read the index value
 	 * from the Vector Address Register, and find matching handler
@@ -141,6 +144,7 @@ fail:
 	return 0;
 }
 
+/* NOTE: this function must be called while holding irq_lock */
 int spec_vic_irq_request(struct spec_dev *spec, struct fmc_device *fmc,
 			 unsigned long id, irq_handler_t handler)
 {
@@ -190,7 +194,7 @@ static inline int vic_handler_count(struct vic_irq_controller *vic)
 	return count;
 }
 
-
+/* NOTE: this function must be called while holding irq_lock */
 void spec_vic_irq_free(struct spec_dev *spec, unsigned long id)
 {
 	int i;

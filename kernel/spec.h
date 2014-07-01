@@ -145,6 +145,7 @@ extern int spec_gpio_init(struct fmc_device *fmc);
 extern void spec_gpio_exit(struct fmc_device *fmc);
 
 /* Functions in spec-vic.c */
+/* NOTE: these functions must be called while holding irq_lock */
 int spec_vic_irq_request(struct spec_dev *spec, struct fmc_device *fmc,
 			 unsigned long id, irq_handler_t handler);
 void spec_vic_irq_free(struct spec_dev *spec, unsigned long id);
