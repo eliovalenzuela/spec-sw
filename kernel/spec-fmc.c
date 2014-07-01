@@ -453,12 +453,7 @@ static void spec_irq_exit(struct fmc_device *fmc)
 		gennum_writel(spec, 0, GNINT_CFG(i));
 	fmc->op->irq_ack(fmc); /* just to be safe */
 
-	/* VIC mode: release VIC resources and disable VIC master IRQ line */
-	if (spec->vic) {
-		spec_vic_cleanup(spec);
-		gennum_writel(spec, 0xffff, GNGPIO_INT_MASK_SET); /* disable */
-		free_irq(spec->pdev->irq, fmc);
-	}
+	WARN(spec->vic, "A Mezzanine driver didn't release all its IRQ handlers\n");
 }
 
 static int check_golden(struct fmc_device *fmc)
