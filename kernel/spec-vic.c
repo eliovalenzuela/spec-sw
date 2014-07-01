@@ -99,15 +99,15 @@ static int spec_vic_init(struct spec_dev *spec, struct fmc_device *fmc)
 	return 0;
 }
 
-static void spec_vic_exit(struct spec_dev *spec)
+static void spec_vic_exit(struct vic_irq_controller *vic)
 {
-	if (!spec->vic)
+	if (!vic)
 		return;
 
 	/* Disable all irq lines and the VIC in general */
-	vic_writel(spec->vic, 0xffffffff, VIC_REG_IDR);
-	vic_writel(spec->vic, 0, VIC_REG_CTL);
-	kfree(spec->vic);
+	vic_writel(vic, 0xffffffff, VIC_REG_IDR);
+	vic_writel(vic, 0, VIC_REG_CTL);
+	kfree(vic);
 }
 
 irqreturn_t spec_vic_irq_dispatch(struct spec_dev *spec)
@@ -207,7 +207,7 @@ int spec_vic_irq_free(struct spec_dev *spec, unsigned long id)
 
 	/* Clean up the VIC if there are no more handlers */
 	if (!vic_handler_count(spec->vic)) {
-		spec_vic_exit(spec);
+		spec_vic_exit(spec->vic);
 		spec->vic = NULL;
 	}
 
