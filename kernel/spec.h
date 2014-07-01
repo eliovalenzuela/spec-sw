@@ -144,11 +144,10 @@ extern int spec_eeprom_write(struct fmc_device *fmc, uint32_t offset,
 extern int spec_gpio_init(struct fmc_device *fmc);
 extern void spec_gpio_exit(struct fmc_device *fmc);
 
+/* Functions in spec-vic.c */
 int spec_vic_irq_request(struct spec_dev *spec, struct fmc_device *fmc,
 			 unsigned long id, irq_handler_t handler);
-
 int spec_vic_irq_free(struct spec_dev *spec, unsigned long id);
 irqreturn_t spec_vic_irq_dispatch(struct spec_dev *spec);
-void spec_vic_cleanup(struct spec_dev *spec);
 
 #endif /* __SPEC_H__ */

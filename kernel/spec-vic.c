@@ -99,7 +99,7 @@ static int spec_vic_init(struct spec_dev *spec, struct fmc_device *fmc)
 	return 0;
 }
 
-void spec_vic_cleanup(struct spec_dev *spec)
+static void spec_vic_cleanup(struct spec_dev *spec)
 {
 	if (!spec->vic)
 		return;
@@ -169,10 +169,25 @@ int spec_vic_irq_request(struct spec_dev *spec, struct fmc_device *fmc,
 		}
 	}
 
-
 	return -EINVAL;
-
 }
+
+
+/*
+ * vic_handler_count
+ * It counts how many handlers are registered within the VIC controller
+ */
+static inline int vic_handler_count(struct vic_irq_controller *vic)
+{
+	int i, count;
+
+	for (i = 0, count = 0; i < VIC_MAX_VECTORS; ++i)
+		if (vic->vectors[i].handler)
+			count++;
+
+	return count;
+}
+
 
 int spec_vic_irq_free(struct spec_dev *spec, unsigned long id)
 {
@@ -189,6 +204,12 @@ int spec_vic_irq_free(struct spec_dev *spec, unsigned long id)
 
 			spin_unlock(&spec->irq_lock);
 		}
+	}
+
+	/* Clean up the VIC if there are no more handlers */
+	if (!vic_handler_count(spec->vic)) {
+		spec_vic_cleanup(spec);
+		spec->vic = NULL;
 	}
 
 	return 0;

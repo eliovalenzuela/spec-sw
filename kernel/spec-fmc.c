@@ -221,9 +221,15 @@ static int spec_irq_free(struct fmc_device *fmc)
 	struct spec_dev *spec = fmc->carrier_data;
 
 	if (spec->vic)
-		return spec_vic_irq_free(spec, spec->pdev->irq);
-	else
+		spec_vic_irq_free(spec, fmc->irq);
+
+	/*
+	 * If we were not using the VIC, or we released all the VIC handler, then
+	 * release the PCI IRQ handler
+	 */
+	if (!spec->vic)
 		return spec_shared_irq_free(fmc);
+	return 0;
 }
 
 /* This is the mapping from virtual GPIO pin numbers to raw gpio numbers */
