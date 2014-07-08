@@ -24,6 +24,8 @@
 
 /* A Vectored Interrupt Controller object */
 struct vic_irq_controller {
+	/* It protects the handlers' vector */
+	spinlock_t vec_lock;
 	/* already-initialized flag */
 	int initialized;
 	/* Base address (FPGA-relative) */
@@ -79,6 +81,7 @@ static int spec_vic_init(struct spec_dev *spec, struct fmc_device *fmc)
 	if (!vic)
 		return -ENOMEM;
 
+	spin_lock_init(&vic->vec_lock);
 	vic->kernel_va = spec->remap[0] + vic_base;
 	vic->base = (uint32_t) vic_base;
 
@@ -99,24 +102,26 @@ static int spec_vic_init(struct spec_dev *spec, struct fmc_device *fmc)
 	return 0;
 }
 
-void spec_vic_cleanup(struct spec_dev *spec)
+static void spec_vic_exit(struct vic_irq_controller *vic)
 {
-	if (!spec->vic)
+	if (!vic)
 		return;
 
 	/* Disable all irq lines and the VIC in general */
-	vic_writel(spec->vic, 0xffffffff, VIC_REG_IDR);
-	vic_writel(spec->vic, 0, VIC_REG_CTL);
-	kfree(spec->vic);
-	spec->vic = NULL;
+	vic_writel(vic, 0xffffffff, VIC_REG_IDR);
+	vic_writel(vic, 0, VIC_REG_CTL);
+	kfree(vic);
 }
 
+/* NOTE: this function must be called while holding irq_lock */
 irqreturn_t spec_vic_irq_dispatch(struct spec_dev *spec)
 {
 	struct vic_irq_controller *vic = spec->vic;
 	int index, rv;
 	struct vector *vec;
 
+	if (unlikely(!vic))
+		goto fail;
 	/*
 	 * Our parent IRQ handler: read the index value
 	 * from the Vector Address Register, and find matching handler
@@ -139,6 +144,7 @@ fail:
 	return 0;
 }
 
+/* NOTE: this function must be called while holding irq_lock */
 int spec_vic_irq_request(struct spec_dev *spec, struct fmc_device *fmc,
 			 unsigned long id, irq_handler_t handler)
 {
@@ -157,41 +163,59 @@ int spec_vic_irq_request(struct spec_dev *spec, struct fmc_device *fmc,
 	for (i = 0; i < VIC_MAX_VECTORS; i++) {
 		/* find vector in stored table, assign handle, enable */
 		if (vic->vectors[i].saved_id == id) {
-			spin_lock(&spec->irq_lock);
+			spin_lock(&spec->vic->vec_lock);
 
 			vic_writel(vic, i, VIC_IVT_RAM_BASE + 4 * i);
 			vic->vectors[i].requestor = fmc;
 			vic->vectors[i].handler = handler;
 			vic_writel(vic, (1 << i), VIC_REG_IER);
 
-			spin_unlock(&spec->irq_lock);
+			spin_unlock(&spec->vic->vec_lock);
 			return 0;
 		}
 	}
 
-
 	return -EINVAL;
-
 }
 
-int spec_vic_irq_free(struct spec_dev *spec, unsigned long id)
+
+/*
+ * vic_handler_count
+ * It counts how many handlers are registered within the VIC controller
+ */
+static inline int vic_handler_count(struct vic_irq_controller *vic)
+{
+	int i, count;
+
+	for (i = 0, count = 0; i < VIC_MAX_VECTORS; ++i)
+		if (vic->vectors[i].handler)
+			count++;
+
+	return count;
+}
+
+/* NOTE: this function must be called while holding irq_lock */
+void spec_vic_irq_free(struct spec_dev *spec, unsigned long id)
 {
 	int i;
 
 	for (i = 0; i < VIC_MAX_VECTORS; i++) {
-		uint32_t vec = spec->vic->vectors[i].saved_id;
-		if (vec == id) {
-			spin_lock(&spec->irq_lock);
+		if (spec->vic->vectors[i].saved_id == id) {
+			spin_lock(&spec->vic->vec_lock);
 
 			vic_writel(spec->vic, 1 << i, VIC_REG_IDR);
-			vic_writel(spec->vic, vec, VIC_IVT_RAM_BASE + 4 * i);
+			vic_writel(spec->vic, id, VIC_IVT_RAM_BASE + 4 * i);
 			spec->vic->vectors[i].handler = NULL;
 
-			spin_unlock(&spec->irq_lock);
+			spin_unlock(&spec->vic->vec_lock);
 		}
 	}
 
-	return 0;
+	/* Clean up the VIC if there are no more handlers */
+	if (!vic_handler_count(spec->vic)) {
+		spec_vic_exit(spec->vic);
+		spec->vic = NULL;
+	}
 }
 
 void spec_vic_irq_ack(struct spec_dev *spec, unsigned long id)

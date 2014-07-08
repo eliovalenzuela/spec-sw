@@ -124,9 +124,12 @@ static void spec_shared_irq_ack(struct fmc_device *fmc);
 static irqreturn_t spec_vic_irq_handler(int id, void *data)
 {
 	struct fmc_device *fmc = (struct fmc_device *)data;
+	struct spec_dev *spec = (struct spec_dev *)fmc->carrier_data;
 	irqreturn_t rv;
 
-	rv = spec_vic_irq_dispatch((struct spec_dev *)fmc->carrier_data);
+	spin_lock(&spec->irq_lock);
+	rv = spec_vic_irq_dispatch(spec);
+	spin_unlock(&spec->irq_lock);
 
 	spec_shared_irq_ack(fmc);
 	return IRQ_HANDLED;
@@ -150,29 +153,33 @@ static int spec_irq_request(struct fmc_device *fmc, irq_handler_t handler,
 			    char *name, int flags)
 {
 	struct spec_dev *spec = fmc->carrier_data;
-	int rv;
+	int rv, first_time;
 
 	/* VIC mode interrupt */
 	if (!(flags & IRQF_SHARED)) {
-		int first_time = !spec->vic;
+		spin_lock(&spec->irq_lock);
+		first_time = !spec->vic;
 
 		/* configure the VIC */
 		rv = spec_vic_irq_request(spec, fmc, fmc->irq, handler);
-
-		if (rv)
+		if (rv) {
+			spin_unlock(&spec->irq_lock);
 			return rv;
+		}
 
 		/* on first IRQ, configure VIC "master" handler and GPIO too */
 		if (first_time) {
 			rv = spec_shared_irq_request(fmc, spec_vic_irq_handler,
 						     "spec-vic", IRQF_SHARED);
-			if (rv)
+			if (rv) {
+				spin_unlock(&spec->irq_lock);
 				return rv;
+			}
 
 			fmc->op->gpio_config(fmc, spec_vic_gpio_cfg,
 					     ARRAY_SIZE(spec_vic_gpio_cfg));
 		}
-
+		spin_unlock(&spec->irq_lock);
 	} else {
 		rv = spec_shared_irq_request(fmc, handler, name, flags);
 		pr_debug("Requesting irq '%s' in shared mode (rv %d)\n", name,
@@ -207,23 +214,30 @@ static void spec_irq_ack(struct fmc_device *fmc)
 	/* Nothing for VIC here, all irqs are acked by master VIC handler */
 }
 
-static int spec_shared_irq_free(struct fmc_device *fmc)
+static void spec_shared_irq_free(struct fmc_device *fmc)
 {
 	struct spec_dev *spec = fmc->carrier_data;
 
 	gennum_writel(spec, 0xffff, GNGPIO_INT_MASK_SET);	/* disable */
 	free_irq(spec->pdev->irq, fmc);
-	return 0;
 }
 
 static int spec_irq_free(struct fmc_device *fmc)
 {
 	struct spec_dev *spec = fmc->carrier_data;
 
+	spin_lock(&spec->irq_lock);
 	if (spec->vic)
-		return spec_vic_irq_free(spec, spec->pdev->irq);
-	else
-		return spec_shared_irq_free(fmc);
+		spec_vic_irq_free(spec, fmc->irq);
+
+	/*
+	 * If we were not using the VIC, or we released all the VIC handler, then
+	 * release the PCI IRQ handler
+	 */
+	if (!spec->vic)
+		spec_shared_irq_free(fmc);
+	spin_unlock(&spec->irq_lock);
+	return 0;
 }
 
 /* This is the mapping from virtual GPIO pin numbers to raw gpio numbers */
@@ -392,6 +406,7 @@ static int spec_irq_init(struct fmc_device *fmc)
 	uint32_t value;
 	int i;
 
+	spin_lock_init(&spec->irq_lock);
 	if (spec_use_msi) {
 		/*
 		 * Enable multiple-msi to work around a chip design bug.
@@ -447,12 +462,7 @@ static void spec_irq_exit(struct fmc_device *fmc)
 		gennum_writel(spec, 0, GNINT_CFG(i));
 	fmc->op->irq_ack(fmc); /* just to be safe */
 
-	/* VIC mode: release VIC resources and disable VIC master IRQ line */
-	if (spec->vic) {
-		spec_vic_cleanup(spec);
-		gennum_writel(spec, 0xffff, GNGPIO_INT_MASK_SET); /* disable */
-		free_irq(spec->pdev->irq, fmc);
-	}
+	WARN(spec->vic, "A Mezzanine driver didn't release all its IRQ handlers\n");
 }
 
 static int check_golden(struct fmc_device *fmc)
