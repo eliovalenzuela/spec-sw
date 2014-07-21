@@ -15,6 +15,7 @@ PROGS = spec-cl spec-fwloader spec-vuart specmem
 PROGS += wr-dio-cmd wr-dio-pps wr-dio-agent wr-dio-ruler
 PROGS += stamp-frame
 PROGS += spec-dma-dump
+PROGS += spec-irq-wait
 
 all: $(LIB) $(PROGS) $(LIBSHARED)
 

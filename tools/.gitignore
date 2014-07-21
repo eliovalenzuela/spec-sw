@@ -11,3 +11,4 @@ wr-dio-ruler
 stamp-frame
 Makefile.specific
 spec-dma-dump
+spec-irq-wait
