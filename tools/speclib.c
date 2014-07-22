@@ -20,7 +20,9 @@
 #include "wb_uart.h"
 
 struct spec_private {
+	/* BAR0 maps the local bus (i.e. we can access FGPA register) */
 	void *bar0;
+	/* BAR4 maps the local GN412x register */
 	void *bar4;
 	uint32_t vuart_base;
 };
