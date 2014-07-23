@@ -101,7 +101,7 @@ static int spec_scan(int *bus, int *devfn)
 			{
 				if (*bus >= 0) my_bus = *bus;
 				if (*devfn >= 0) my_devfn = *devfn;
-				if (spec_check_id(my_bus, my_devfn))
+				if (spec_check_id(my_bus, my_devfn) > 0)
 				{
 					*bus = my_bus;
 					*devfn = my_devfn;
