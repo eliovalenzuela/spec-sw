@@ -27,6 +27,54 @@ struct spec_private {
 	uint32_t vuart_base;
 };
 
+
+/*
+ * Check if the PCI device at bus/def_fn is a SPEC board.
+ * Return 1 if the device is a SPEC and 0 if it is not.
+ * If there is an error accessing the files, return -1
+ */
+static int spec_check_id(int bus, int dev)
+{
+	unsigned int vendor, device;
+	char buf[128];
+	FILE *f;
+
+	// check device
+	snprintf(buf, sizeof buf,
+		"/sys/bus/pci/devices/0000:%02x:%02x.0/device",
+		bus, dev);
+
+	f=fopen(buf,"r");
+	if (f==NULL){
+		fprintf(stderr,"error accessing to file\n");
+		return -1;
+	}
+	fscanf(f, "%x", &device);
+	fclose(f);
+
+	// check vendor
+	snprintf(buf, sizeof buf,
+		"/sys/bus/pci/devices/0000:%02x:%02x.0/vendor",
+		bus, dev);
+
+	f=fopen(buf,"r");
+	if (f==NULL){
+		fprintf(stderr,"error accessing to file\n");
+		return -1;
+	}
+	fscanf(f, "%x", &vendor);
+	fclose(f);
+
+	if (device== PCI_DEVICE_ID_SPEC && vendor== PCI_VENDOR_ID_CERN)
+		return 1;
+
+	if (device== PCI_DEVICE_ID_GN4124 && vendor== PCI_VENDOR_ID_GENNUM)
+		return 1;
+
+	return 0;
+}
+
+
 /*
  * Checks if there's a SPEC card at bus/def_fn.
  * If one (or both) parameters are < 0, takes first available card
@@ -35,30 +83,37 @@ struct spec_private {
 static int spec_scan(int *bus, int *devfn)
 {
 	struct dirent **namelist;
-	int n, found = 0;
+	int n, i, found = 0, ret;
 	int my_bus, my_devfn;
 
-	n = scandir("/sys/bus/pci/drivers/spec", &namelist, 0, 0);
+	// Automatic search for the first availabe card
+	n = scandir("/sys/bus/pci/devices/", &namelist, 0, 0);
 	if (n < 0)
 	{
 		perror("scandir");
 		exit(-1);
-	} else {
-		while (n--)
-		{
-			if(!found && sscanf(namelist[n]->d_name,
-					    "0000:%02x:%02x.0",
-					    &my_bus, &my_devfn) == 2)
-			{
-				if(*bus < 0) *bus = my_bus;
-				if(*devfn < 0) *devfn = my_devfn;
-				if(*bus == my_bus && *devfn == my_devfn)
-					found = 1;
-			}
-			free(namelist[n]);
-		}
-		free(namelist);
 	}
+
+	for (i = 0; i < n; i++)
+	{
+		ret = sscanf(namelist[i]->d_name, "0000:%02x:%02x.0",
+			     &my_bus, &my_devfn);
+		if(!found && ret == 2)
+		{
+			if (*bus >= 0)
+				my_bus = *bus;
+			if (*devfn >= 0)
+				my_devfn = *devfn;
+			if (spec_check_id(my_bus, my_devfn) > 0)
+			{
+				*bus = my_bus;
+				*devfn = my_devfn;
+				found = 1;
+			}
+		}
+		free(namelist[i]);
+	}
+	free(namelist);
 
 	if(!found)
 	{
@@ -79,7 +134,7 @@ static void *spec_map_area(int bus, int dev, int bar, size_t size)
 	int fd;
 	void *ptr;
 
- 	snprintf(path, sizeof(path), "/sys/bus/pci/drivers/spec"
+	snprintf(path, sizeof(path), "/sys/bus/pci/devices/"
 		 "/0000:%02x:%02x.0/resource%d", bus, dev, bar);
 
 	fd = open(path, O_RDWR | O_SYNC);

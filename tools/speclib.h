@@ -3,6 +3,12 @@
 
 #include <stdint.h>
 
+/* Vendor/Device ID to identify the SPEC */
+#define PCI_VENDOR_ID_CERN	0x10dc
+#define PCI_DEVICE_ID_SPEC	0x018d
+#define PCI_VENDOR_ID_GENNUM	0x1a39
+#define PCI_DEVICE_ID_GN4124	0x0004
+
 /* 'Opens' the SPEC card at PCI bus [bus], device/function [dev].
     Returns a handle to the card or NULL in case of failure. */
 void *spec_open(int bus, int dev);
