@@ -83,7 +83,7 @@ static int spec_check_id(int bus, int dev)
 static int spec_scan(int *bus, int *devfn)
 {
 	struct dirent **namelist;
-	int n, i, found = 0;
+	int n, i, found = 0, ret;
 	int my_bus, my_devfn;
 
 	// Automatic search for the first availabe card
@@ -92,27 +92,28 @@ static int spec_scan(int *bus, int *devfn)
 	{
 		perror("scandir");
 		exit(-1);
-	} else {
-		for(i = 0; i < n; i++)
-		{
-			if(!found && sscanf(namelist[i]->d_name,
-					    "0000:%02x:%02x.0",
-					    &my_bus, &my_devfn) == 2)
-			{
-				if (*bus >= 0) my_bus = *bus;
-				if (*devfn >= 0) my_devfn = *devfn;
-				if (spec_check_id(my_bus, my_devfn) > 0)
-				{
-					*bus = my_bus;
-					*devfn = my_devfn;
-					found = 1;
-				}
-
-			}
-			free(namelist[i]);
-		}
-		free(namelist);
 	}
+
+	for (i = 0; i < n; i++)
+	{
+		ret = sscanf(namelist[i]->d_name, "0000:%02x:%02x.0",
+			     &my_bus, &my_devfn);
+		if(!found && ret == 2)
+		{
+			if (*bus >= 0)
+				my_bus = *bus;
+			if (*devfn >= 0)
+				my_devfn = *devfn;
+			if (spec_check_id(my_bus, my_devfn) > 0)
+			{
+				*bus = my_bus;
+				*devfn = my_devfn;
+				found = 1;
+			}
+		}
+		free(namelist[i]);
+	}
+	free(namelist);
 
 	if(!found)
 	{
