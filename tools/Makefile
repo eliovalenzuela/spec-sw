@@ -1,6 +1,10 @@
+# If it exists includes Makefile.specific. In this Makefile, you should put
+# specific Makefile code that you want to run before this. For example,
+# build a particular environment.
+-include Makefile.specific
 
-CFLAGS = -ggdb -Wall -fPIC -I../kernel $(EXTRACFLAGS)
-LDFLAGS = -L. -lspec 
+CFLAGS += -ggdb -Wall -fPIC -I../kernel $(EXTRACFLAGS)
+LDFLAGS += -L. -lspec
 
 LIB = libspec.a
 LIBOBJ = speclib.o loader-ll.o
