@@ -20,6 +20,10 @@ void spec_close(void *card);
    Returns 0 on success. */
 int spec_load_bitstream(void *card, const char *filename);
 
+/* Load the FPGA bitstram into car [card] from a given buffer [buf]
+   of size [size] */
+int spec_load_bitstream_buffer(void *card, void *buf, size_t size);
+
 /* Loads the WRC LM32 firmware into card [card] from file [filename]. starting at 
    address [base_addr]. Returns 0 on success. 
    WARNING: using improper base address/FPGA firmware will freeze the computer. */
