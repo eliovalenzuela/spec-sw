@@ -116,7 +116,7 @@ int main(int argc, char **argv)
 		len = recv(agent_sock, &f, sizeof(f), MSG_TRUNC);
 		if (len != sizeof(f)) {
 			fprintf(stderr, "%s: recevied unexpected frame length"
-				" (%i instead of %i)\n", agent_prgname, len,
+				" (%i instead of %lu)\n", agent_prgname, len,
 				sizeof(f));
 			continue;
 		}

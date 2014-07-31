@@ -145,7 +145,7 @@ static void *spec_map_area(int bus, int dev, int bar, size_t size)
 		   MAP_SHARED, fd, 0);
 	close(fd);
 
-	if((int)ptr == -1)
+	if((long)ptr == -1)
 		return NULL;
 
 	return ptr;
