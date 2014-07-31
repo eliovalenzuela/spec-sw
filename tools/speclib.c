@@ -46,7 +46,7 @@ static int spec_check_id(int bus, int dev)
 
 	f=fopen(buf,"r");
 	if (f==NULL){
-		fprintf(stderr,"error accessing to file\n");
+		fprintf(stderr,"error accessing to file: %s\n", strerror(errno));
 		return -1;
 	}
 	fscanf(f, "%x", &device);

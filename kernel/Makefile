@@ -18,6 +18,8 @@ endif
 ccflags-y += -I$(src)/include -I$(FMC_DRV)/include
 ccflags-y += $(WR_NIC_CFLAGS)
 ccflags-y += -DGIT_VERSION=\"$(GIT_VERSION)\"
+ccflags-$(CONFIG_SPEC_UAL) += -DCONFIG_SPEC_UAL
+ccflags-$(CONFIG_SPEC_UAL) += -I$(LIBUAL)/kernel
 
 
 # this is a bad hack. Sometimes we are a submodule, and wr-nic can
@@ -34,6 +36,14 @@ spec-y += spec-i2c.o
 spec-y += spec-vic.o
 spec-y += loader-ll.o
 spec-y += spec-gpio-no.o
+spec-$(CONFIG_SPEC_UAL) += spec-ual.o
+spec-$(CONFIG_SPEC_UAL) += ../libual/kernel/ual-cdev.o
+spec-$(CONFIG_SPEC_UAL) += ../libual/kernel/ual-common.o
+spec-$(CONFIG_SPEC_UAL) += ../libual/kernel/ual-fw.o
+spec-$(CONFIG_SPEC_UAL) += ../libual/kernel/ual-irq.o
+spec-$(CONFIG_SPEC_UAL) += ../libual/kernel/ual-blk.o
+spec-$(CONFIG_SPEC_UAL) += gncore-dma.o
+spec-$(CONFIG_SPEC_UAL) += gncore-dma.o
 spec-$(CONFIG_GPIOLIB) += spec-gpio.o
 
 wr-nic-y = wr-nic-core.o
@@ -49,7 +59,11 @@ wr-nic-$(CONFIG_GPIOLIB) += wr-nic-gpio.o
 
 
 all modules:
+	ln -sf $(LIBUAL) ../libual
+	rm -f ../libual/kernel/*.o
 	$(MAKE) -C $(LINUX) M=$(shell /bin/pwd) modules
+	rm -f ../libual/kernel/*.o
+	rm -f ../libual
 
 install modules_install:
 	$(MAKE) -C $(LINUX) M=$(shell /bin/pwd) modules_install
@@ -59,3 +73,4 @@ clean:
 	rm -rf *.o *~  .*.cmd *.ko *.mod.c .tmp_versions Module.symvers \
 		Module.markers modules.order
 	rm -rf wr_nic/*.o wr_nic/*~
+	rm -f $(LIBUAL)/kernel/*.o

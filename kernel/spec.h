@@ -14,6 +14,9 @@
 #include <linux/completion.h>
 #include <linux/fmc.h>
 #include <linux/gpio.h>
+#ifdef CONFIG_SPEC_UAL
+#include "ual.h"
+#endif
 
 #define PCI_VENDOR_ID_CERN	0x10dc
 #define PCI_DEVICE_ID_SPEC		0x018d
@@ -23,6 +26,7 @@
 #define SPEC_DEFAULT_LM32_ADDR 0x80000 /* used if "1" is passed */
 
 #define SPEC_NAME_LEN 10
+#define SPEC_FW_NAME_LEN 128
 
 /* Our device structure */
 struct spec_dev {
@@ -39,7 +43,14 @@ struct spec_dev {
 	spinlock_t		irq_lock;
 
 	char                    name[SPEC_NAME_LEN];
+	char                    fwname[SPEC_FW_NAME_LEN];
+
+#ifdef CONFIG_SPEC_UAL
+	struct ual    *ual;
+#endif
+	void *priv_dma; /* private data for DMA engine */
 };
+
 
 #define SPEC_FLAG_FAKE_EEPROM		0x00000001
 #define SPEC_FLAG_IRQS_REQUESTED	0x00000002
@@ -155,5 +166,10 @@ int spec_vic_irq_request(struct spec_dev *spec, struct fmc_device *fmc,
 void spec_vic_irq_free(struct spec_dev *spec, unsigned long id);
 irqreturn_t spec_vic_irq_dispatch(struct spec_dev *spec);
 extern int vic_is_managed(struct vic_irq_controller *vic, unsigned long id);
+
+#ifdef CONFIG_SPEC_UAL
+extern struct ual_op spec_ual_op;
+extern void spec_ual_sdb_info(struct spec_dev *spec);
+#endif
 
 #endif /* __SPEC_H__ */

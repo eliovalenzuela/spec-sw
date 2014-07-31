@@ -132,6 +132,16 @@ irqreturn_t spec_vic_irq_dispatch(struct spec_dev *spec)
 		goto fail;
 
 	vec = &vic->vectors[index];
+
+	/*
+	 * This 'if' may look like a waste of time and someone will have
+	 * the temptation to optimize this with "#ifdef" or "likely()". But,
+	 * even the oldest branch predictor can easily optimize this in few
+	 * runs.
+	 */
+	if (spec->ual)
+		ual_catch_irq(spec->ual, vec->saved_id);
+
 	if (!vec->handler)
 		goto fail;
 
@@ -145,6 +155,7 @@ fail:
 }
 
 /* NOTE: this function must be called while holding irq_lock */
+/* NOTE: it overrides the previous handler if there */
 int spec_vic_irq_request(struct spec_dev *spec, struct fmc_device *fmc,
 			 unsigned long id, irq_handler_t handler)
 {

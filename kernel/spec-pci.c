@@ -24,11 +24,16 @@
 #include "spec.h"
 #include "loader-ll.h"
 
+#include <ual.h>
+
 char *spec_fw_name = "fmc/spec-init.bin";
 module_param_named(fw_name, spec_fw_name, charp, 0444);
 
 int spec_use_msi = 0;
 module_param_named(use_msi, spec_use_msi, int, 0444);
+
+int export_ual = 0;
+module_param_named(export_ual, export_ual, int, 0444);
 
 /* Load the FPGA. This bases on loader-ll.c, a kernel/user space thing */
 int spec_load_fpga(struct spec_dev *spec, const void *data, int size)
@@ -148,6 +153,15 @@ static int spec_probe(struct pci_dev *pdev,
 
 	snprintf(spec->name, SPEC_NAME_LEN, "spec-%04x",
 		 spec->pdev->bus->number << 8 | spec->pdev->devfn);
+	strncpy(spec->fwname, spec_fw_name, SPEC_FW_NAME_LEN);
+
+	if (export_ual) {
+		spec->ual = ual_create(spec->name, &spec_ual_op, spec);
+		if (IS_ERR_OR_NULL(spec->ual)) {
+			spec->ual = NULL;
+			goto out_unmap;
+		}
+	}
 
 	/* Done */
 	pci_set_drvdata(pdev, spec);
@@ -174,6 +188,8 @@ static void spec_remove(struct pci_dev *pdev)
 	int i;
 
 	dev_info(&pdev->dev, "remove\n");
+
+	ual_destroy(spec->ual);
 
 	spec_fmc_destroy(spec);
 	for (i = 0; i < 3; i++) {

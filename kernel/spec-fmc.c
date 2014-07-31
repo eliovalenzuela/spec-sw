@@ -14,7 +14,10 @@
 #include <linux/moduleparam.h>
 #include <linux/gpio.h>
 #include <linux/fmc-sdb.h>
+
 #include "spec.h"
+
+#include <ual.h>
 
 static int spec_test_irq;
 module_param_named(test_irq, spec_test_irq, int, 0444);
@@ -69,7 +72,7 @@ static int spec_reprogram(struct fmc_device *fmc, struct fmc_driver *drv,
 	fmc_free_sdb_tree(fmc);
 	fmc->flags &= ~(FMC_DEVICE_HAS_GOLDEN | FMC_DEVICE_HAS_CUSTOM);
 	ret = spec_load_fpga(spec, fw->data, fw->size);
-	if (ret <0) {
+	if (ret < 0) {
 		dev_err(dev, "write firmware \"%s\": error %i\n", gw, ret);
 		goto out;
 	}
@@ -80,6 +83,9 @@ static int spec_reprogram(struct fmc_device *fmc, struct fmc_driver *drv,
 
 out:
 	release_firmware(fw);
+
+	spec_ual_sdb_info(spec);
+
 	return ret;
 }
 
@@ -129,6 +135,8 @@ static irqreturn_t spec_vic_irq_handler(int id, void *data)
 	return IRQ_HANDLED;
 }
 
+
+
 static struct fmc_gpio spec_vic_gpio_cfg[] = {
 	{
 	 .gpio = FMC_GPIO_IRQ(1),
@@ -175,7 +183,14 @@ static int spec_irq_request(struct fmc_device *fmc, irq_handler_t handler,
 					     ARRAY_SIZE(spec_vic_gpio_cfg));
 		}
 	} else {
-		rv = spec_shared_irq_request(fmc, handler, name, flags);
+		if (spec->ual) {
+			/* Put the UAL IRQ catcher in the middle */
+			spec->ual->tmp_handler = handler;
+			rv = spec_shared_irq_request(fmc, ual_irq_handler,
+						     name, flags);
+		} else {
+			rv = spec_shared_irq_request(fmc, handler, name, flags);
+		}
 		pr_debug("Requesting irq '%s' in shared mode (rv %d)\n", name,
 		       rv);
 	}
@@ -551,6 +566,9 @@ out_free:
 void spec_fmc_destroy(struct spec_dev *spec)
 {
 	/* undo the things in the reverse order, but pin the device first */
+	if (!spec->fmc)
+		return;
+
 	get_device(&spec->fmc->dev);
 	spec_gpio_exit(spec->fmc);
 	fmc_device_unregister(spec->fmc);
