@@ -22,6 +22,8 @@
 
 #define SPEC_DEFAULT_LM32_ADDR 0x80000 /* used if "1" is passed */
 
+#define SPEC_NAME_LEN 10
+
 /* Our device structure */
 struct spec_dev {
 	struct pci_dev		*pdev;
@@ -35,6 +37,8 @@ struct spec_dev {
 	struct gpio_chip	*gpio;
 	struct vic_irq_controller *vic;
 	spinlock_t		irq_lock;
+
+	char                    name[SPEC_NAME_LEN];
 };
 
 #define SPEC_FLAG_FAKE_EEPROM		0x00000001

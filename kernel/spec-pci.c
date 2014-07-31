@@ -144,6 +144,9 @@ static int spec_probe(struct pci_dev *pdev,
 	if (ret)
 		goto out_unmap;
 
+	snprintf(spec->name, SPEC_NAME_LEN, "spec-%04x",
+		 spec->pdev->bus->number << 8 | spec->pdev->devfn);
+
 	/* Done */
 	pci_set_drvdata(pdev, spec);
 	return 0;
