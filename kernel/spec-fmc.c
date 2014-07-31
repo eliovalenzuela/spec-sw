@@ -589,6 +589,7 @@ void spec_fmc_destroy(struct spec_dev *spec)
 	spec_irq_exit(spec->fmc);
 	spec_i2c_exit(spec->fmc);
 	put_device(&spec->fmc->dev);
+	kfree(spec->fmc);
 	spec->fmc = NULL;
 	spec->flags &= ~SPEC_FLAG_FMC_REGISTERED;
 }
