@@ -11,6 +11,7 @@
 extern int loader_low_level(int fd, void __iomem *bar4, const void *, int);
 extern void waitdone_low_level(int fd, void __iomem *bar4);
 extern void gpiofix_low_level(int fd, void __iomem *bar4);
+extern void loader_reset_fpga(int fd, void __iomem *bar4);
 
 
 /* The following part implements a different access rule for user and kernel */

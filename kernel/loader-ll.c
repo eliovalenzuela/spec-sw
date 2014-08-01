@@ -161,3 +161,17 @@ void gpiofix_low_level(int fd, void __iomem *bar4)
 	gpio_out(fd, bar4, GNGPIO_OUTPUT_ENABLE, GPIO_BOOTSEL0, 0);
 	gpio_out(fd, bar4, GNGPIO_OUTPUT_ENABLE, GPIO_BOOTSEL1, 0);
 }
+
+void loader_reset_fpga(int fd, void __iomem *bar4)
+{
+	uint32_t reg;
+
+	/* After reprogramming, reset the FPGA using the gennum register */
+	reg = lll_read(fd, bar4, GNPCI_SYS_CFG_SYSTEM);
+	/*
+	 * This _fucking_ register must be written with extreme care,
+	 * becase some fields are "protected" and some are not. *hate*
+	 */
+	lll_write(fd, bar4, (reg & ~0xffff) | 0x3fff, GNPCI_SYS_CFG_SYSTEM);
+	lll_write(fd, bar4, (reg & ~0xffff) | 0x7fff, GNPCI_SYS_CFG_SYSTEM);
+}

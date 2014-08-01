@@ -12,7 +12,7 @@ extern int loader_low_level(
 	void __iomem *bar4,	/* This is ignored in user space */
 	const void *data,
 	int size8);
-
+extern void loader_reset_fpga(int fd, void __iomem *bar4);
 
 
 
@@ -40,7 +40,7 @@ enum {
 	FCL_TIMER2_1	= FCL_BASE + 0x30,
 	FCL_DBG_STS	= FCL_BASE + 0x34,
 	FCL_FIFO	= 0xE00,
-	PCI_SYS_CFG_SYSTEM = 0x800
+	GNPCI_SYS_CFG_SYSTEM = 0x800
 };
 
 

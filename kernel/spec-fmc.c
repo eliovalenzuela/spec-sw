@@ -45,7 +45,6 @@ static int spec_reprogram(struct fmc_device *fmc, struct fmc_driver *drv,
 	const struct firmware *fw;
 	struct spec_dev *spec = fmc->carrier_data;
 	struct device *dev = fmc->hwdev;
-	uint32_t reg;
 	int ret;
 
 	if (!gw)
@@ -78,15 +77,6 @@ static int spec_reprogram(struct fmc_device *fmc, struct fmc_driver *drv,
 		fmc->flags |= FMC_DEVICE_HAS_GOLDEN;
 	else
 		fmc->flags |= FMC_DEVICE_HAS_CUSTOM;
-
-	/* After reprogramming, reset the FPGA using the gennum register */
-	reg = gennum_readl(spec, GNPCI_SYS_CFG_SYSTEM);
-	/*
-	 * This _fucking_ register must be written with extreme care,
-	 * becase some fields are "protected" and some are not. *hate*
-	 */
-	gennum_writel(spec, (reg & ~0xffff) | 0x3fff, GNPCI_SYS_CFG_SYSTEM);
-	gennum_writel(spec, (reg & ~0xffff) | 0x7fff, GNPCI_SYS_CFG_SYSTEM);
 
 out:
 	release_firmware(fw);

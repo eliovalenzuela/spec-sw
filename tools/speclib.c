@@ -278,6 +278,7 @@ int spec_load_bitstream_buffer(void *card, void *buf, size_t size)
 	rv = loader_low_level(0, p->bar4, buf, size);
 	waitdone_low_level(0, p->bar4);
 	gpiofix_low_level(0, p->bar4);
+	loader_reset_fpga(0, p->bar4);
 
 	return rv;
 }
