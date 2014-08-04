@@ -178,6 +178,23 @@ int spec_vic_irq_request(struct spec_dev *spec, struct fmc_device *fmc,
 	return -EINVAL;
 }
 
+int vic_is_managed(struct vic_irq_controller *vic, unsigned long id)
+{
+	int i, ret;
+
+	if (!vic)
+		return 0;
+
+	for (i = 0; i < VIC_MAX_VECTORS; i++) {
+		if (vic->vectors[i].saved_id != id)
+			continue;
+
+		ret = vic_readl(vic, VIC_REG_IMR) & (1 << i);
+		return !!ret;
+	}
+
+	return 0;
+}
 
 /*
  * vic_handler_count
