@@ -176,6 +176,7 @@ int wrn_ep_open(struct net_device *dev)
 {
 	struct wrn_ep *ep = netdev_priv(dev);
 	unsigned long timerarg = (unsigned long)dev;
+	int prio, prio_map;
 
 	if (WR_IS_NODE) {
 		netif_carrier_on(dev);
@@ -187,6 +188,14 @@ int wrn_ep_open(struct net_device *dev)
 	       | EP_VCR0_QMODE_W(0x3)		/* unqualified port */
 	       | EP_VCR0_PRIO_VAL_W(4),		/* some mid priority */
 		&ep->ep_regs->VCR0);
+
+	/* Write default 802.1Q tag priority to traffic class mapping */
+	prio_map = 0;
+	for(prio=0; prio<8; ++prio) {
+		prio_map |= (0x7 & prio) << (prio*3);
+	}
+	writel(prio_map, &ep->ep_regs->TCAR);
+
 
 	/*
 	 * enable RX timestamping (it has no impact on performance)
