@@ -36,7 +36,6 @@ int spec_load_fpga(struct spec_dev *spec, const void *data, int size)
 	struct device *dev = &spec->pdev->dev;
 	int i, wrote;
 	unsigned long j;
-	uint32_t reg;
 
 	/* loader_low_level is designed to run from user space too */
 	wrote = loader_low_level(0 /* unused fd */,
