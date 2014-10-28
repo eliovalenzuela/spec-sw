@@ -23,13 +23,25 @@
 
 #include "wr-nic.h"
 #include "nic-mem.h"
+
+#if WR_IS_NODE /* Our platform_data is different in node vs switch */
 #include "../spec-nic.h"
+static inline struct wrn_dev *wrn_from_pdev(struct platform_device *pdev)
+{
+	struct wrn_drvdata *drvdata = pdev->dev.platform_data;
+	return drvdata->wrn;
+}
+#else /* WR_IS_SWITCH */
+static inline struct wrn_dev *wrn_from_pdev(struct platform_device *pdev)
+{
+	return pdev->dev.platform_data;
+}
+#endif
 
 /* The remove function is used by probe, so it's not __devexit */
 static int wrn_remove(struct platform_device *pdev)
 {
-	struct wrn_drvdata *drvdata = pdev->dev.platform_data;
-	struct wrn_dev *wrn = drvdata->wrn;
+	struct wrn_dev *wrn = wrn_from_pdev(pdev);
 	int i;
 
 	if (WR_IS_SWITCH) {
@@ -72,8 +84,7 @@ static int __wrn_map_resources(struct platform_device *pdev)
 	int i;
 	struct resource *res;
 	void __iomem *ptr;
-	struct wrn_drvdata *drvdata = pdev->dev.platform_data;
-	struct wrn_dev *wrn = drvdata->wrn;
+	struct wrn_dev *wrn = wrn_from_pdev(pdev);
 
 	/*
 	 * The memory regions are mapped once for all endpoints.
@@ -101,8 +112,7 @@ static int wrn_probe(struct platform_device *pdev)
 {
 	struct net_device *netdev;
 	struct wrn_ep *ep;
-	struct wrn_drvdata *drvdata = pdev->dev.platform_data;
-	struct wrn_dev *wrn = drvdata->wrn;
+	struct wrn_dev *wrn = wrn_from_pdev(pdev);
 	int i, err = 0;
 
 	/* Lazily: irqs are not in the resource list */
