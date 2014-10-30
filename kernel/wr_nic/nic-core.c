@@ -381,8 +381,13 @@ static void __wrn_rx_descriptor(struct wrn_dev *wrn, int desc)
 
 	wrn_ppsg_read_time(wrn, &counter_ppsg, &utc);
 
-	if (counter_ppsg < ts_r)
-		utc--;
+	if (WR_IS_NODE)
+		if (counter_ppsg < ts_r)
+			utc--;
+
+	if (WR_IS_SWITCH)
+		if(counter_ppsg < REFCLK_FREQ/4 && ts_r > 3*REFCLK_FREQ/4)
+			utc--;
 
 	ts.tv_sec = (s32)utc & 0x7fffffff;
 	cntr_diff = (ts_r & 0xf) - ts_f;
@@ -396,13 +401,15 @@ static void __wrn_rx_descriptor(struct wrn_dev *wrn, int desc)
 	       ts.tv_nsec & 0x7fffffff,
 	       ts.tv_sec & 0x80000000 ? 1 :0);
 
-	if (1) {
+	if(WR_IS_NODE){
 		/* SPEC: don't do the strange stuff for wr-ptp */
 		ts.tv_sec &= ~0x80000000;
 		ts.tv_nsec &= 0x7fffffff;
 	}
 
-	if (! (r1 & NIC_RX1_D1_TS_INCORRECT)) {
+	/* If the timestamp was reported as incorrect, pass 0 instead */
+	if (! (r1 & NIC_RX1_D1_TS_INCORRECT)) /* FIXME: bit name possibly? */
+	{
 		hwts = skb_hwtstamps(skb);
 		hwts->hwtstamp = timespec_to_ktime(ts);
 	}
