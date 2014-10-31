@@ -162,7 +162,7 @@ static int wrn_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct wrn_ep *ep = netdev_priv(dev);
 	struct wrn_dev *wrn = ep->wrn;
 	struct skb_shared_info *info = skb_shinfo(skb);
-	//unsigned long flags;
+	unsigned long flags;
 	int desc;
 	int id;
 	int do_stamp = 0;
@@ -176,13 +176,12 @@ static int wrn_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	/* Allocate a descriptor and id (start from last allocated) */
-	//spin_lock_irqsave(&wrn->lock, flags);
+	spin_lock_irqsave(&wrn->lock, flags);
 	desc = __wrn_alloc_tx_desc(wrn);
 	id = (wrn->id++) & 0xffff;
-	if (id == 0)
-		id = wrn->id++; /* 0 cannot be used in the SPEC */
-
-	//spin_unlock_irqrestore(&wrn->lock, flags);
+	if (id == 0) /* 0 cannot be used in the SPEC; irrelevant in WRS */
+		id = wrn->id++;
+	spin_unlock_irqrestore(&wrn->lock, flags);
 
 	if (desc < 0) /* error */
 		return desc;
