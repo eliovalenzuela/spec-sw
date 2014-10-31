@@ -20,6 +20,9 @@
 #include <asm/unaligned.h>
 
 #include "wr-nic.h"
+#if WR_IS_SWITCH
+#include "wr_pstats.h"
+#endif
 #include "nic-mem.h"
 
 /*
@@ -215,13 +218,50 @@ static int wrn_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	return 0;
 }
 
+#if WR_IS_SWITCH
+int (*wr_nic_pstats_callback)(int epnum,
+			      unsigned int ctr[PSTATS_CNT_PP]);
+EXPORT_SYMBOL(wr_nic_pstats_callback);
+
+static unsigned int nic_counters[PSTATS_CNT_PP];
+static DEFINE_SPINLOCK(nic_counters_lock);
+#endif
+
 struct net_device_stats *wrn_get_stats(struct net_device *dev)
 {
 	struct wrn_ep *ep = netdev_priv(dev);
 
-	/* FIXME: we should get the RMON information from endpoint */
+#if WR_IS_SWITCH
+	if (wr_nic_pstats_callback) {
+		int i;
+
+		spin_lock(&nic_counters_lock);
+		wr_nic_pstats_callback(ep->ep_number, nic_counters);
+		if (0) {
+			/* A stupid diagnostics, happens oh so often... */
+			printk(KERN_INFO "counters for %i:", ep->ep_number);
+			for (i = 0; i < PSTATS_CNT_PP; i++)
+				printk(KERN_CONT " %u", nic_counters[i]);
+			printk(KERN_CONT "\n");
+		} else {
+			/* Recover values in the kernel structure */
+			ep->stats.rx_packets =
+				nic_counters[PSTATS_C_R_FRAME];
+			ep->stats.tx_packets =
+				nic_counters[PSTATS_C_T_FRAME];
+			ep->stats.rx_length_errors =
+				nic_counters[PSTATS_C_R_GIANT];
+			ep->stats.rx_crc_errors =
+				nic_counters[PSTATS_C_R_CRC_ERROR];
+			ep->stats.rx_fifo_errors =
+				nic_counters[PSTATS_C_R_OVERRUN];
+			ep->stats.tx_fifo_errors =
+				nic_counters[PSTATS_C_T_UNDERRUN];
+		}
+		spin_unlock(&nic_counters_lock);
+	}
+#endif
 	return &ep->stats;
-	return NULL;
 }
 
 /*
