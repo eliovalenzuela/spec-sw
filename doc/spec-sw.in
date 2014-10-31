@@ -659,6 +659,10 @@ The module receives the following parameters:
 	The name of the LM32 program to load, if any. There is no support
         currently to load different LM32 programs to different cards.
 
+@item macaddr=
+
+	Use given MAC address. If not provided or 0 read MAC from LM32.
+
 @end table
 
 @c ==========================================================================
@@ -742,6 +746,9 @@ following:
 @example
    ifconfig wr0 hw ether 12:34:56:78:9a:bc
 @end example
+
+MAC address can also be set by using @code{macaddr=} parameter 
+at load of @i{wr-nic} kernel module.
 
 The fiber controlled by the SPEC can carry normal data traffic in
 addition to the PTP frames of @i{White Rabbit}, that remain
