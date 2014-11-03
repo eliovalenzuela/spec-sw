@@ -41,6 +41,14 @@ static int wrn_open(struct net_device *dev)
 	if (!is_valid_ether_addr(dev->dev_addr))
 		return -EADDRNOTAVAIL;
 
+	if(WR_IS_SWITCH) {
+		/* MACH gets the first two bytes, MACL the rest  */
+		val = get_unaligned_be16(dev->dev_addr);
+		writel(val, &ep->ep_regs->MACH);
+		val = get_unaligned_be32(dev->dev_addr+2);
+		writel(val, &ep->ep_regs->MACL);
+	}
+
 	/* Mark it as down, and start the ep-specific polling timer */
 	clear_bit(WRN_EP_UP, &ep->ep_flags);
 	wrn_ep_open(dev);
