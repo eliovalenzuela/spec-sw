@@ -447,7 +447,7 @@ static void __wrn_rx_descriptor(struct wrn_dev *wrn, int desc)
 	}
 
 	/* If the timestamp was reported as incorrect, pass 0 instead */
-	if (! (r1 & NIC_RX1_D1_TS_INCORRECT)) {
+	if (!(r1 & NIC_RX1_D1_TS_INCORRECT)) {
 		hwts = skb_hwtstamps(skb);
 		hwts->hwtstamp = timespec_to_ktime(ts);
 	}
