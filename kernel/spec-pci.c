@@ -20,6 +20,7 @@
 #include <linux/pci.h>
 #include <linux/io.h>
 #include <asm/unaligned.h>
+#include <linux/version.h>
 
 #include "spec.h"
 #include "loader-ll.h"
@@ -110,7 +111,11 @@ static int spec_probe(struct pci_dev *pdev,
 		 * This should be "4" but arch/x86/kernel/apic/io_apic.c
 		 * says "x86 doesn't support multiple MSI yet".
 		 */
+		#if LINUX_VERSION_CODE < KERNEL_VERSION(3,16,0)
 		ret = pci_enable_msi_block(pdev, 1);
+		#else
+		ret = pci_enable_msi_exact(pdev, 1);
+		#endif
 		if (ret < 0)
 			dev_err(&pdev->dev, "%s: enable msi block: error %i\n",
 				__func__, ret);
