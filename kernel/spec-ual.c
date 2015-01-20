@@ -20,14 +20,18 @@ void spec_ual_sdb_info(struct spec_dev *spec)
 {
 	int err;
 
+	pr_info("%s:%d\n", __func__, __LINE__);
 	fmc_free_sdb_tree(spec->fmc);
+	pr_info("%s:%d\n", __func__, __LINE__);
 	err = fmc_scan_sdb_tree(spec->fmc, 0);
+	pr_info("%s:%d\n", __func__, __LINE__);
 	if (err) {
 		dev_err(&spec->pdev->dev, "Cannot scan SDB: err %d\n", err);
 	        return;
 	}
 	fmc_show_sdb_tree(spec->fmc);
 
+	pr_info("%s:%d\n", __func__, __LINE__);
 	if (!spec->ual)
 		return;
 
@@ -42,6 +46,8 @@ void spec_ual_sdb_info(struct spec_dev *spec)
 			"GNCORE DMA component is not part of the bitstream\n");
 		spec->priv_dma = NULL;
 	}
+	spec->ual->tree = spec->fmc->sdb;
+	pr_info("%s:%d %p\n", __func__, __LINE__, spec, spec->priv_dma);
 }
 
 static int spec_ual_create(struct ual *ual)
@@ -111,7 +117,7 @@ static int spec_fmc_reload(struct spec_dev *spec)
 	err = spec_load_fpga_file(spec, spec_fw_name);
 	if (err)
 		return err;
-
+	dev_info(&spec->pdev->dev, "%s\n", __func__);
 	/* Create a new FMC device */
         return spec_fmc_create(spec);
 }

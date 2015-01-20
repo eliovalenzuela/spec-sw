@@ -84,7 +84,9 @@ static int spec_reprogram(struct fmc_device *fmc, struct fmc_driver *drv,
 out:
 	release_firmware(fw);
 
+	pr_info("%s:%d\n", __func__, __LINE__);
 	spec_ual_sdb_info(spec);
+	pr_info("%s:%d\n", __func__, __LINE__);
 
 	return ret;
 }
