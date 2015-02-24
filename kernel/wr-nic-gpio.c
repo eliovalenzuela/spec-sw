@@ -9,6 +9,7 @@
  */
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/version.h>
 #include <linux/slab.h>
 #include <linux/gpio.h>
 #include <linux/fmc.h>
@@ -88,13 +89,18 @@ out_free:
 
 void wrn_gpio_exit(struct fmc_device *fmc)
 {
-	int ret;
-
 	struct wrn_drvdata *dd = fmc_get_drvdata(fmc);
 	struct gpio_chip *gc = dd->gc;
+
+#if LINUX_VERSION_CODE > KERNEL_VERSION(3,17,0)
+	gpiochip_remove(gc);
+#else
+	int ret;
+
 	ret = gpiochip_remove(gc);
 	if (ret)
 		dev_err(fmc->hwdev, "DANGER %i! gpio chip can't be removed\n",
 			ret);
+#endif
 	return;
 }
