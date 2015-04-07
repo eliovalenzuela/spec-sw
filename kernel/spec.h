@@ -9,6 +9,7 @@
  */
 #ifndef __SPEC_H__
 #define __SPEC_H__
+#include <linux/miscdevice.h>
 #include <linux/pci.h>
 #include <linux/firmware.h>
 #include <linux/completion.h>
@@ -37,12 +38,14 @@ struct spec_dev {
 	struct gpio_chip	*gpio;
 	struct vic_irq_controller *vic;
 	spinlock_t		irq_lock;
+	struct miscdevice       mdev;
 
 	char                    name[SPEC_NAME_LEN];
 };
 
 #define SPEC_FLAG_FAKE_EEPROM		0x00000001
 #define SPEC_FLAG_IRQS_REQUESTED	0x00000002
+#define SPEC_FLAG_FMC_REGISTERED	0x00000004
 
 /* Registers for GN4124 access */
 enum {
@@ -129,7 +132,7 @@ extern char *spec_fw_name;
 extern int spec_use_msi;
 
 /* Functions in spec-fmc.c, used by spec-pci.c */
-extern int spec_fmc_create(struct spec_dev *spec);
+extern int spec_fmc_create(struct spec_dev *spec, struct fmc_gateware *gw);
 extern void spec_fmc_destroy(struct spec_dev *spec);
 
 /* Functions in spec-i2c.c, used by spec-fmc.c */

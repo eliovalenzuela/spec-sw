@@ -39,11 +39,40 @@ static int spec_validate(struct fmc_device *fmc, struct fmc_driver *drv)
 	return -ENOENT;
 }
 
+static int spec_reprogram_raw(struct fmc_device *fmc, struct fmc_driver *drv,
+			      void *gw, unsigned long len)
+{
+	struct spec_dev *spec = fmc->carrier_data;
+	struct device *dev = fmc->hwdev;
+	int ret;
+
+	if (!gw || !len) {
+		dev_err(dev, "Invalid firmware buffer - buf: %p len: %ld\n",
+			gw, len);
+		return -EINVAL;
+	}
+
+	if (!drv)
+		dev_info(dev, "Carrier FPGA re-program\n");
+
+	fmc_free_sdb_tree(fmc);
+
+	fmc->flags &= ~FMC_DEVICE_HAS_GOLDEN;
+
+	ret = spec_load_fpga(spec, gw, len);
+	if (ret < 0) {
+		dev_err(dev, "writing firmware: error %i\n", ret);
+		return ret;
+	}
+
+	fmc->flags |= FMC_DEVICE_HAS_CUSTOM;
+	return 0;
+}
+
 static int spec_reprogram(struct fmc_device *fmc, struct fmc_driver *drv,
 			  char *gw)
 {
 	const struct firmware *fw;
-	struct spec_dev *spec = fmc->carrier_data;
 	struct device *dev = fmc->hwdev;
 	int ret;
 
@@ -66,17 +95,15 @@ static int spec_reprogram(struct fmc_device *fmc, struct fmc_driver *drv,
 		dev_warn(dev, "request firmware \"%s\": error %i\n", gw, ret);
 		goto out;
 	}
-	fmc_free_sdb_tree(fmc);
-	fmc->flags &= ~(FMC_DEVICE_HAS_GOLDEN | FMC_DEVICE_HAS_CUSTOM);
-	ret = spec_load_fpga(spec, fw->data, fw->size);
+
+	ret = spec_reprogram_raw(fmc, drv, (void *)fw->data, fw->size);
 	if (ret <0) {
 		dev_err(dev, "write firmware \"%s\": error %i\n", gw, ret);
 		goto out;
 	}
+
 	if (gw == spec_fw_name)
 		fmc->flags |= FMC_DEVICE_HAS_GOLDEN;
-	else
-		fmc->flags |= FMC_DEVICE_HAS_CUSTOM;
 
 out:
 	release_firmware(fw);
@@ -370,6 +397,7 @@ static int spec_write_ee(struct fmc_device *fmc, int pos,
 static struct fmc_operations spec_fmc_operations = {
 	/* no readl/writel because we have the base pointer */
 	.validate =		spec_validate,
+	.reprogram_raw =        spec_reprogram_raw,
 	.reprogram =		spec_reprogram,
 	.irq_request =		spec_irq_request,
 	.irq_ack =		spec_irq_ack,
@@ -491,7 +519,7 @@ static int check_golden(struct fmc_device *fmc)
 }
 
 
-int spec_fmc_create(struct spec_dev *spec)
+int spec_fmc_create(struct spec_dev *spec, struct fmc_gateware *gw)
 {
 	struct fmc_device *fmc;
 	struct pci_dev *pdev;
@@ -534,10 +562,12 @@ int spec_fmc_create(struct spec_dev *spec)
 	ret = spec_irq_init(fmc);
 	if (ret)
 		goto out_free;
-	ret = fmc_device_register(fmc);
+	ret = fmc_device_register_gw(fmc, gw);
 	if (ret)
 		goto out_irq;
 	spec_gpio_init(fmc); /* May fail, we don't care */
+
+	spec->flags |= SPEC_FLAG_FMC_REGISTERED;
 	return ret;
 
 out_irq:
@@ -550,6 +580,8 @@ out_free:
 
 void spec_fmc_destroy(struct spec_dev *spec)
 {
+	if (!(spec->flags & SPEC_FLAG_FMC_REGISTERED))
+		return;
 	/* undo the things in the reverse order, but pin the device first */
 	get_device(&spec->fmc->dev);
 	spec_gpio_exit(spec->fmc);
@@ -558,4 +590,5 @@ void spec_fmc_destroy(struct spec_dev *spec)
 	spec_i2c_exit(spec->fmc);
 	put_device(&spec->fmc->dev);
 	spec->fmc = NULL;
+	spec->flags &= ~SPEC_FLAG_FMC_REGISTERED;
 }

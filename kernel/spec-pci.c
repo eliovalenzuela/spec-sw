@@ -21,6 +21,7 @@
 #include <linux/io.h>
 #include <asm/unaligned.h>
 #include <linux/version.h>
+#include <linux/fs.h>
 
 #include "spec.h"
 #include "loader-ll.h"
@@ -87,6 +88,87 @@ int spec_load_fpga_file(struct spec_dev *spec, char *name)
         return err;
 }
 
+static int spec_reconfigure(struct spec_dev *spec, struct fmc_gateware *gw)
+{
+	int ret;
+
+	if (spec->flags & SPEC_FLAG_FMC_REGISTERED)
+		spec_fmc_destroy(spec);
+
+	/* Load the golden FPGA binary to read the eeprom */
+	ret = spec_load_fpga_file(spec, spec_fw_name);
+	if (ret)
+		return ret;
+
+	return spec_fmc_create(spec, gw);
+}
+
+/* * * * * * MISC DEVICE * * * * * */
+static int spec_mdev_simple_open(struct inode *inode, struct file *file)
+{
+	struct miscdevice *mdev_ptr = file->private_data;
+
+	file->private_data = container_of(mdev_ptr, struct spec_dev, mdev);
+
+	return 0;
+}
+
+static ssize_t spec_mdev_write_raw(struct file *f, const char __user *buf,
+				   size_t count, loff_t *offp)
+{
+	struct spec_dev *spec = f->private_data;
+	struct fmc_gateware gw;
+	int err = 0;
+
+	if (!count)
+		return -EINVAL;
+
+	/* Copy FPGA bitstream to kernel space */
+	gw.len = count;
+	gw.bitstream = vmalloc(count);
+	if (!gw.bitstream)
+		return -ENOMEM;
+	if (copy_from_user(gw.bitstream, buf, gw.len)) {
+		err = -EFAULT;
+		goto out;
+	}
+
+	dev_dbg(&spec->pdev->dev, "writing FPGA %p %ld (%zu + %lld)\n",
+		gw.bitstream, gw.len, count, *offp);
+	/* Program FPGA */
+	err = spec_reconfigure(spec, &gw);
+	if (err)
+		dev_err(&spec->pdev->dev,
+			"Manually program FPGA bitstream from buffer: fail\n");
+	else
+		dev_info(&spec->pdev->dev,
+			 "Manually program FPGA bitstream from buffer: success\n");
+out:
+	vfree(gw.bitstream);
+	return err ? err : count;
+}
+
+static const struct file_operations spec_fops = {
+	.owner = THIS_MODULE,
+	.open = spec_mdev_simple_open,
+	.write  = spec_mdev_write_raw,
+};
+
+static int spec_create_misc_device(struct spec_dev *spec)
+{
+	spec->mdev.minor = MISC_DYNAMIC_MINOR;
+	spec->mdev.fops = &spec_fops;
+	spec->mdev.name = spec->name;
+
+	return misc_register(&spec->mdev);
+}
+
+static void spec_destroy_misc_device(struct spec_dev *spec)
+{
+	misc_deregister(&spec->mdev);
+}
+/* * * * * * END MISC DEVICE * * * * */
+
 static int spec_probe(struct pci_dev *pdev,
 				const struct pci_device_id *id)
 {
@@ -142,12 +224,7 @@ static int spec_probe(struct pci_dev *pdev,
 	gennum_mask_val(spec, 0xfc0, 0xfc0, GNGPIO_DIRECTION_MODE); /* input */
 	gennum_writel(spec, 0xffff, GNGPIO_INT_MASK_SET); /* disable */
 
-	/* Load the golden FPGA binary to read the eeprom */
-	ret = spec_load_fpga_file(spec, spec_fw_name);
-	if (ret)
-		goto out_unmap;
-
-	ret = spec_fmc_create(spec);
+	ret = spec_reconfigure(spec, NULL);
 	if (ret)
 		goto out_unmap;
 
@@ -156,8 +233,17 @@ static int spec_probe(struct pci_dev *pdev,
 
 	/* Done */
 	pci_set_drvdata(pdev, spec);
+
+	ret = spec_create_misc_device(spec);
+	if (ret) {
+		dev_err(&spec->pdev->dev, "Error creating misc device\n");
+		goto failed_misc;
+	}
+
 	return 0;
 
+failed_misc:
+	spec_fmc_destroy(spec);
 out_unmap:
 	for (i = 0; i < 3; i++) {
 		if (spec->remap[i])
@@ -180,6 +266,7 @@ static void spec_remove(struct pci_dev *pdev)
 
 	dev_info(&pdev->dev, "remove\n");
 
+	spec_destroy_misc_device(spec);
 	spec_fmc_destroy(spec);
 	for (i = 0; i < 3; i++) {
 		if (spec->remap[i])
