@@ -1,8 +1,8 @@
-
 LINUX ?= /lib/modules/$(shell uname -r)/build
 
-FMC_DRV ?= $(shell ../check-fmc-bus)
-export FMC_DRV
+# by default use the fmc-bus within the repository
+FMC_BUS ?= $(shell pwd)/../fmc-bus/
+FMC_DRV ?= $(FMC_BUS)/kernel/
 
 KBUILD_EXTRA_SYMBOLS := $(FMC_DRV)/Module.symvers
 
