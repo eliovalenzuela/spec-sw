@@ -79,7 +79,6 @@ static int scan_pulse(int argc, char **argv)
 		return -1;
 	}
 	if (sscanf(argv[1], "%hi%c", &cmd->channel, &c) != 1
-		|| cmd->channel < 0
 		|| cmd->channel > 4) {
 		fprintf(stderr, "%s: %s: not a channel number \"%s\"\n",
 			prgname, argv[0], argv[1]);
