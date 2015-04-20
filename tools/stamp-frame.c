@@ -21,6 +21,11 @@
 
 #include "net_tstamp.h" /* Actually, <linux/net_tstamp.h> */
 
+#ifndef SO_TIMESTAMPNS
+# define SO_TIMESTAMPNS 35
+# define SCM_TIMESTAMPNS            SO_TIMESTAMPNS
+#endif
+
 #ifndef SO_TIMESTAMPING
 # define SO_TIMESTAMPING         37
 # define SCM_TIMESTAMPING        SO_TIMESTAMPING
