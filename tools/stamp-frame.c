@@ -168,7 +168,7 @@ static void __collect_data(struct msghdr *msgp, struct ts_data *tstamp)
 	for (cm = CMSG_FIRSTHDR(msgp); cm; cm = CMSG_NXTHDR(msgp, cm)) {
 		tsptr = (struct timespec *)CMSG_DATA(cm);
 		if (0) {
-			printf("level %i, type %i, len %li\n", cm->cmsg_level,
+			printf("level %i, type %i, len %zi\n", cm->cmsg_level,
 			       cm->cmsg_type, cm->cmsg_len);
 		}
 		if (cm->cmsg_level != SOL_SOCKET)
