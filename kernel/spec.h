@@ -35,6 +35,7 @@ struct spec_dev {
 	unsigned long		flags;		/* see below */
 	struct list_head	list;
 	struct fmc_device	*fmc;
+  	struct fmc_device	*fmc_wrnc; /* HACK: REMOVE ME when we move to SDB-bus */
 	int			irq_count;	/* for mezzanine use too */
 	struct completion	compl;
 	struct gpio_chip	*gpio;
