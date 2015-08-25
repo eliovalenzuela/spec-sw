@@ -15,7 +15,10 @@ else
   ccflags-y += -DCERN_SUPER_MODULE=""
 endif
 
-ccflags-y += -I$(src)/include -I$(FMC_DRV)/include
+# The library includes <sdb.h>, so point -I directtly there
+# include our header before to avoid conflicts with the kernel
+LINUXINCLUDE :=  -I$(FMC_DRV)/include -I$(src)/include/linux $(LINUXINCLUDE)
+ccflags-y += -I$(src)/include
 ccflags-y += $(WR_NIC_CFLAGS)
 ccflags-y += -DGIT_VERSION=\"$(GIT_VERSION)\"
 
