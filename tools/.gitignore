@@ -10,3 +10,6 @@ wr-dio-agent
 wr-dio-ruler
 stamp-frame
 Makefile.specific
+libflash.a
+flash-write
+flash-read
