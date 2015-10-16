@@ -24,7 +24,7 @@ all: $(LIB) $(PROGS) $(LIBSHARED)
 $(PROGS): $(LIB)
 
 $(LIB): $(LIBOBJ)
-	ar r $@ $^
+	$(AR) r $@ $^
 
 loader-ll.o:	../kernel/loader-ll.c
 		${CC} $(CFLAGS) -c $^ -I .
