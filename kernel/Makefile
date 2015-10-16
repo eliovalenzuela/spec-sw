@@ -4,7 +4,10 @@ LINUX ?= /lib/modules/$(shell uname -r)/build
 FMC_BUS ?= $(shell pwd)/../fmc-bus/
 FMC_DRV ?= $(FMC_BUS)/kernel/
 
-GIT_VERSION = $(shell cd $(src); git describe --dirty --long --tags)
+export FMC_DRV
+
+GIT_VERSION = $(shell git describe --dirty --long --tags)
+export GIT_VERSION
 
 all modules:
 	$(MAKE) -C $(LINUX) M=$(shell /bin/pwd) modules
