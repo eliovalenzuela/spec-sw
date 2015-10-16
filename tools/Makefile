@@ -3,6 +3,10 @@
 # build a particular environment.
 -include Makefile.specific
 
+# include parent_common.mk for buildsystem's defines
+REPO_PARENT=../..
+-include $(REPO_PARENT)/parent_common.mk
+
 CFLAGS += -ggdb -Wall -fPIC -I../kernel $(EXTRACFLAGS)
 LDFLAGS += -L. -lspec
 

@@ -1,3 +1,8 @@
+# include parent_common.mk for buildsystem's defines
+#use absolute path for REPO_PARENT
+REPO_PARENT=$(shell /bin/pwd)/..
+-include $(REPO_PARENT)/parent_common.mk
+
 # by default use the fmc-bus within the repository
 FMC_BUS ?= $(shell pwd)/fmc-bus/
 export FMC_BUS
