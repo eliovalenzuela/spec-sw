@@ -1,0 +1,43 @@
+KBUILD_EXTRA_SYMBOLS := $(FMC_DRV)/Module.symvers
+
+# For this CSM_VERSION, please see ohwr.org/csm documentation
+ifdef CONFIG_CSM_VERSION
+  ccflags-y += -D"CERN_SUPER_MODULE=MODULE_VERSION(\"$(CONFIG_CSM_VERSION)\")"
+else
+  ccflags-y += -DCERN_SUPER_MODULE=""
+endif
+
+# The library includes <sdb.h>, so point -I directtly there
+# include our header before to avoid conflicts with the kernel
+LINUXINCLUDE :=  -I$(FMC_DRV)/include -I$(src)/include/linux $(LINUXINCLUDE)
+ccflags-y += -I$(src)/include
+ccflags-y += $(WR_NIC_CFLAGS)
+ccflags-y += -DGIT_VERSION=\"$(GIT_VERSION)\"
+
+
+# this is a bad hack. Sometimes we are a submodule, and wr-nic can
+# only compile with recent versions, so let the caller disable it
+# FIXME: this is incorrect if we get copied to the kernel proper.
+CONFIG_WR_NIC ?= m
+
+obj-m += spec.o
+obj-$(CONFIG_WR_NIC) += wr-nic.o
+
+spec-y = spec-pci.o
+spec-y += spec-fmc.o
+spec-y += spec-i2c.o
+spec-y += spec-vic.o
+spec-y += loader-ll.o
+spec-y += spec-gpio-no.o
+spec-$(CONFIG_GPIOLIB) += spec-gpio.o
+
+wr-nic-y = wr-nic-core.o
+wr-nic-y += wr-nic-eth.o
+wr-nic-y += wr-nic-dio.o
+wr-nic-y += wr_nic/device.o
+wr-nic-y += wr_nic/endpoint.o
+wr-nic-y += wr_nic/ethtool.o
+wr-nic-y += wr_nic/nic-core.o
+wr-nic-y += wr_nic/timestamp.o
+wr-nic-y += wr_nic/pps.o
+wr-nic-$(CONFIG_GPIOLIB) += wr-nic-gpio.o
