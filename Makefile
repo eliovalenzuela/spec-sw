@@ -6,6 +6,9 @@ REPO_PARENT=$(shell /bin/pwd)/..
 # by default use the fmc-bus within the repository
 FMC_BUS ?= $(shell pwd)/fmc-bus/
 export FMC_BUS
+# FMC_BUS_ABS has to be absolut path, due to beeing passed to the Kbuild
+FMC_BUS_ABS ?= $(abspath $(FMC_BUS) )
+export FMC_BUS_ABS
 
 RUNME := $(shell test -d $(FMC_DRV) || git submodule update --init)
 

@@ -7,16 +7,14 @@ LINUX ?= /lib/modules/$(shell uname -r)/build
 
 # by default use the fmc-bus within the repository
 FMC_BUS ?= $(shell pwd)/../fmc-bus/
-# FMC_DRV has to be absolut path, due to beeing passed to the Kbuild
-FMC_DRV = $(shell realpath -f $(FMC_DRV) )
-
-export FMC_BUS
+# FMC_BUS_ABS has to be absolut path, due to beeing passed to the Kbuild
+FMC_BUS_ABS ?= $(abspath $(FMC_BUS) )
 
 GIT_VERSION = $(shell git describe --dirty --long --tags)
 export GIT_VERSION
 
 all modules:
-	$(MAKE) -C $(LINUX) M=$(shell /bin/pwd) modules
+	$(MAKE) -C $(LINUX) M=$(shell /bin/pwd) FMC_BUS_ABS=$(FMC_BUS_ABS) modules
 
 install modules_install:
 	$(MAKE) -C $(LINUX) M=$(shell /bin/pwd) modules_install
