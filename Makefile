@@ -10,8 +10,6 @@ export FMC_BUS
 FMC_BUS_ABS ?= $(abspath $(FMC_BUS) )
 export FMC_BUS_ABS
 
-RUNME := $(shell test -d $(FMC_DRV) || git submodule update --init)
-
 DIRS = $(FMC_BUS) kernel tools
 
 .PHONY: all clean modules install modules_install $(DIRS)
@@ -25,5 +23,11 @@ modules_install: TARGET = modules_install
 
 $(DIRS):
 	$(MAKE) -C $@ $(TARGET)
+
+$(FMC_BUS): fmc-bus-init_repo
+
+# init submodule if missing
+fmc-bus-init_repo:
+	@test -d $(FMC_BUS)/doc || ( echo "Checking out submodule $(FMC_BUS)"; git submodule update --init $(FMC_BUS) )
 
 kernel: $(FMC_BUS)
