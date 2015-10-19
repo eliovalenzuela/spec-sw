@@ -1,4 +1,4 @@
-KBUILD_EXTRA_SYMBOLS := $(FMC_DRV)/Module.symvers
+KBUILD_EXTRA_SYMBOLS := $(FMC_BUS)/kernel/Module.symvers
 
 # For this CSM_VERSION, please see ohwr.org/csm documentation
 ifdef CONFIG_CSM_VERSION
@@ -9,7 +9,7 @@ endif
 
 # The library includes <sdb.h>, so point -I directtly there
 # include our header before to avoid conflicts with the kernel
-LINUXINCLUDE :=  -I$(FMC_DRV)/include -I$(src)/include/linux $(LINUXINCLUDE)
+LINUXINCLUDE :=  -I$(FMC_BUS)/kernel/include -I$(src)/include/linux $(LINUXINCLUDE)
 ccflags-y += -I$(src)/include
 ccflags-y += $(WR_NIC_CFLAGS)
 ccflags-y += -DGIT_VERSION=\"$(GIT_VERSION)\"
