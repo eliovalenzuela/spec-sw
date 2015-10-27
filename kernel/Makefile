@@ -13,6 +13,9 @@ FMC_BUS_ABS ?= $(abspath $(FMC_BUS) )
 GIT_VERSION = $(shell git describe --dirty --long --tags)
 export GIT_VERSION
 
+FMC_BUS_VERSION ?= $(shell cd $(FMC_BUS_ABS); git describe --always --dirty --long --tags)
+export FMC_BUS_VERSION
+
 all modules:
 	$(MAKE) -C $(LINUX) M=$(shell /bin/pwd) FMC_BUS_ABS=$(FMC_BUS_ABS) modules
 
