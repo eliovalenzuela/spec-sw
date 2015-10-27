@@ -8,7 +8,6 @@ REPO_PARENT=../..
 -include $(REPO_PARENT)/parent_common.mk
 
 CFLAGS += -ggdb -Wall -fPIC -I../kernel $(EXTRACFLAGS)
-LDFLAGS += -L. -lspec
 
 LIB = libspec.a
 LIBOBJ = speclib.o loader-ll.o
@@ -30,7 +29,7 @@ loader-ll.o:	../kernel/loader-ll.c
 		${CC} $(CFLAGS) -c $^ -I .
 
 $(LIBSHARED): $(LIB)
-	${CC} -shared -o $@ -Wl,--whole-archive $^ -Wl,--no-whole-archive
+	$(CC) -shared -o $@ -Wl,--whole-archive $^ -Wl,--no-whole-archive
 
 
 clean:
