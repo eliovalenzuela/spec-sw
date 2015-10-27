@@ -4,13 +4,12 @@ REPO_PARENT=$(shell /bin/pwd)/..
 -include $(REPO_PARENT)/parent_common.mk
 
 # by default use the fmc-bus within the repository
-FMC_BUS ?= $(shell pwd)/fmc-bus/
-export FMC_BUS
+FMC_BUS ?= fmc-bus
 # FMC_BUS_ABS has to be absolut path, due to beeing passed to the Kbuild
 FMC_BUS_ABS ?= $(abspath $(FMC_BUS) )
 export FMC_BUS_ABS
 
-DIRS = $(FMC_BUS) kernel tools
+DIRS = $(FMC_BUS_ABS) kernel tools
 
 .PHONY: all clean modules install modules_install $(DIRS)
 
@@ -24,10 +23,10 @@ modules_install: TARGET = modules_install
 $(DIRS):
 	$(MAKE) -C $@ $(TARGET)
 
-$(FMC_BUS): fmc-bus-init_repo
+$(FMC_BUS_ABS): fmc-bus-init_repo
 
 # init submodule if missing
 fmc-bus-init_repo:
-	@test -d $(FMC_BUS)/doc || ( echo "Checking out submodule $(FMC_BUS)"; git submodule update --init $(FMC_BUS) )
+	@test -d $(FMC_BUS_ABS)/doc || ( echo "Checking out submodule $(FMC_BUS_ABS)"; git submodule update --init $(FMC_BUS_ABS) )
 
-kernel: $(FMC_BUS)
+kernel: $(FMC_BUS_ABS)
