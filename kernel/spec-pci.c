@@ -22,6 +22,7 @@
 #include <asm/unaligned.h>
 #include <linux/version.h>
 #include <linux/fs.h>
+#include <linux/vmalloc.h>
 
 #include "spec.h"
 #include "loader-ll.h"
