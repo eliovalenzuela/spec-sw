@@ -150,6 +150,7 @@ static irqreturn_t spec_vic_irq_handler(int id, void *data)
 	 */
 	spin_lock(&spec->irq_lock);
 	rv = spec_vic_irq_dispatch(spec);
+	spec_vic_irq_ack(spec, 0);
 	spin_unlock(&spec->irq_lock);
 
 	spec_shared_irq_ack(fmc);

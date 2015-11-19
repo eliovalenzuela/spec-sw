@@ -158,6 +158,7 @@ int spec_vic_irq_request(struct spec_dev *spec, struct fmc_device *fmc,
 			 unsigned long id, irq_handler_t handler);
 void spec_vic_irq_free(struct spec_dev *spec, unsigned long id);
 irqreturn_t spec_vic_irq_dispatch(struct spec_dev *spec);
+extern void spec_vic_irq_ack(struct spec_dev *spec, unsigned long id);
 extern int vic_is_managed(struct vic_irq_controller *vic, unsigned long id);
 
 #endif /* __SPEC_H__ */

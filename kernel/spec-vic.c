@@ -137,7 +137,6 @@ irqreturn_t spec_vic_irq_dispatch(struct spec_dev *spec)
 
 	rv = vec->handler(vec->saved_id, vec->requestor);
 
-	vic_writel(vic, 0, VIC_REG_EOIR);	/* ack the irq */
 	return rv;
 
 fail:
@@ -237,5 +236,5 @@ void spec_vic_irq_free(struct spec_dev *spec, unsigned long id)
 
 void spec_vic_irq_ack(struct spec_dev *spec, unsigned long id)
 {
-	/* fixme: do we need anything special here? */
+	vic_writel(spec->vic, 0, VIC_REG_EOIR);	/* ack the irq */
 }
