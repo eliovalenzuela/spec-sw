@@ -3,8 +3,11 @@
 # build a particular environment.
 -include Makefile.specific
 
+# include parent_common.mk for buildsystem's defines
+REPO_PARENT=../..
+-include $(REPO_PARENT)/parent_common.mk
+
 CFLAGS += -ggdb -Wall -fPIC -I../kernel $(EXTRACFLAGS)
-LDFLAGS += -L. -lspec
 
 LIB = libspec.a
 LIBOBJ = speclib.o loader-ll.o
@@ -20,13 +23,13 @@ all: $(LIB) $(PROGS) $(LIBSHARED)
 $(PROGS): $(LIB)
 
 $(LIB): $(LIBOBJ)
-	ar r $@ $^
+	$(AR) r $@ $^
 
 loader-ll.o:	../kernel/loader-ll.c
 		${CC} $(CFLAGS) -c $^ -I .
 
 $(LIBSHARED): $(LIB)
-	${CC} -shared -o $@ -Wl,--whole-archive $^ -Wl,--no-whole-archive
+	$(CC) -shared -o $@ -Wl,--whole-archive $^ -Wl,--no-whole-archive
 
 
 clean:
