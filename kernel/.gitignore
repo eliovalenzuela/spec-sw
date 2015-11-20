@@ -2,6 +2,8 @@
 Module.symvers
 modules.order
 *.mod.c
+*.mod.d
+*.tmp
 .*.cmd
 .tmp_versions
 .*.o.d
