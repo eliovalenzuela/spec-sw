@@ -150,10 +150,18 @@ static irqreturn_t spec_vic_irq_handler(int id, void *data)
 	 */
 	spin_lock(&spec->irq_lock);
 	rv = spec_vic_irq_dispatch(spec);
+
+	/*
+	 * We ack the GN4124 **before** the VIC. The other way around makes the
+	 * interrupt handling timing dependent. For instance. When the VIC
+	 * VIC_CTL_EMU_LEN_W is too short it may happens that the VIC asserts
+	 * the interrupt **before** the GN4124 is acked; then, so do not receive
+	 * interrupts anymore from the GN4124 because it misses the VIC edge.
+	 */
+	spec_shared_irq_ack(fmc);
 	spec_vic_irq_ack(spec, 0);
 	spin_unlock(&spec->irq_lock);
 
-	spec_shared_irq_ack(fmc);
 	return IRQ_HANDLED;
 }
 
