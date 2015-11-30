@@ -15,13 +15,21 @@
 
 #include "speclib.h"
 
+static char git_version[] = "version: " GIT_VERSION;
+
 void help(char *name)
 {
 	fprintf(stderr,
-		"Use: \"%s [-b bus] [-d devfn] [-g] <offset> [<value>]\"\n",
+		"Use: \"%s [-V] [-b bus] [-d devfn] [-g] <offset> [<value>]\"\n",
 		name);
 	fprintf(stderr, "By default, the first available SPEC is used.\n");
 	exit(1);
+}
+
+static void print_version(char *pname)
+{
+	printf("%s %s\n", pname, git_version);
+	printf("%s\n", libspec_version_s);
 }
 
 int main(int argc, char **argv)
@@ -35,7 +43,7 @@ int main(int argc, char **argv)
 	void *map_base;
 	char *end;
 
-	while ((c = getopt (argc, argv, "b:d:g")) != -1)
+	while ((c = getopt (argc, argv, "b:d:gV")) != -1)
 	{
 		switch(c)
 		{
@@ -48,6 +56,9 @@ int main(int argc, char **argv)
 		case 'g':
 			bar = BASE_BAR4;
 			break;
+		case 'V':
+			print_version(argv[0]);
+			exit(0);
 		default:
 			help(argv[0]);
 		}

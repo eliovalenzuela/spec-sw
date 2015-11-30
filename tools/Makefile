@@ -7,7 +7,9 @@
 REPO_PARENT=../..
 -include $(REPO_PARENT)/parent_common.mk
 
+GIT_VERSION := $(shell git describe --dirty --long --tags)
 CFLAGS += -ggdb -Wall -fPIC -I../kernel $(EXTRACFLAGS)
+CFLAGS += -DGIT_VERSION=\"$(GIT_VERSION)\"
 
 LIB = libspec.a
 LIBOBJ = speclib.o loader-ll.o

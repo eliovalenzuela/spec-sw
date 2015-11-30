@@ -9,6 +9,14 @@
 
 #include "speclib.h"
 
+static char git_version[] = "version: " GIT_VERSION;
+
+static void print_version(char *pname)
+{
+	printf("%s %s\n", pname, git_version);
+	printf("%s\n", libspec_version_s);
+}
+
 int main(int argc, char **argv)
 {
 	int bus = -1, dev_fn = -1, c;
@@ -16,7 +24,7 @@ int main(int argc, char **argv)
 	void *card;
 
 
-	while ((c = getopt (argc, argv, "b:d:c:")) != -1)
+	while ((c = getopt (argc, argv, "b:d:c:V")) != -1)
 	{
 		switch(c)
 		{
@@ -29,9 +37,12 @@ int main(int argc, char **argv)
 		case 'c':
 			sscanf(optarg, "%i", &lm32_base);
 			break;
+		case 'V':
+			print_version(argv[0]);
+			exit(0);
 		default:
 			fprintf(stderr,
-				"Use: \"%s [-b bus] [-d devfn] "
+				"Use: \"%s [-V] [-b bus] [-d devfn] "
 				"[-c lm32 base address] <lm32_program.bin>\"\n",
 				argv[0]);
 			fprintf(stderr,

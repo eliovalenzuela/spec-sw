@@ -39,6 +39,8 @@
 # define ETH_P_1588   0x88F7
 #endif
 
+static char git_version[] = "version: " GIT_VERSION;
+
 /* This structure is used to collect stamping information */
 struct ts_data {
 	struct timespec ns;
@@ -400,6 +402,11 @@ void recv_one_with_followup(int sock, struct frame *f, unsigned char *mac,
 
 }
 
+static void print_version(char *pname)
+{
+	printf("%s %s\n", pname, git_version);
+}
+
 int main(int argc, char **argv)
 {
 	static struct frame f;
@@ -408,6 +415,11 @@ int main(int argc, char **argv)
 	int listenmode = 0;
 	int howto = SOF_TIMESTAMPING_MASK; /* everything */
 
+	if ((argc == 2) && (!strcmp(argv[1], "-V"))) {
+		print_version(argv[0]);
+		exit(0);
+	}
+	
 	/* From ./net_tstamp.h, these are the "howto" values
 	 *
 	 * SOF_TIMESTAMPING_TX_HARDWARE = 1,
@@ -424,7 +436,7 @@ int main(int argc, char **argv)
 		argc--;
 	}
 	if (argc != 2) {
-		fprintf(stderr, "%s: Use \"%s <ifname> [listen]\n", argv[0],
+		fprintf(stderr, "%s: Use \"%s [-V] <ifname> [listen]\n", argv[0],
 			argv[0]);
 		exit(1);
 	}

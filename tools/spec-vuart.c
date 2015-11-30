@@ -14,6 +14,14 @@
 
 #include "speclib.h"
 
+static char git_version[] = "version: " GIT_VERSION;
+
+static void print_version(char *pname)
+{
+	printf("%s %s\n", pname, git_version);
+	printf("%s\n", libspec_version_s);
+}
+
 static void *card;
 
 static int transfer_byte(int from, int is_control) {
@@ -89,7 +97,7 @@ int main(int argc, char **argv)
 	uint32_t vuart_base = 0x20500;
 	int keep_term = 0;
 
-	while ((c = getopt (argc, argv, "b:d:u:k")) != -1)
+	while ((c = getopt (argc, argv, "b:d:u:kV")) != -1)
 	{
 		switch(c)
 		{
@@ -105,9 +113,12 @@ int main(int argc, char **argv)
 		case 'k':
 			keep_term = 1;
 			break;
+		case 'V':
+			print_version(argv[0]);
+			exit(0);
 		default:
 			fprintf(stderr,
-				"Use: \"%s [-b bus] [-d devfn] "
+				"Use: \"%s [-V] [-b bus] [-d devfn] "
 				"[-u VUART base] [-k]\"\n", argv[0]);
 			fprintf(stderr,
 				"By default, the first available SPEC "

@@ -19,6 +19,8 @@
 #include "loader-ll.h"
 #include "wb_uart.h"
 
+const char * const libspec_version_s = "libspec version: " GIT_VERSION;
+
 struct spec_private {
 	/* BAR0 maps the local bus (i.e. we can access FGPA register) */
 	void *bar0;

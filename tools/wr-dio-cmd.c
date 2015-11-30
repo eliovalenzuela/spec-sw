@@ -23,6 +23,8 @@
 #include "wr_nic/wr-nic.h"
 #include "wr-dio.h"
 
+static char git_version[] = "version: " GIT_VERSION;
+
 char *prgname;
 char c;
 int sock;
@@ -306,17 +308,28 @@ static int scan_inout(int argc, char **argv)
 	return 0;
 }
 
+static void print_version(char *pname)
+{
+	printf("%s %s\n", pname, git_version);
+}
+
 int main(int argc, char **argv)
 {
 
 	prgname = argv[0];
 	argv++, argc--;
 
+	if ((argc == 2) && (!strcmp(argv[1], "-V"))) {
+		print_version(argv[0]);
+		exit(0);
+	}
+
 	if (argc < 2) {
-		fprintf(stderr, "%s: use \"%s <netdev> <cmd> [...]\"\n",
+		fprintf(stderr, "%s: use \"%s [-V] <netdev> <cmd> [...]\"\n",
 			prgname, prgname);
 		exit(1);
 	}
+
 	ifname = argv[0];
 	argv++, argc--;
 

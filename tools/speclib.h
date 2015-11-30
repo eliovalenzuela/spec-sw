@@ -49,4 +49,6 @@ enum {
 	BASE_BAR4 = 4	/* for gennum-internal registers */
 };
 
+/* libspec version string */
+extern const char * const libspec_version_s;
 #endif

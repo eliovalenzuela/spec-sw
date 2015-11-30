@@ -9,12 +9,20 @@
 
 #include "speclib.h"
 
+static char git_version[] = "version: " GIT_VERSION;
+
+static void print_version(char *pname)
+{
+	printf("%s %s\n", pname, git_version);
+	printf("%s\n", libspec_version_s);
+}
+
 int main(int argc, char **argv)
 {
 	int bus = -1, dev_fn = -1, c;
 	void *card;
 
-	while ((c = getopt (argc, argv, "b:d:")) != -1)
+	while ((c = getopt (argc, argv, "b:d:V")) != -1)
 	{
 		switch(c)
 		{
@@ -24,9 +32,12 @@ int main(int argc, char **argv)
 		case 'd':
 			sscanf(optarg, "%i", &dev_fn);
 			break;
+		case 'V':
+			print_version(argv[0]);
+			exit(0);
 		default:
 			fprintf(stderr,
-				"Use: \"%s [-b bus] [-d devfn] "
+				"Use: \"%s [-V] [-b bus] [-d devfn] "
 				"<fpga_bitstream.bin>\"\n", argv[0]);
 			fprintf(stderr, "By default, the first available SPEC "
 				"is used.\n");

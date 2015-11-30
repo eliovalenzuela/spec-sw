@@ -31,6 +31,13 @@
  * that gives a more accurate precision.
  **/
 
+static char git_version[] = "version: " GIT_VERSION;
+
+static void print_version(char *pname)
+{
+	printf("%s %s\n", pname, git_version);
+}
+
 int main(int argc, char **argv)
 {
 	struct wr_dio_cmd _cmd;
@@ -40,6 +47,11 @@ int main(int argc, char **argv)
 	char *ifname = "wr0";
 	int sock, ch, charg = 1;
 	char c;
+
+	if ((argc == 2) && (!strcmp(argv[1], "-V"))) {
+		print_version(argv[0]);
+		exit(0);
+	}
 
 	if (argc < 2 || argc > 3) {
 		fprintf(stderr, "%s: Use \"%s [<ifname>] <channel>\"\n",

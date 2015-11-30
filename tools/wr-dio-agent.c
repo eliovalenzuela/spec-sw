@@ -26,6 +26,8 @@
 #include "wr_nic/wr-nic.h"
 #include "wr-dio.h"
 
+static char git_version[] = "version: " GIT_VERSION;
+
 #define RULER_PROTO 0x5752 /* WR */
 
 /*
@@ -90,6 +92,11 @@ static int agent_open_wr_sock(char *name)
 	return 0;
 }
 
+static void print_version(char *pname)
+{
+	printf("%s %s\n", pname, git_version);
+}
+
 /* And a simple main with the loop inside */
 int main(int argc, char **argv)
 {
@@ -101,8 +108,13 @@ int main(int argc, char **argv)
 		struct wr_dio_cmd cmd;
 	} f;
 
+	if ((argc == 2) && (!strcmp(argv[1], "-V"))) {
+		print_version(argv[0]);
+		exit(0);
+	}
+
 	if (argc != 2) {
-		fprintf(stderr, "%s: Use \"%s <wr-if>\"\n",
+		fprintf(stderr, "%s: Use \"%s [-V] <wr-if>\"\n",
 			argv[0], argv[0]);
 		exit(1);
 	}
