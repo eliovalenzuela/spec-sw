@@ -42,6 +42,7 @@ struct spec_dev {
 	struct miscdevice       mdev;
 
 	char                    name[SPEC_NAME_LEN];
+	struct nyab_carrier *ncarrier;
 };
 
 #define SPEC_FLAG_FAKE_EEPROM		0x00000001

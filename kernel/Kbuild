@@ -1,4 +1,5 @@
 KBUILD_EXTRA_SYMBOLS := $(FMC_BUS_ABS)/kernel/Module.symvers
+KBUILD_EXTRA_SYMBOLS += $(NYAB)/kernel/Module.symvers
 
 # add versions of supermodule. It is useful when spec-sw is included as sub-module
 # of a bigger project that we want to track
@@ -18,6 +19,7 @@ LINUXINCLUDE :=  -I$(FMC_BUS_ABS)/kernel/include -I$(src)/include/linux $(LINUXI
 ccflags-y += -I$(src)/include
 ccflags-y += $(WR_NIC_CFLAGS)
 ccflags-y += -DGIT_VERSION=\"$(GIT_VERSION)\"
+ccflags-y += -I$(NYAB)/kernel
 
 
 # this is a bad hack. Sometimes we are a submodule, and wr-nic can

@@ -23,7 +23,7 @@
 #include <linux/version.h>
 #include <linux/fs.h>
 #include <linux/vmalloc.h>
-
+#include <nyab.h>
 #include "spec.h"
 #include "loader-ll.h"
 
@@ -194,6 +194,51 @@ static void spec_destroy_misc_device(struct spec_dev *spec)
 }
 /* * * * * * END MISC DEVICE * * * * */
 
+struct spec_nyab_data {
+	char fmc_slot[NYAB_MAX_STR_LEN];
+	char bitstream[NYAB_MAX_STR_LEN];
+};
+
+/**
+ * It validates carrier private data
+ */
+static int spec_nyab_validate(struct nyab_carrier *carrier)
+{
+	struct spec_dev *spec = dev_get_drvdata(carrier->dev.parent);
+	struct spec_nyab_data *data;
+	int i, err;
+
+	if (strncasecmp(carrier->carr->name, "SPEC", 64)) {
+		dev_err(&carrier->dev,
+			"Description for '%s' but the carrier is 'spec'",
+			carrier->carr->name);
+		return -EINVAL;
+	}
+	if (sizeof(struct spec_nyab_data) != carrier->private.len) {
+		dev_err(&carrier->dev,
+			"Carrier private data length differ from descriptor");
+		return -EINVAL;
+	}
+	data = carrier->private.data;
+
+	if (strncmp(data->fmc_slot, spec->fmc->id.product_name,
+		    NYAB_MAX_STR_LEN)) {
+		dev_err(&carrier->dev,
+			"Expected '%s' mezzanine in slot %d, found '%s'",
+			data->fmc_slot[i], i,
+			spec->fmc->id.product_name);
+		return -EINVAL;
+	}
+	err = spec_load_fpga_file(spec, data->bitstream);
+	if (err)
+		return err;
+	return 0;
+}
+
+static const struct nyab_carrier_operations spec_nyab_op = {
+	.validate = spec_nyab_validate,
+};
+
 static int spec_probe(struct pci_dev *pdev,
 		      const struct pci_device_id *id)
 {
@@ -265,8 +310,28 @@ static int spec_probe(struct pci_dev *pdev,
 		goto failed_misc;
 	}
 
+	/* Load NYAB carrier device for our FPGA */
+	spec->ncarrier = nyab_carrier_alloc(&pdev->dev, 0);
+	if (!spec->ncarrier) {
+		ret = -ENOMEM;
+		goto failed_nyab_alloc;
+	}
+	spec->ncarrier->op = &spec_nyab_op;
+	spec->ncarrier->irq = pdev->irq;
+	spec->ncarrier->kernel_va = spec->remap[0];
+
+	ret = nyab_carrier_register(spec->ncarrier,
+				    pdev->bus->number << 16 | pdev->devfn);
+	if (ret)
+		goto failed_nyab_reg;
+
+
 	return 0;
 
+failed_nyab_reg:
+	nyab_carrier_free(spec->ncarrier);
+failed_nyab_alloc:
+	spec_destroy_misc_device(spec);
 failed_misc:
 	spec_fmc_destroy(spec);
 out_unmap:
@@ -290,6 +355,9 @@ static void spec_remove(struct pci_dev *pdev)
 	int i;
 
 	dev_info(&pdev->dev, "remove\n");
+
+	nyab_carrier_unregister(spec->ncarrier);
+	nyab_carrier_free(spec->ncarrier);
 
 	spec_destroy_misc_device(spec);
 	spec_fmc_destroy(spec);
