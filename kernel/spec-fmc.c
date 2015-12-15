@@ -433,6 +433,29 @@ static irqreturn_t spec_test_handler(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
+
+static int spec_irq_test(struct fmc_device *fmc)
+{
+	struct spec_dev *spec = fmc->carrier_data;
+
+	spec->irq_count = 0;
+	init_completion(&spec->compl);
+	fmc->op->irq_request(fmc, spec_test_handler, "spec-test", IRQF_SHARED);
+	gennum_writel(spec, 8, GNINT_STAT);
+	gennum_writel(spec, 0, GNINT_STAT);
+	wait_for_completion_timeout(&spec->compl, msecs_to_jiffies(50));
+	fmc->op->irq_free(fmc);
+	if (!spec->irq_count) {
+		dev_err(&spec->pdev->dev, "Can't receive interrupt\n");
+		return -EIO;
+	}
+	dev_info(&spec->pdev->dev, "Interrupts work as expected\n");
+
+	/* FIXME: configure the GPIO pins to receive interrupts */
+
+	return 0;
+}
+
 /*
  * Finally, the real init and exit
  */
@@ -469,22 +492,8 @@ static int spec_irq_init(struct fmc_device *fmc)
 		gennum_writel(spec, 0x800c, GNINT_CFG(0 /* first one */ ));
 
 	/* Finally, ensure we are able to receive it -- if the user asked to */
-	if (spec_test_irq == 0)
-		return 0;
-	spec->irq_count = 0;
-	init_completion(&spec->compl);
-	fmc->op->irq_request(fmc, spec_test_handler, "spec-test", IRQF_SHARED);
-	gennum_writel(spec, 8, GNINT_STAT);
-	gennum_writel(spec, 0, GNINT_STAT);
-	wait_for_completion_timeout(&spec->compl, msecs_to_jiffies(50));
-	fmc->op->irq_free(fmc);
-	if (!spec->irq_count) {
-		dev_err(&spec->pdev->dev, "Can't receive interrupt\n");
-		return -EIO;
-	}
-	dev_info(&spec->pdev->dev, "Interrupts work as expected\n");
-
-	/* FIXME: configure the GPIO pins to receive interrupts */
+	if (spec_test_irq)
+		return spec_irq_test(fmc);
 
 	return 0;
 }
