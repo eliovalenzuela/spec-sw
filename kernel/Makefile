@@ -15,6 +15,7 @@ export GIT_VERSION
 
 FMC_BUS_VERSION ?= $(shell cd $(FMC_BUS_ABS); git describe --always --dirty --long --tags)
 export FMC_BUS_VERSION
+spec-y += spec-irq.o
 
 
 all modules:

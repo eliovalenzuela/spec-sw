@@ -37,6 +37,7 @@ spec-y += spec-vic.o
 spec-y += loader-ll.o
 spec-y += spec-gpio-no.o
 spec-$(CONFIG_GPIOLIB) += spec-gpio.o
+spec-y += spec-irq.o
 
 wr-nic-y = wr-nic-core.o
 wr-nic-y += wr-nic-eth.o

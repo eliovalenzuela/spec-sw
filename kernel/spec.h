@@ -43,6 +43,7 @@ struct spec_dev {
 
 	char                    name[SPEC_NAME_LEN];
 	struct nyab_carrier *ncarrier;
+	struct irq_domain *domain;
 };
 
 #define SPEC_FLAG_FAKE_EEPROM		0x00000001
@@ -161,5 +162,8 @@ void spec_vic_irq_free(struct spec_dev *spec, unsigned long id);
 irqreturn_t spec_vic_irq_dispatch(struct spec_dev *spec);
 extern void spec_vic_irq_ack(struct spec_dev *spec, unsigned long id);
 extern int vic_is_managed(struct vic_irq_controller *vic, unsigned long id);
+
+extern int gn4124_irq_domain_create(struct spec_dev *spec);
+extern void gn4124_irq_domain_destroy(struct spec_dev *spec);
 
 #endif /* __SPEC_H__ */

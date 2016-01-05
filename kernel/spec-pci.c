@@ -19,6 +19,7 @@
 #include <linux/delay.h>
 #include <linux/pci.h>
 #include <linux/io.h>
+#include <linux/irqdomain.h>
 #include <asm/unaligned.h>
 #include <linux/version.h>
 #include <linux/fs.h>
@@ -232,6 +233,9 @@ static int spec_nyab_validate(struct nyab_carrier *carrier)
 	err = spec_load_fpga_file(spec, data->bitstream);
 	if (err)
 		return err;
+
+	spec->fmc->flags &= ~FMC_DEVICE_HAS_GOLDEN;
+	spec->fmc->flags |= FMC_DEVICE_HAS_CUSTOM;
 	return 0;
 }
 
@@ -317,7 +321,7 @@ static int spec_probe(struct pci_dev *pdev,
 		goto failed_nyab_alloc;
 	}
 	spec->ncarrier->op = &spec_nyab_op;
-	spec->ncarrier->irq = pdev->irq;
+	spec->ncarrier->irq = irq_find_mapping(spec->domain, 0);
 	spec->ncarrier->kernel_va = spec->remap[0];
 
 	ret = nyab_carrier_register(spec->ncarrier,
