@@ -27,11 +27,29 @@
 #include "spec.h"
 #include "loader-ll.h"
 
-char *spec_fw_name = "fmc/spec-init.bin";
+static char *spec_fw_name_45t = "fmc/spec-init.bin";
+static char *spec_fw_name_100t = "fmc/spec-init-100T.bin";
+char *spec_fw_name = "";
 module_param_named(fw_name, spec_fw_name, charp, 0444);
 
 int spec_use_msi = 0;
 module_param_named(use_msi, spec_use_msi, int, 0444);
+
+/**
+ * According to the PCI device ID, load different golden
+ */
+static char *spec_golden_name_get(unsigned int device_id)
+{
+	if (strlen(spec_fw_name) > 0)
+		return spec_fw_name;
+	switch (device_id) {
+	case PCI_DEVICE_ID_SPEC_45T:
+		return spec_fw_name_45t;
+	case PCI_DEVICE_ID_SPEC_100T:
+		return spec_fw_name_100t;
+	}
+	return NULL;
+}
 
 /* Load the FPGA. This bases on loader-ll.c, a kernel/user space thing */
 int spec_load_fpga(struct spec_dev *spec, const void *data, int size)
@@ -76,6 +94,11 @@ int spec_load_fpga_file(struct spec_dev *spec, char *name)
 	const struct firmware *fw;
 	int err = 0;
 
+	if (!name) {
+		dev_err(dev, "You must provide a golden binary\n");
+		return -EINVAL;
+	}
+
 	err = request_firmware(&fw, name, dev);
 	if (err < 0) {
 		dev_err(dev, "request firmware \"%s\": error %i\n", name, err);
@@ -97,7 +120,8 @@ static int spec_reconfigure(struct spec_dev *spec, struct fmc_gateware *gw)
 		spec_fmc_destroy(spec);
 
 	/* Load the golden FPGA binary to read the eeprom */
-	ret = spec_load_fpga_file(spec, spec_fw_name);
+	ret = spec_load_fpga_file(spec,
+				  spec_golden_name_get(spec->pdev->device));
 	if (ret)
 		return ret;
 
