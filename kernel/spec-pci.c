@@ -171,7 +171,7 @@ static void spec_destroy_misc_device(struct spec_dev *spec)
 /* * * * * * END MISC DEVICE * * * * */
 
 static int spec_probe(struct pci_dev *pdev,
-				const struct pci_device_id *id)
+		      const struct pci_device_id *id)
 {
 	struct spec_dev *spec;
 	int i, ret;
@@ -284,7 +284,8 @@ static void spec_remove(struct pci_dev *pdev)
 
 
 DEFINE_PCI_DEVICE_TABLE(spec_idtable) = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_CERN, PCI_DEVICE_ID_SPEC) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_CERN, PCI_DEVICE_ID_SPEC_45T) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_CERN, PCI_DEVICE_ID_SPEC_100T) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_GENNUM, PCI_DEVICE_ID_GN4124) },
 	{ 0,},
 };
