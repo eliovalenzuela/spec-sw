@@ -67,9 +67,10 @@ static int spec_check_id(int bus, int dev)
 	fscanf(f, "%x", &vendor);
 	fclose(f);
 
-	if (device== PCI_DEVICE_ID_SPEC && vendor== PCI_VENDOR_ID_CERN)
+	if (vendor== PCI_VENDOR_ID_CERN && device== PCI_DEVICE_ID_SPEC_45T)
 		return 1;
-
+	if (vendor== PCI_VENDOR_ID_CERN && device== PCI_DEVICE_ID_SPEC_100T)
+		return 1;
 	if (device== PCI_DEVICE_ID_GN4124 && vendor== PCI_VENDOR_ID_GENNUM)
 		return 1;
 
