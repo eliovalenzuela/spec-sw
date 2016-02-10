@@ -17,9 +17,10 @@
 #include <linux/gpio.h>
 
 #define PCI_VENDOR_ID_CERN	0x10dc
-#define PCI_DEVICE_ID_SPEC		0x018d
+#define PCI_DEVICE_ID_SPEC_45T	0x018d
+#define PCI_DEVICE_ID_SPEC_100T	0x01a2
 #define PCI_VENDOR_ID_GENNUM	0x1a39
-#define PCI_DEVICE_ID_GN4124		0x0004
+#define PCI_DEVICE_ID_GN4124	0x0004
 
 #define SPEC_DEFAULT_LM32_ADDR 0x80000 /* used if "1" is passed */
 
