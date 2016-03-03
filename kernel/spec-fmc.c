@@ -598,6 +598,10 @@ void spec_fmc_destroy(struct spec_dev *spec)
 	spec_irq_exit(spec->fmc);
 	spec_i2c_exit(spec->fmc);
 	put_device(&spec->fmc->dev);
+	/*
+	 * Do not do `kfree(spec->fmc);` because it is already done by
+	 * the fmc-bus
+	 */
 	spec->fmc = NULL;
 	spec->flags &= ~SPEC_FLAG_FMC_REGISTERED;
 }
