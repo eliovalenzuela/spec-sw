@@ -7,6 +7,7 @@
  * This work is part of the White Rabbit project, a research effort led
  * by CERN, the European Institute for Nuclear Research.
  */
+#include <linux/version.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/version.h>
@@ -17,7 +18,11 @@
 
 static inline struct fmc_device *gc_to_fmc(struct gpio_chip *gc)
 {
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4,5,0)
 	struct device *dev = gc->dev;
+#else
+	struct device *dev = gc->parent;
+#endif
 	return container_of(dev, struct fmc_device, dev);
 }
 
@@ -72,7 +77,11 @@ int wrn_gpio_init(struct fmc_device *fmc)
 	if (!gc)
 		return -ENOMEM;
 	*gc = wrn_gpio_template;
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4,5,0)
 	gc->dev = &fmc->dev;
+#else
+	gc->parent = &fmc->dev;
+#endif
 
 	ret = gpiochip_add(gc);
 	if (ret < 0)
