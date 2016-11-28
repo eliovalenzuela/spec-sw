@@ -1350,7 +1350,7 @@ one specific SPEC card if you have more than one:
 
 @item -b <bus>
 
-	This option specifies the bus number
+	This option specifies the bus number. See @i{flash-read} for an example.
 
 @item -d <devfn>
 
@@ -1402,6 +1402,25 @@ The tools currently available are:
 	A simple tool to talk with the virtual-uart device inside the
         SPEC. The default base address for the peripheral is 0xe0500
         but you can can change it passing @code{-u <address>}.
+
+@item flash-read
+
+	Program to read (a part of) the flash memory on the SPEC. The argument
+        for the @code{-b} option can be found using @code{lspci} or @code{dmesg}
+        to search for the PCI bus on which the SPEC is present. It is the second
+        number in the address that is shown on insertion of the @code{spec.ko}
+        kernel module. For the SPEC from the @code{dmesg} line below
+        @code{-b 0x03} is found.
+ 
+        @code{[182.700162] spec 0000:03:00.0: got file "fmc/spec-init.bin",}
+        @code{             1485236 (0x16a9b4) bytes}
+
+@item flash-write
+
+	Program to write (a part of) the flash memory on the SPEC. See
+        @i{flash-read} for an example of how to find the address of the
+        @code{-b} option.
+
 
 @end table
 

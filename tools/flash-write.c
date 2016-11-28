@@ -80,7 +80,7 @@ static int spec_write_flash(struct spec_device *spec, int addr, int len)
 		fprintf(stderr, "Reading from stdin, please type the data\n");
 	i = fread(buf, 1, len, stdin);
 	if (i != len) {
-		fprintf(stderr, "%s: read error (%i, expeted %i)\n", prgname,
+		fprintf(stderr, "%s: read error (%i, expected %i)\n", prgname,
 			i, len);
 		return 1;
 	}
@@ -230,11 +230,15 @@ static int spec_scan_pci(struct spec_pci_id *id, struct spec_device *arr,
 	return ndevs;
 }
 
-static int help(void)
+static int help(int retv)
 {
-	fprintf(stderr, "%s: Use: \"%s [-v] [-b <bus>] <addr> <len>\n",
+	fprintf(stderr, "%s: Use: \"%s [-v] [-b <bus>] [-c <offset>] <addr> <len>\n",
 		prgname, prgname);
-	return 1;
+	fprintf(stderr, "\n    <bus> = PCI bus number of SPEC card. (See lspci or dmesg)\n");
+	fprintf(stderr, "    <offset> = syscon_offset\n");
+	fprintf(stderr, "    <addr> = start address in flash to write\n");
+	fprintf(stderr, "    <len> = amount of bytes to write\n");
+	return retv;
 }
 
 int main(int argc, char **argv)
@@ -245,7 +249,7 @@ int main(int argc, char **argv)
 
 	syscon_offset = SPEC_SYSCON_OFFSET;
 
-	while ((c = getopt(argc, argv, "b:vc:")) != -1) {
+	while ((c = getopt(argc, argv, "hb:vc:")) != -1) {
 		switch(c) {
 		case 'b':
 			sscanf(optarg, "%i", &bus);
@@ -256,12 +260,15 @@ int main(int argc, char **argv)
 		case 'c':
 			sscanf(optarg, "%i", &syscon_offset);
 			break;
+		case 'h':
+			exit(help(0));
+			break;
 		default:
-			exit(help());
+			exit(help(1));
 		}
 	}
 	if (optind != argc - 2)
-		exit(help());
+		exit(help(1));
 
 	/* find which one to use */
 	ndev = spec_scan_pci(spec_devices, devs, MAX_DEVICES);
