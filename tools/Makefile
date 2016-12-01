@@ -19,6 +19,7 @@ LIBSHARED = libspec.so
 PROGS = spec-cl spec-fwloader spec-vuart specmem
 PROGS += wr-dio-cmd wr-dio-pps wr-dio-agent wr-dio-ruler
 PROGS += stamp-frame
+PROGS += wr_transmission
 
 all: $(LIB) $(PROGS) $(LIBSHARED)
 
