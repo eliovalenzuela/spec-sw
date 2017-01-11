@@ -3,6 +3,10 @@
 REPO_PARENT=$(shell /bin/pwd)/..
 -include $(REPO_PARENT)/parent_common.mk
 
+# export git tree for subdirs
+GIT_VERSION ?= $(shell git describe --dirty --long --tags)
+export GIT_VERSION
+
 # by default use the fmc-bus within the repository
 FMC_BUS ?= fmc-bus
 # FMC_BUS_ABS has to be absolut path, due to beeing passed to the Kbuild

@@ -10,7 +10,7 @@ FMC_BUS ?= ../fmc-bus/
 # FMC_BUS_ABS has to be absolut path, due to beeing passed to the Kbuild
 FMC_BUS_ABS ?= $(abspath $(FMC_BUS) )
 
-GIT_VERSION = $(shell git describe --dirty --long --tags)
+GIT_VERSION ?= $(shell git describe --dirty --long --tags)
 export GIT_VERSION
 
 FMC_BUS_VERSION ?= $(shell cd $(FMC_BUS_ABS); git describe --always --dirty --long --tags)
