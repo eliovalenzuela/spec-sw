@@ -11,6 +11,13 @@ GIT_VERSION ?= $(shell git describe --dirty --long --tags)
 CFLAGS += -ggdb -Wall -fPIC -I../kernel $(EXTRACFLAGS)
 CFLAGS += -DGIT_VERSION=\"$(GIT_VERSION)\"
 
+INSTALL = install
+DESTDIR =
+PREFIX  = /usr/local
+
+BINDIR = $(PREFIX)/sbin
+LIBDIR = $(PREFIX)/lib
+
 LIB = libspec.a
 LIBOBJ = speclib.o loader-ll.o
 
@@ -33,9 +40,16 @@ loader-ll.o:	../kernel/loader-ll.c
 $(LIBSHARED): $(LIB)
 	$(CC) -shared -o $@ -Wl,--whole-archive $^ -Wl,--no-whole-archive
 
+install:
+	$(INSTALL) -d $(DESTDIR)$(BINDIR)
+	$(INSTALL) -m 0755 -t $(DESTDIR)$(BINDIR) $(PROGS)
+	$(INSTALL) -d $(DESTDIR)$(LIBDIR)
+	$(INSTALL) -m 0755 -t $(DESTDIR)$(LIBDIR) $(LIB)
+	$(INSTALL) -m 0755 -t $(DESTDIR)$(LIBDIR) $(LIBOBJ)
+	$(INSTALL) -m 0755 -t $(DESTDIR)$(LIBDIR) $(LIBSHARED)
 
 clean:
 	rm -f *.o $(LIB) $(PROGS) $(LIBSHARED) *~
 
 # add the other unused targets, so the rule in ../Makefile works
-modules install modules_install:
+modules modules_install:

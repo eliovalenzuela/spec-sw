@@ -13,7 +13,7 @@ FMC_BUS ?= fmc-bus
 FMC_BUS_ABS ?= $(abspath $(FMC_BUS) )
 export FMC_BUS_ABS
 
-DIRS = $(FMC_BUS_ABS) kernel tools
+DIRS = $(FMC_BUS_ABS) binaries kernel tools
 
 .PHONY: all clean modules install modules_install $(DIRS)
 
