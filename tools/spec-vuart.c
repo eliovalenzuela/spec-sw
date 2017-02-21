@@ -91,10 +91,12 @@ void term_main(int keep_term)
 		tcsetattr(STDIN_FILENO,TCSANOW,&oldkey);
 }
 
+#define __WR_VUART_OFFSET 0x20500 /* typical location */
+
 int main(int argc, char **argv)
 {
 	int bus = -1, dev_fn = -1, c;
-	uint32_t vuart_base = 0x20500;
+	uint32_t vuart_base = __WR_VUART_OFFSET;
 	int keep_term = 0;
 
 	while ((c = getopt (argc, argv, "b:d:u:kV")) != -1)
@@ -124,7 +126,7 @@ int main(int argc, char **argv)
 				"By default, the first available SPEC "
 				"is used and the VUART is assumed at 0x%x.\n"
 				"-k option keeps the prev terminal config\n",
-				vuart_base);
+				__WR_VUART_OFFSET);
 			exit(1);
 		}
 	}
