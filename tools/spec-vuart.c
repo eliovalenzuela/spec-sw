@@ -96,7 +96,7 @@ void term_main(int keep_term)
 int main(int argc, char **argv)
 {
 	int bus = -1, dev_fn = -1, c;
-	uint32_t vuart_base = __WR_VUART_OFFSET;
+	uint32_t vuart_base = ~0;
 	int keep_term = 0;
 
 	while ((c = getopt (argc, argv, "b:d:u:kV")) != -1)
@@ -123,15 +123,23 @@ int main(int argc, char **argv)
 				"Use: \"%s [-V] [-b bus] [-d devfn] "
 				"[-u VUART base] [-k]\"\n", argv[0]);
 			fprintf(stderr,
-				"By default, the first available SPEC "
-				"is used and the VUART is assumed at 0x%x.\n"
-				"-k option keeps the prev terminal config\n",
+				"By default, the first available SPEC is used\n");
+			fprintf(stderr,
+				"-k option keeps the prev terminal config\n");
+			fprintf(stderr,
+				"-u to set the VUART offset within "
+				"the bitstream. Typically at 0x%x\n",
 				__WR_VUART_OFFSET);
 			exit(1);
 		}
 	}
 
-    card = spec_open(bus, dev_fn);
+	if (vuart_base == ~0) {
+		fprintf(stderr, "\"-u\" parameter is mandatory\n");
+		exit(1);
+	}
+
+	card = spec_open(bus, dev_fn);
 	if(!card)
 	{
 		fprintf(stderr, "Can't detect a SPEC card under the given "
