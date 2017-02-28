@@ -32,12 +32,12 @@ void wrn_tx_tstamp_skb(struct wrn_dev *wrn, int desc)
 	wrn_ppsg_read_time(wrn, &counter_ppsg, &utc);
 
 	/* We may be at the beginning og the next second */
-	if(counter_ppsg < d->cycles)
+	if (counter_ppsg < d->cycles)
 		utc--;
 
 	ts.tv_sec = (s32)utc & 0x7fffffff;
 	ts.tv_nsec = d->cycles * NSEC_PER_TICK;
-	if (! (d->valid & TS_INVALID)) {
+	if (!(d->valid & TS_INVALID)) {
 		hwts = skb_hwtstamps(skb);
 		hwts->hwtstamp = timespec_to_ktime(ts);
 		skb_tstamp_tx(skb, hwts);
@@ -75,7 +75,7 @@ static int record_tstamp(struct wrn_dev *wrn, u32 tsval, u32 idreg, u32 r2)
 
 	wrn_ppsg_read_time(wrn, &counter_ppsg, &utc);
 
-	if(counter_ppsg < (tsval & 0xfffffff))
+	if (counter_ppsg < (tsval & 0xfffffff))
 		utc--;
 
 	ts.tv_sec = (s32)utc & 0x7fffffff;
@@ -119,8 +119,9 @@ int wrn_tstamp_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 
 	if (copy_from_user(&config, rq->ifr_data, sizeof(config)))
 		return -EFAULT;
-	if (0) netdev_dbg(dev, "%s: tx type %i, rx filter %i\n", __func__,
-		   config.tx_type, config.rx_filter);
+	if (0)
+		netdev_dbg(dev, "%s: tx type %i, rx filter %i\n",
+			   __func__, config.tx_type, config.rx_filter);
 
 	switch (config.tx_type) {
 		/* Set up time stamping on transmission */

@@ -59,6 +59,7 @@ static int wrn_remove(struct platform_device *pdev)
 	/* Unregister all interrupts that were registered */
 	for (i = 0; wrn->irq_registered; i++) {
 		static int irqs[] = WRN_IRQ_NUMBERS;
+
 		if (wrn->irq_registered & (1 << i))
 			free_irq(irqs[i], wrn);
 		wrn->irq_registered &= ~(1 << i);
@@ -119,13 +120,14 @@ static int wrn_probe(struct platform_device *pdev)
 	if (++wrn->use_count != 1) {
 		--wrn->use_count;
 		spin_unlock(&wrn->lock);
-		printk("use count %i\n", wrn->use_count);
+		dev_err(&pdev->dev, "use count %i\n", wrn->use_count);
 		return -EBUSY;
 	}
 	spin_unlock(&wrn->lock);
 #endif
 	/* Map our resource list and instantiate the shortcut pointers */
-	if ( (err = __wrn_map_resources(pdev)) )
+	err = __wrn_map_resources(pdev);
+	if (err)
 		goto out;
 	wrn->regs = wrn->bases[WRN_FB_NIC];
 	wrn->txtsu_regs = wrn->bases[WRN_FB_TS];
@@ -135,15 +137,16 @@ static int wrn_probe(struct platform_device *pdev)
 	wrn->databuf = (void *)wrn->regs + offsetof(struct NIC_WB, MEM);
 	tasklet_init(&wrn->rx_tlet, wrn_rx_interrupt, (unsigned long)wrn);
 	if (0)
-		printk("regs %p, txd %p, rxd %p, buffer %p\n",
-		       wrn->regs, wrn->txd, wrn->rxd, wrn->databuf);
+		dev_info(&pdev->dev, "regs %p, txd %p, rxd %p, buffer %p\n",
+			 wrn->regs, wrn->txd, wrn->rxd, wrn->databuf);
 
 #if 0
 	/* Register the interrupt handlers (not shared) */
 	for (i = 0; i < ARRAY_SIZE(irq_names); i++) {
 		err = request_irq(irqs[i], irq_handlers[i],
 			      IRQF_TRIGGER_LOW, irq_names[i], wrn);
-		if (err) goto out;
+		if (err)
+			goto out;
 		wrn->irq_registered |= 1 << i;
 	}
 #endif
@@ -181,14 +184,15 @@ static int wrn_probe(struct platform_device *pdev)
 		wrn->dev[i] = netdev;
 		err = wrn_mezzanine_init(netdev);
 		if (err)
-			dev_err(&pdev->dev, "Init mezzanine code: "
-				    "error %i\n", err);
+			dev_err(&pdev->dev,
+				"Init mezzanine code: error %i\n", err);
 	}
 	if (i == 0)
 		return -ENODEV; /* no endpoints */
 
 	for (i = 0; i < WRN_NR_TXDESC; i++) { /* Clear all tx descriptors */
 		struct wrn_txd *tx;
+
 		tx = wrn->txd + i;
 		writel(0, &tx->tx1);
 	}
@@ -200,7 +204,7 @@ static int wrn_probe(struct platform_device *pdev)
 
 		rx = wrn->rxd + i;
 		offset = __wrn_desc_offset(wrn, WRN_DDIR_RX, i);
-		writel( (2000 << 16) | offset, &rx->rx3);
+		writel((2000 << 16) | offset, &rx->rx3);
 		writel(NIC_RX1_D1_EMPTY, &rx->rx1);
 	}
 

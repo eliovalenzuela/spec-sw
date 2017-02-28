@@ -38,7 +38,7 @@ int wrn_phy_read(struct net_device *dev, int phy_id, int location)
 	}
 
 	wrn_ep_write(ep, MDIO_CR, EP_MDIO_CR_ADDR_W(location));
-	while( (wrn_ep_read(ep, MDIO_ASR) & EP_MDIO_ASR_READY) == 0)
+	while ((wrn_ep_read(ep, MDIO_ASR) & EP_MDIO_ASR_READY) == 0)
 		;
 	val = wrn_ep_read(ep, MDIO_ASR);
 	/* mask from wbgen macros */
@@ -64,7 +64,7 @@ void wrn_phy_write(struct net_device *dev, int phy_id, int location,
 		     EP_MDIO_CR_ADDR_W(location)
 		     | EP_MDIO_CR_DATA_W(value)
 		     | EP_MDIO_CR_RW);
-	while( (wrn_ep_read(ep, MDIO_ASR) & EP_MDIO_ASR_READY) == 0)
+	while ((wrn_ep_read(ep, MDIO_ASR) & EP_MDIO_ASR_READY) == 0)
 		;
 }
 
@@ -81,18 +81,18 @@ static void wrn_update_link_status(struct net_device *dev)
 //	printk("%s: read %x %x %x\n", __func__, bmsr, bmcr);
 
 		/* Link wnt down? */
-	if (!mii_link_ok(&ep->mii)) {	
-		if(netif_carrier_ok(dev)) {
+	if (!mii_link_ok(&ep->mii)) {
+		if (netif_carrier_ok(dev)) {
 			netif_carrier_off(dev);
 			clear_bit(WRN_EP_UP, &ep->ep_flags);
-			printk(KERN_INFO "%s: Link down.\n", dev->name);
+			netdev_info(dev, "Link down.\n");
 			return;
 		}
 		return;
 	}
 
 	/* Currently the link is active */
-	if(netif_carrier_ok(dev)) {
+	if (netif_carrier_ok(dev)) {
 		/* Software already knows it's up */
 		return;
 	}
@@ -109,16 +109,15 @@ static void wrn_update_link_status(struct net_device *dev)
 
 		if (0) { /* was commented in minic */
 			wrn_ep_write(ep, FCR,
-				     EP_FCR_TXPAUSE |EP_FCR_RXPAUSE
+				     EP_FCR_TXPAUSE | EP_FCR_RXPAUSE
 				     | EP_FCR_TX_THR_W(128)
 				     | EP_FCR_TX_QUANTA_W(200));
 		}
 
-		printk(KERN_INFO "%s: Link up, lpa 0x%04x.\n",
-		       dev->name, lpa);
+		netdev_info(dev, "Link up, lpa 0x%04x.\n", lpa);
 	} else {
 		/* No autonegotiation. It's up immediately */
-		printk(KERN_INFO "%s: Link up.\n", dev->name);
+		netdev_info(dev, "Link up.\n");
 	}
 	netif_carrier_on(dev);
 	set_bit(WRN_EP_UP, &ep->ep_flags);
@@ -126,7 +125,7 @@ static void wrn_update_link_status(struct net_device *dev)
 	/* reset RMON counters */
 	ecr = wrn_ep_read(ep, ECR);
 	wrn_ep_write(ep, ECR, ecr | EP_ECR_RST_CNT);
-	wrn_ep_write(ep, ECR, ecr );
+	wrn_ep_write(ep, ECR, ecr);
 }
 
 /* Actual timer function. Takes the lock and calls above function */
@@ -165,7 +164,7 @@ int wrn_ep_open(struct net_device *dev)
 	 * and we need the RX OOB block to identify orginating endpoints
 	 * for RXed packets -- Tom
 	 */
-	writel(EP_TSCR_EN_TXTS| EP_TSCR_EN_RXTS, &ep->ep_regs->TSCR);
+	writel(EP_TSCR_EN_TXTS | EP_TSCR_EN_RXTS, &ep->ep_regs->TSCR);
 
 	writel(0
 	       | EP_ECR_PORTID_W(ep->ep_number)
@@ -253,8 +252,7 @@ int wrn_endpoint_probe(struct net_device *dev)
 	/* Finally, register and succeed, or fail and undo */
 	err = register_netdev(dev);
 	if (err) {
-		printk(KERN_ERR KBUILD_MODNAME ": Can't register dev %s\n",
-		       dev->name);
+		netdev_err(dev, "Can't register device\n");
 		__wrn_endpoint_shutdown(ep);
 		/* ENODEV means "no more" for the caller, so avoid it */
 		return err == -ENODEV ? -EIO : err;

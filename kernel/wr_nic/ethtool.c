@@ -29,7 +29,7 @@ static int wrn_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 	ret = mii_ethtool_gset(&ep->mii, cmd);
 	spin_unlock_irq(&ep->lock);
 
-	cmd->supported=
+	cmd->supported =
 		SUPPORTED_FIBRE | /* FIXME: copper sfp? */
 		SUPPORTED_Autoneg |
 		SUPPORTED_1000baseKX_Full;

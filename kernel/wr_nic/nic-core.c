@@ -44,11 +44,10 @@ static int wrn_open(struct net_device *dev)
 	wrn_ep_open(dev);
 
 	/* Software-only management is in this file*/
-	if (netif_queue_stopped(dev)) {
+	if (netif_queue_stopped(dev))
 		netif_wake_queue(dev);
-	} else {
+	else
 		netif_start_queue(dev);
-	}
 
 	/*
 	 * Set the MRU bit enough, to avoid issues. We used dev-mtu,
@@ -57,7 +56,7 @@ static int wrn_open(struct net_device *dev)
 	 * malformed packets
 	 */
 	val = readl(&ep->ep_regs->RFCR) & ~EP_RFCR_MRU_MASK;
-	writel (val | EP_RFCR_MRU_W(2048), &ep->ep_regs->RFCR);
+	writel(val | EP_RFCR_MRU_W(2048), &ep->ep_regs->RFCR);
 
 	/* Most drivers call platform_set_drvdata() but we don't need it */
 	return 0;
@@ -68,7 +67,8 @@ static int wrn_close(struct net_device *dev)
 	struct wrn_ep *ep = netdev_priv(dev);
 	int ret;
 
-	if ( (ret = wrn_ep_close(dev)) )
+	ret = wrn_ep_close(dev);
+	if (ret)
 		return ret;
 
 	/* FIXME: software-only fixing at close time */
@@ -78,7 +78,7 @@ static int wrn_close(struct net_device *dev)
 	return 0;
 }
 
-static int wrn_set_mac_address(struct net_device *dev, void* vaddr)
+static int wrn_set_mac_address(struct net_device *dev, void *vaddr)
 {
 	struct wrn_ep *ep = netdev_priv(dev);
 	struct sockaddr *addr = vaddr;
@@ -165,7 +165,7 @@ static int wrn_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	int id;
 	int do_stamp = 0;
 	void *data; /* FIXME: move data and len to __wrn_tx_desc */
-	unsigned len;
+	unsigned int len;
 
 	if (unlikely(skb->len > WRN_MTU)) {
 		/* FIXME: check this WRN_MTU is needed and used properly */
@@ -210,7 +210,7 @@ static int wrn_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	/* We are done, this is trivial maiintainance*/
 	ep->stats.tx_packets++;
 	ep->stats.tx_bytes += len;
-#if KERNEL_VERSION(4,7,0) > LINUX_VERSION_CODE
+#if KERNEL_VERSION(4, 7, 0) > LINUX_VERSION_CODE
 	dev->trans_start = jiffies;
 #else
 	netif_trans_update(dev);
@@ -245,7 +245,6 @@ int __weak wrn_mezzanine_init(struct net_device *dev)
 
 void __weak wrn_mezzanine_exit(struct net_device *dev)
 {
-	return;
 }
 
 
@@ -378,7 +377,7 @@ static void __wrn_rx_descriptor(struct wrn_dev *wrn, int desc)
 	__wrn_copy_in(skb_put(skb, len), wrn->databuf + off, len);
 
 	/* Rewrite lenght (modified during rx) and mark it free ASAP */
-	writel( (2000 << 16) | offset, &rx->rx3);
+	writel((2000 << 16) | offset, &rx->rx3);
 	writel(NIC_RX1_D1_EMPTY, &rx->rx1);
 
 	/* RX timestamping part */
@@ -391,14 +390,14 @@ static void __wrn_rx_descriptor(struct wrn_dev *wrn, int desc)
 	ts.tv_sec = (s32)utc & 0x7fffffff;
 	cntr_diff = (ts_r & 0xf) - ts_f;
 	/* the bit says the rising edge cnter is 1tick ahead */
-	if(cntr_diff == 1 || cntr_diff == (-0xf))
+	if (cntr_diff == 1 || cntr_diff == (-0xf))
 		ts.tv_sec |= 0x80000000;
 	ts.tv_nsec = ts_r * NSEC_PER_TICK;
 
 	pr_debug("Timestamp: %li:%li, ahead = %d\n",
-	       ts.tv_sec & 0x7fffffff,
-	       ts.tv_nsec & 0x7fffffff,
-	       ts.tv_sec & 0x80000000 ? 1 :0);
+		 ts.tv_sec & 0x7fffffff,
+		 ts.tv_nsec & 0x7fffffff,
+		 ts.tv_sec & 0x80000000 ? 1 : 0);
 
 	if (1) {
 		/* SPEC: don't do the strange stuff for wr-ptp */
@@ -406,7 +405,7 @@ static void __wrn_rx_descriptor(struct wrn_dev *wrn, int desc)
 		ts.tv_nsec &= 0x7fffffff;
 	}
 
-	if (! (r1 & NIC_RX1_D1_TS_INCORRECT)) {
+	if (!(r1 & NIC_RX1_D1_TS_INCORRECT)) {
 		hwts = skb_hwtstamps(skb);
 		hwts->hwtstamp = timespec_to_ktime(ts);
 	}
@@ -420,7 +419,7 @@ static void __wrn_rx_descriptor(struct wrn_dev *wrn, int desc)
 	return;
 
 err_out: /* Mark it free anyways -- with its full length */
-	writel( (2000 << 16) | offset, &rx->rx3);
+	writel((2000 << 16) | offset, &rx->rx3);
 	writel(NIC_RX1_D1_EMPTY, &rx->rx1);
 
 	/* account the error to endpoint 0 -- we don't know who it is */
@@ -461,7 +460,7 @@ static void wrn_tx_interrupt(struct wrn_dev *wrn)
 	int i;
 
 	/* Loop using our tail until one is not sent */
-	while ( (i = wrn->next_tx_tail) != wrn->next_tx_head) {
+	while ((i = wrn->next_tx_tail) != wrn->next_tx_head) {
 		/* Check if this is txdone */
 		tx = wrn->txd + i;
 		reg = readl(&tx->tx1);
