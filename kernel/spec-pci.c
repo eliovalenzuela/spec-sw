@@ -23,6 +23,7 @@
 #include <linux/version.h>
 #include <linux/fs.h>
 #include <linux/vmalloc.h>
+#include <linux/uaccess.h>
 
 #include "spec.h"
 #include "loader-ll.h"
