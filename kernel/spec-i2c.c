@@ -35,14 +35,14 @@ static void dumpstruct(char *name, void *ptr, int size)
 	int i;
 	unsigned char *p = ptr;
 
-	printk("%s: (size 0x%x)\n", name, size);
+	pr_info("%s: (size 0x%x)\n", name, size);
 	for (i = 0; i < size; ) {
-		printk("%02x", p[i]);
+		pr_info("%02x", p[i]);
 		i++;
-		printk(i & 3 ? " " : i & 0xf ? "  " : "\n");
+		pr_info("%s", (i & 3) ? " " : (i & 0xf) ? "  " : "\n");
 	}
 	if (i & 0xf)
-		printk("\n");
+		pr_info("\n");
 }
 
 static void set_sda(struct fmc_device *fmc, int val)
@@ -86,7 +86,7 @@ static int mi2c_put_byte(struct fmc_device *fmc, int data)
 	int i;
 	int ack;
 
-	for (i = 0; i < 8; i++, data<<=1) {
+	for (i = 0; i < 8; i++, data <<= 1) {
 		set_sda(fmc, data & 0x80);
 		set_scl(fmc, 1);
 		set_scl(fmc, 0);
@@ -124,7 +124,7 @@ static int mi2c_get_byte(struct fmc_device *fmc, unsigned char *data, int ack)
 	set_scl(fmc, 0);
 	set_sda(fmc, 0);
 
-	*data= indata;
+	*data = indata;
 	return 0;
 }
 
@@ -144,7 +144,7 @@ int mi2c_scan(struct fmc_device *fmc)
 
 	/* only look for our own device */
 	mi2c_start(fmc);
-	if(mi2c_put_byte(fmc,  fmc->eeprom_addr << 1) == 0)
+	if (mi2c_put_byte(fmc,  fmc->eeprom_addr << 1) == 0)
 		found++;
 	mi2c_stop(fmc);
 	return found;
@@ -168,7 +168,7 @@ int spec_eeprom_read(struct fmc_device *fmc, uint32_t offset,
 
 	/* Read it all in a single loop: hardware allows it */
 	mi2c_start(fmc);
-	if(mi2c_put_byte(fmc, fmc->eeprom_addr << 1) < 0) {
+	if (mi2c_put_byte(fmc, fmc->eeprom_addr << 1) < 0) {
 		mi2c_stop(fmc);
 		return -EIO;
 	}
@@ -198,8 +198,7 @@ int spec_eeprom_write(struct fmc_device *fmc, uint32_t offset,
 	if (offset + size > SPEC_I2C_EEPROM_SIZE)
 		return -EINVAL;
 
-	for(i = 0; i < size; i++) {
-
+	for (i = 0; i < size; i++) {
 		/* if (we are using a fake eeprom, don't access hw */
 		if (spec->flags & SPEC_FLAG_FAKE_EEPROM) {
 			fmc->eeprom[offset++] = *buf8++;
@@ -208,7 +207,7 @@ int spec_eeprom_write(struct fmc_device *fmc, uint32_t offset,
 
 		mi2c_start((fmc));
 
-		if(mi2c_put_byte(fmc, fmc->eeprom_addr << 1) < 0) {
+		if (mi2c_put_byte(fmc, fmc->eeprom_addr << 1) < 0) {
 			mi2c_stop(fmc);
 			return -1;
 		}
@@ -221,7 +220,7 @@ int spec_eeprom_write(struct fmc_device *fmc, uint32_t offset,
 			mi2c_start(fmc);
 			busy = mi2c_put_byte(fmc, fmc->eeprom_addr << 1);
 			mi2c_stop(fmc);
-		} while(busy);
+		} while (busy);
 		fmc->eeprom[offset++] = *buf8++;
 	}
 	return size;

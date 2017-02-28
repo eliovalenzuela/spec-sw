@@ -64,7 +64,7 @@ int spec_load_fpga(struct spec_dev *spec, const void *data, int size)
 				 spec->remap[2], data, size);
 	j = jiffies + 2 * HZ;
 	/* Wait for DONE interrupt  */
-	while(1) {
+	while (1) {
 		udelay(100);
 		i = readl(spec->remap[2] + FCL_IRQ);
 		if (i & 0x8) {
@@ -72,7 +72,7 @@ int spec_load_fpga(struct spec_dev *spec, const void *data, int size)
 			break;
 		}
 
-		if(i & 0x4) {
+		if (i & 0x4) {
 			dev_err(dev, "FPGA program error after %i writes\n",
 				wrote);
 			return -ETIMEDOUT;
@@ -110,7 +110,7 @@ int spec_load_fpga_file(struct spec_dev *spec, char *name)
 
 	err = spec_load_fpga(spec, fw->data, fw->size);
 	release_firmware(fw);
-        return err;
+	return err;
 }
 
 static int spec_reconfigure(struct spec_dev *spec, struct fmc_gateware *gw)
@@ -219,7 +219,7 @@ static int spec_probe(struct pci_dev *pdev,
 		 * This should be "4" but arch/x86/kernel/apic/io_apic.c
 		 * says "x86 doesn't support multiple MSI yet".
 		 */
-		#if LINUX_VERSION_CODE < KERNEL_VERSION(3,16,0)
+		#if KERNEL_VERSION(3, 16, 0) > LINUX_VERSION_CODE
 		ret = pci_enable_msi_block(pdev, 1);
 		#else
 		ret = pci_enable_msi_exact(pdev, 1);
@@ -232,6 +232,7 @@ static int spec_probe(struct pci_dev *pdev,
 	/* Remap our 3 bars */
 	for (i = ret = 0; i < 3; i++) {
 		struct resource *r = pdev->resource + (2 * i);
+
 		if (!r->start)
 			continue;
 		spec->area[i] = r;

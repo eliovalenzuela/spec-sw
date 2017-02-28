@@ -1,12 +1,12 @@
-/*
-* Copyright (C) 2013 CERN (www.cern.ch)
-* Author: Tomasz Wlostowski <tomasz.wlostowski@cern.ch>
-*
-* Released according to the GNU GPL, version 2 or any later version
-*
-* Driver for SPEC (Simple PCI Express FMC carrier) board.
-* VIC (Vectored Interrupt Controller) support code.
-*/
+/**
+ * Copyright (C) 2013 CERN (www.cern.ch)
+ * Author: Tomasz Wlostowski <tomasz.wlostowski@cern.ch>
+ *
+ * Released according to the GNU GPL, version 2 or any later version
+ *
+ * Driver for SPEC (Simple PCI Express FMC carrier) board.
+ * VIC (Vectored Interrupt Controller) support code.
+ */
 
 #include <linux/interrupt.h>
 #include <linux/slab.h>

@@ -97,7 +97,7 @@ static int spec_reprogram(struct fmc_device *fmc, struct fmc_driver *drv,
 	}
 
 	ret = spec_reprogram_raw(fmc, drv, (void *)fw->data, fw->size);
-	if (ret <0) {
+	if (ret < 0) {
 		dev_err(dev, "write firmware \"%s\": error %i\n", gw, ret);
 		goto out;
 	}
@@ -126,8 +126,9 @@ static int spec_shared_irq_request(struct fmc_device *fmc,
 		/* A check and a hack, but doesn't work on all computers */
 		value = gennum_readl(spec, GNPPCI_MSI_CONTROL);
 		if ((value & 0x810000) != 0x810000)
-			dev_err(&spec->pdev->dev, "invalid msi control: "
-				"0x%04x\n", value >> 16);
+			dev_err(&spec->pdev->dev,
+				"invalid msi control: 0x%04x\n",
+				value >> 16);
 		value = 0xa50000 | (value & 0xffff);
 		gennum_writel(spec, value, GNPPCI_MSI_CONTROL);
 	}
@@ -167,16 +168,16 @@ static irqreturn_t spec_vic_irq_handler(int id, void *data)
 
 static struct fmc_gpio spec_vic_gpio_cfg[] = {
 	{
-	 .gpio = FMC_GPIO_IRQ(1),
-	 .mode = GPIOF_DIR_IN,
-	 .irqmode = IRQF_TRIGGER_RISING,
-	 },
+		.gpio = FMC_GPIO_IRQ(1),
+		.mode = GPIOF_DIR_IN,
+		.irqmode = IRQF_TRIGGER_RISING,
+	},
 
 	{
-	 .gpio = FMC_GPIO_IRQ(0),
-	 .mode = GPIOF_DIR_IN,
-	 .irqmode = IRQF_TRIGGER_RISING,
-	 }
+		.gpio = FMC_GPIO_IRQ(0),
+		.mode = GPIOF_DIR_IN,
+		.irqmode = IRQF_TRIGGER_RISING,
+	}
 };
 
 static int spec_irq_request(struct fmc_device *fmc, irq_handler_t handler,
@@ -266,8 +267,8 @@ static int spec_irq_free(struct fmc_device *fmc)
 		spec_vic_irq_free(spec, fmc->irq);
 
 	/*
-	 * If we were not using the VIC, or we released all the VIC handler, then
-	 * release the PCI IRQ handler
+	 * If we were not using the VIC, or we released all the VIC handler,
+	 * then release the PCI IRQ handler
 	 */
 	if (!spec->vic)
 		spec_shared_irq_free(fmc);
@@ -450,8 +451,9 @@ static int spec_irq_init(struct fmc_device *fmc)
 		 */
 		value = gennum_readl(spec, GNPPCI_MSI_CONTROL);
 		if ((value & 0x810000) != 0x810000)
-			dev_err(&spec->pdev->dev, "invalid msi control: "
-				"0x%04x\n", value >> 16);
+			dev_err(&spec->pdev->dev,
+				"invalid msi control: 0x%04x\n",
+				value >> 16);
 		value = 0xa50000 | (value & 0xffff);
 		gennum_writel(spec, value, GNPPCI_MSI_CONTROL);
 	}
@@ -466,7 +468,7 @@ static int spec_irq_init(struct fmc_device *fmc)
 	if (spec_use_msi)
 		gennum_writel(spec, 0x800c, GNINT_CFG(value & 0x03));
 	else
-		gennum_writel(spec, 0x800c, GNINT_CFG(0 /* first one */ ));
+		gennum_writel(spec, 0x800c, GNINT_CFG(0 /* first one */));
 
 	/* Finally, ensure we are able to receive it -- if the user asked to */
 	if (spec_test_irq == 0)
@@ -511,7 +513,9 @@ static int check_golden(struct fmc_device *fmc)
 		dev_err(&spec->pdev->dev, "Can't find SDB magic\n");
 		return -ENODEV;
 	}
-	if ( (ret = fmc_scan_sdb_tree(fmc, 0x100)) < 0)
+
+	ret = fmc_scan_sdb_tree(fmc, 0x100);
+	if (ret < 0)
 		return -ENODEV;
 
 	if (fmc_readl(fmc, 0x15c) != 0x0000ce42) {
