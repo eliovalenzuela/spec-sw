@@ -17,6 +17,7 @@
 #include <linux/errno.h>
 #include <linux/spinlock.h>
 #include <linux/net_tstamp.h>
+#include <linux/version.h>
 #include <asm/unaligned.h>
 
 #include "wr-nic.h"
@@ -209,8 +210,11 @@ static int wrn_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	/* We are done, this is trivial maiintainance*/
 	ep->stats.tx_packets++;
 	ep->stats.tx_bytes += len;
+#if KERNEL_VERSION(4,7,0) > LINUX_VERSION_CODE
 	dev->trans_start = jiffies;
-
+#else
+	netif_trans_update(dev);
+#endif
 	//spin_unlock_irqrestore(&ep->lock, flags);
 	return 0;
 }
