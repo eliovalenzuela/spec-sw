@@ -124,7 +124,7 @@ static char description[][100] = {
   {" - set valid period in [us] (0x0000:output disabled)"},        /* 26*/
   {" - set valid delay in [us] "}};                                 /* 27*/
 
-static int   wr_trans_base=0x1100;
+static int   wr_trans_base=0xE0700; //old (before wrpc-v3.1): 0x1100;
 static int   btrain_base  =0x1200;
 static void *card=0;
 static int bus = 1, dev_fn = 0;
@@ -383,16 +383,30 @@ void set_bt_tx_period(int argument)
   uint32_t val=0;
   val = (argument*1000)/16;
   write_btrain(WRBTRAIN_TX_PERIOD_VALUE_W(val),WRBTRAIN_REG_TX_PERIOD);
+
+  // override default config (using generics)
+  val = read_transmission(WRBTRAIN_REG_SCR);
+  val = val | WRBTRAIN_SCR_TX_OR_CONFIG;
+  write_btrain(val, WRBTRAIN_REG_SCR);
+  ///////////////////////////////////////////
+
   fprintf(stderr, "Send with period %d [us] = %d cycles (0x%x)\n",
     argument, val, val);
 }
 
 void set_bt_valid_period(int argument)
 {
-  uint32_t set_val=0, get_val=0;
+  uint32_t set_val=0, get_val=0, val=0;
   set_val = argument;
   write_btrain(WRBTRAIN_RX_OUT_DATA_TIME_VALID_W(set_val),WRBTRAIN_REG_RX_OUT_DATA_TIME);
   get_val = WRBTRAIN_RX_OUT_DATA_TIME_VALID_R(read_btrain(WRBTRAIN_REG_RX_OUT_DATA_TIME));
+
+  // override default config (using generics)
+  val = read_transmission(WRBTRAIN_REG_SCR);
+  val = val | WRBTRAIN_SCR_RX_OR_CONFIG;
+  write_btrain(val, WRBTRAIN_REG_SCR);
+  ///////////////////////////////////////////
+
   fprintf(stderr, "Send rx valid period period %d [ns] = %d [cycles] (0x%x) | get=%d\n",
     set_val*16, set_val, get_val);
 }
