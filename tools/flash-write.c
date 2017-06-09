@@ -32,7 +32,9 @@ static struct spec_pci_id {
 	unsigned pci_v;
 	unsigned pci_d;
 } spec_devices[] = {
-	{ 0x10dc /* CERN   */, 0x018d /* SPEC   */ },
+	{ 0x10dc /* CERN   */, 0x018d /* SPEC-45T */ },
+	{ 0x10dc /* CERN   */, 0x01a2 /* SPEC-100T*/ },
+	{ 0x10dc /* CERN   */, 0x01a3 /* SPEC-150T*/ },
 	{ 0x1a39 /* Gennum */, 0x0004 /* GN4124 */ },
 	{ 0, },
 };
