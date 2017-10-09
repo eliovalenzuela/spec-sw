@@ -23,6 +23,22 @@
 #include "wr-nic.h"
 #include "nic-mem.h"
 
+#undef WRN_TRANS_UPDATE
+#if KERNEL_VERSION(4, 7, 0) <= LINUX_VERSION_CODE
+#define WRN_TRANS_UPDATE
+#endif
+#ifdef RHEL_RELEASE_VERSION
+#if RHEL_RELEASE_VERSION(7, 0) <= RHEL_RELEASE_CODE
+#define WRN_TRANS_UPDATE
+#endif
+#endif
+
+#ifdef WRN_TRANS_UPDATE
+#define trans_update(dev)	netif_trans_update(dev)
+#else
+#define trans_update(dev)	((dev)->trans_start = jiffies)
+#endif
+
 /*
  * The following functions are the standard network device operations.
  * They act on the _endpoint_ (as each Linux interface is one endpoint)
@@ -210,11 +226,8 @@ static int wrn_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	/* We are done, this is trivial maiintainance*/
 	ep->stats.tx_packets++;
 	ep->stats.tx_bytes += len;
-#if KERNEL_VERSION(4, 7, 0) > LINUX_VERSION_CODE
-	dev->trans_start = jiffies;
-#else
-	netif_trans_update(dev);
-#endif
+	trans_update(dev);
+
 	//spin_unlock_irqrestore(&ep->lock, flags);
 	return 0;
 }
