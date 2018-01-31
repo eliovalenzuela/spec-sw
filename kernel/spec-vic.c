@@ -128,12 +128,19 @@ irqreturn_t spec_vic_irq_dispatch(struct spec_dev *spec)
 	 */
 	index = vic_readl(vic, VIC_REG_VAR) & 0xff;
 
-	if (index >= VIC_MAX_VECTORS)
+	if (index >= VIC_MAX_VECTORS) {
+		dev_err(&spec->pdev->dev, "Invalid VIC index %d (max %d)\n",
+			index, VIC_MAX_VECTORS);
 		goto fail;
+	}
 
 	vec = &vic->vectors[index];
-	if (!vec->handler)
+	if (!vec->handler) {
+		dev_err(&spec->pdev->dev,
+			"Handler not found for vector %d\n",
+			index);
 		goto fail;
+	}
 
 	rv = vec->handler(vec->saved_id, vec->requestor);
 
