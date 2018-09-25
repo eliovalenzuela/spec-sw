@@ -11,6 +11,7 @@
  * published by the Free Software Foundation.
  */
 
+#include <linux/version.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/etherdevice.h>
@@ -129,10 +130,17 @@ static void wrn_update_link_status(struct net_device *dev)
 }
 
 /* Actual timer function. Takes the lock and calls above function */
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 15, 0)
 static void wrn_ep_check_link(unsigned long dev_id)
 {
 	struct net_device *dev = (struct net_device *) dev_id;
 	struct wrn_ep *ep = netdev_priv(dev);
+#else
+static void wrn_ep_check_link(struct timer_list *t)
+{
+	struct wrn_ep *ep = from_timer(ep, t, ep_link_timer);
+	struct net_device *dev = ep->mii.dev;
+#endif
 	unsigned long flags;
 
 	spin_lock_irqsave(&ep->lock, flags);
@@ -146,7 +154,9 @@ static void wrn_ep_check_link(unsigned long dev_id)
 int wrn_ep_open(struct net_device *dev)
 {
 	struct wrn_ep *ep = netdev_priv(dev);
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 15, 0)
 	unsigned long timerarg = (unsigned long)dev;
+#endif
 
 	if (1) {
 		netif_carrier_on(dev);
@@ -177,7 +187,11 @@ int wrn_ep_open(struct net_device *dev)
 	wrn_phy_write(dev, 0, MII_BMCR, BMCR_ANENABLE | BMCR_ANRESTART);
 
 	/* Prepare the timer for link-up notifications */
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 15, 0)
 	setup_timer(&ep->ep_link_timer, wrn_ep_check_link, timerarg);
+#else
+	timer_setup(&ep->ep_link_timer, wrn_ep_check_link, 0);
+#endif
 	if (0) {
 		/* not on spec */
 		mod_timer(&ep->ep_link_timer, jiffies + WRN_LINK_POLL_INTERVAL);
