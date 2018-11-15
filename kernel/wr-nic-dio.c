@@ -8,7 +8,12 @@
  * by CERN, the European Institute for Nuclear Research.
  */
 #include <linux/module.h>
+#include <linux/version.h>
+#if KERNEL_VERSION(4,11,0) > LINUX_VERSION_CODE
 #include <linux/sched.h>
+#else
+#include <linux/sched/signal.h>
+#endif
 #include <linux/wait.h>
 #include <linux/ktime.h>
 #include <linux/atomic.h>
