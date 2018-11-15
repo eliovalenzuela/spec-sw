@@ -425,7 +425,9 @@ static void __wrn_rx_descriptor(struct wrn_dev *wrn, int desc)
 
 	skb->protocol = eth_type_trans(skb, dev);
 	skb->ip_summed = CHECKSUM_UNNECESSARY;
+#if KERNEL_VERSION(4,11,0) > LINUX_VERSION_CODE
 	dev->last_rx = jiffies;
+#endif
 	ep->stats.rx_packets++;
 	ep->stats.rx_bytes += len;
 	netif_receive_skb(skb);
