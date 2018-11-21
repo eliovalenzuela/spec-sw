@@ -20,12 +20,12 @@
 #include <linux/pci.h>
 #include <linux/io.h>
 #include <asm/unaligned.h>
-#include <linux/version.h>
 #include <linux/fs.h>
 #include <linux/vmalloc.h>
 #include <linux/uaccess.h>
 
 #include "spec.h"
+#include "spec-compat.h"
 #include "loader-ll.h"
 
 static char *spec_fw_name_45t = "fmc/spec-init.bin";
@@ -215,19 +215,8 @@ static int spec_probe(struct pci_dev *pdev,
 	spec->pdev = pdev;
 
 	if (spec_use_msi) {
-		/*
-		 * This should be "4" but arch/x86/kernel/apic/io_apic.c
-		 * says "x86 doesn't support multiple MSI yet".
-		 */
-		#if KERNEL_VERSION(3, 16, 0) > LINUX_VERSION_CODE
-		ret = pci_enable_msi_block(pdev, 1);
-		#else
-		#if KERNEL_VERSION(4,11,0) > LINUX_VERSION_CODE
-		ret = pci_enable_msi_exact(pdev, 1);
-		#else
-		ret = pci_alloc_irq_vectors(pdev, 1, 1, PCI_IRQ_MSI | PCI_IRQ_LEGACY);
-		#endif
-		#endif
+		ret = pci_alloc_irq_vectors(pdev, 1, 1,
+					    PCI_IRQ_MSI | PCI_IRQ_LEGACY);
 		if (ret < 0)
 			dev_err(&pdev->dev, "%s: enable msi block: error %i\n",
 				__func__, ret);
@@ -284,11 +273,7 @@ out_unmap:
 	}
 	pci_set_drvdata(pdev, NULL);
 	if (spec_use_msi)
-#if KERNEL_VERSION(4,11,0) > LINUX_VERSION_CODE
-		pci_disable_msi(pdev);
-#else
 		pci_free_irq_vectors(pdev);
-#endif
 	pci_disable_device(pdev);
 	kfree(spec);
 	return ret;
@@ -311,11 +296,7 @@ static void spec_remove(struct pci_dev *pdev)
 	}
 	pci_set_drvdata(pdev, NULL);
 	kfree(spec);
-#if KERNEL_VERSION(4,11,0) > LINUX_VERSION_CODE
-	//pci_disable_msi(pdev);
-#else
 	pci_free_irq_vectors(pdev);
-#endif
 	pci_disable_device(pdev);
 
 }

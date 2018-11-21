@@ -10,7 +10,6 @@
 #include <linux/version.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/version.h>
 #include <linux/slab.h>
 #include <linux/gpio.h>
 #include <linux/fmc.h>
@@ -18,12 +17,7 @@
 
 static inline struct fmc_device *gc_to_fmc(struct gpio_chip *gc)
 {
-#if LINUX_VERSION_CODE < KERNEL_VERSION(4,5,0)
-	struct device *dev = gc->dev;
-#else
-	struct device *dev = gc->parent;
-#endif
-	return container_of(dev, struct fmc_device, dev);
+	return container_of(gc_to_dev(gc), struct fmc_device, dev);
 }
 
 static int wrn_gpio_input(struct gpio_chip *chip, unsigned offset)
@@ -77,11 +71,7 @@ int wrn_gpio_init(struct fmc_device *fmc)
 	if (!gc)
 		return -ENOMEM;
 	*gc = wrn_gpio_template;
-#if LINUX_VERSION_CODE < KERNEL_VERSION(4,5,0)
-	gc->dev = &fmc->dev;
-#else
-	gc->parent = &fmc->dev;
-#endif
+	gc_assign_dev(gc, &fmc->dev);
 
 	ret = gpiochip_add(gc);
 	if (ret < 0)
@@ -99,17 +89,6 @@ out_free:
 void wrn_gpio_exit(struct fmc_device *fmc)
 {
 	struct wrn_drvdata *dd = fmc_get_drvdata(fmc);
-	struct gpio_chip *gc = dd->gc;
 
-#if LINUX_VERSION_CODE > KERNEL_VERSION(3,17,0)
-	gpiochip_remove(gc);
-#else
-	int ret;
-
-	ret = gpiochip_remove(gc);
-	if (ret)
-		dev_err(fmc->hwdev, "DANGER %i! gpio chip can't be removed\n",
-			ret);
-#endif
-	return;
+	gpiochip_remove_compat(dd->gc);
 }
