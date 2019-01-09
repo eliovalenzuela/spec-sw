@@ -70,6 +70,9 @@ static int spec_check_id(int bus, int dev)
 	if (device== PCI_DEVICE_ID_SPEC && vendor== PCI_VENDOR_ID_CERN)
 		return 1;
 
+	if (device== PCI_DEVICE_ID_CTRIE && vendor== PCI_VENDOR_ID_CERN)
+		return 1;
+
 	if (device== PCI_DEVICE_ID_GN4124 && vendor== PCI_VENDOR_ID_GENNUM)
 		return 1;
 

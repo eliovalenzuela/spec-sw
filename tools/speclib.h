@@ -8,6 +8,7 @@
 #define PCI_DEVICE_ID_SPEC	0x018d
 #define PCI_VENDOR_ID_GENNUM	0x1a39
 #define PCI_DEVICE_ID_GN4124	0x0004
+#define PCI_DEVICE_ID_CTRIE	0x01ae
 
 /* 'Opens' the SPEC card at PCI bus [bus], device/function [dev].
     Returns a handle to the card or NULL in case of failure. */
