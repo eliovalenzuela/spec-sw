@@ -39,6 +39,23 @@
 #define trans_update(dev)	((dev)->trans_start = jiffies)
 #endif
 
+#undef WRN_LAST_RX_RECORD
+#if KERNEL_VERSION(4,11,0) <= LINUX_VERSION_CODE
+#define WRN_LAST_RX_RECORD
+#endif
+#ifdef RHEL_RELEASE_VERSION
+#if RHEL_RELEASE_VERSION(7, 0) <= RHEL_RELEASE_CODE
+#define WRN_LAST_RX_RECORD
+#endif
+#endif
+
+#ifdef WRN_LAST_RX_RECORD
+#define record_last_rx(dev)
+#else
+#define record_last_rx(dev)	((dev)->last_rx = jiffies)
+#endif
+
+
 /*
  * The following functions are the standard network device operations.
  * They act on the _endpoint_ (as each Linux interface is one endpoint)
@@ -425,9 +442,7 @@ static void __wrn_rx_descriptor(struct wrn_dev *wrn, int desc)
 
 	skb->protocol = eth_type_trans(skb, dev);
 	skb->ip_summed = CHECKSUM_UNNECESSARY;
-#if KERNEL_VERSION(4,11,0) > LINUX_VERSION_CODE
-	dev->last_rx = jiffies;
-#endif
+	record_last_rx(dev);
 	ep->stats.rx_packets++;
 	ep->stats.rx_bytes += len;
 	netif_receive_skb(skb);
