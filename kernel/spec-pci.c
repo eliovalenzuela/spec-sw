@@ -30,6 +30,7 @@
 
 static char *spec_fw_name_45t = "fmc/spec-init.bin";
 static char *spec_fw_name_100t = "fmc/spec-init-100T.bin";
+static char *spec_fw_name_150t = "fmc/spec-init-150T.bin";
 char *spec_fw_name = "";
 module_param_named(fw_name, spec_fw_name, charp, 0444);
 
@@ -48,6 +49,8 @@ static char *spec_golden_name_get(unsigned int device_id)
 		return spec_fw_name_45t;
 	case PCI_DEVICE_ID_SPEC_100T:
 		return spec_fw_name_100t;
+	case PCI_DEVICE_ID_SPEC_150T:
+		return spec_fw_name_150t;
 	}
 	return NULL;
 }
@@ -323,6 +326,7 @@ static void spec_remove(struct pci_dev *pdev)
 static const struct pci_device_id spec_idtable[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_CERN, PCI_DEVICE_ID_SPEC_45T) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_CERN, PCI_DEVICE_ID_SPEC_100T) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_CERN, PCI_DEVICE_ID_SPEC_150T) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_GENNUM, PCI_DEVICE_ID_GN4124) },
 	{ 0,},
 };
