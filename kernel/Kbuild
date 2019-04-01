@@ -18,6 +18,7 @@ LINUXINCLUDE :=  -I$(FMC_BUS_ABS)/kernel/include -I$(src)/include/linux $(LINUXI
 ccflags-y += -I$(src)/include
 ccflags-y += $(WR_NIC_CFLAGS)
 ccflags-y += -DGIT_VERSION=\"$(GIT_VERSION)\"
+ccflags-y += -DWR_NODE
 
 
 # this is a bad hack. Sometimes we are a submodule, and wr-nic can

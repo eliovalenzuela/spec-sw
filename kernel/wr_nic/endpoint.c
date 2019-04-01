@@ -16,8 +16,36 @@
 #include <linux/errno.h>
 #include <linux/etherdevice.h>
 #include <linux/io.h>
+#include <linux/moduleparam.h>
 
 #include "wr-nic.h"
+
+static char *macaddr = "00:00:00:00:00:00";
+module_param(macaddr, charp, 0444);
+
+/* Copied from kernel 3.6 net/utils.c, it converts from MAC string to u8 array */
+__weak int mac_pton(const char *s, u8 *mac)
+{
+	int i;
+
+	/* XX:XX:XX:XX:XX:XX */
+	if (strlen(s) < 3 * ETH_ALEN - 1)
+		 return 0;
+
+	/* Don't dirty result unless string is valid MAC. */
+	for (i = 0; i < ETH_ALEN; i++) {
+		if (!strchr("0123456789abcdefABCDEF", s[i * 3]))
+			return 0;
+		if (!strchr("0123456789abcdefABCDEF", s[i * 3 + 1]))
+			return 0;
+		if (i != ETH_ALEN - 1 && s[i * 3 + 2] != ':')
+			return 0;
+	}
+	for (i = 0; i < ETH_ALEN; i++) {
+		mac[i] = (hex_to_bin(s[i * 3]) << 4) | hex_to_bin(s[i * 3 + 1]);
+	}
+	return 1;
+}
 
 /*
  * Phy access: used by link status, enable, calibration ioctl etc.
@@ -28,7 +56,7 @@ int wrn_phy_read(struct net_device *dev, int phy_id, int location)
 	struct wrn_ep *ep = netdev_priv(dev);
 	u32 val;
 
-	if (1) {
+	if (WR_IS_NODE) {
 		/*
 		 * We cannot access the phy from Linux, because the phy
 		 * is managed by the lm32 core. However, network manager
@@ -39,7 +67,7 @@ int wrn_phy_read(struct net_device *dev, int phy_id, int location)
 	}
 
 	wrn_ep_write(ep, MDIO_CR, EP_MDIO_CR_ADDR_W(location));
-	while ((wrn_ep_read(ep, MDIO_ASR) & EP_MDIO_ASR_READY) == 0)
+	while( (wrn_ep_read(ep, MDIO_ASR) & EP_MDIO_ASR_READY) == 0)
 		;
 	val = wrn_ep_read(ep, MDIO_ASR);
 	/* mask from wbgen macros */
@@ -51,7 +79,7 @@ void wrn_phy_write(struct net_device *dev, int phy_id, int location,
 {
 	struct wrn_ep *ep = netdev_priv(dev);
 
-	if (1) {
+	if (WR_IS_NODE) {
 		/*
 		 * We cannot access the phy from Linux, because the phy
 		 * is managed by the lm32 core. However, network manager
@@ -65,7 +93,7 @@ void wrn_phy_write(struct net_device *dev, int phy_id, int location,
 		     EP_MDIO_CR_ADDR_W(location)
 		     | EP_MDIO_CR_DATA_W(value)
 		     | EP_MDIO_CR_RW);
-	while ((wrn_ep_read(ep, MDIO_ASR) & EP_MDIO_ASR_READY) == 0)
+	while( (wrn_ep_read(ep, MDIO_ASR) & EP_MDIO_ASR_READY) == 0)
 		;
 }
 
@@ -83,7 +111,7 @@ static void wrn_update_link_status(struct net_device *dev)
 
 		/* Link wnt down? */
 	if (!mii_link_ok(&ep->mii)) {
-		if (netif_carrier_ok(dev)) {
+		if(netif_carrier_ok(dev)) {
 			netif_carrier_off(dev);
 			clear_bit(WRN_EP_UP, &ep->ep_flags);
 			netdev_info(dev, "Link down.\n");
@@ -93,7 +121,7 @@ static void wrn_update_link_status(struct net_device *dev)
 	}
 
 	/* Currently the link is active */
-	if (netif_carrier_ok(dev)) {
+	if(netif_carrier_ok(dev)) {
 		/* Software already knows it's up */
 		return;
 	}
@@ -110,7 +138,7 @@ static void wrn_update_link_status(struct net_device *dev)
 
 		if (0) { /* was commented in minic */
 			wrn_ep_write(ep, FCR,
-				     EP_FCR_TXPAUSE | EP_FCR_RXPAUSE
+				     EP_FCR_TXPAUSE |EP_FCR_RXPAUSE
 				     | EP_FCR_TX_THR_W(128)
 				     | EP_FCR_TX_QUANTA_W(200));
 		}
@@ -126,7 +154,7 @@ static void wrn_update_link_status(struct net_device *dev)
 	/* reset RMON counters */
 	ecr = wrn_ep_read(ep, ECR);
 	wrn_ep_write(ep, ECR, ecr | EP_ECR_RST_CNT);
-	wrn_ep_write(ep, ECR, ecr);
+	wrn_ep_write(ep, ECR, ecr );
 }
 
 /* Actual timer function. Takes the lock and calls above function */
@@ -157,8 +185,9 @@ int wrn_ep_open(struct net_device *dev)
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 15, 0)
 	unsigned long timerarg = (unsigned long)dev;
 #endif
+	int prio, prio_map;
 
-	if (1) {
+	if (WR_IS_NODE) {
 		netif_carrier_on(dev);
 		return 0; /* No access to EP registers in the SPEC */
 	}
@@ -169,12 +198,20 @@ int wrn_ep_open(struct net_device *dev)
 	       | EP_VCR0_PRIO_VAL_W(4),		/* some mid priority */
 		&ep->ep_regs->VCR0);
 
+	/* Write default 802.1Q tag priority to traffic class mapping */
+	prio_map = 0;
+	for(prio=0; prio<8; ++prio) {
+		prio_map |= (0x7 & prio) << (prio*3);
+	}
+	writel(prio_map, &ep->ep_regs->TCAR);
+
+
 	/*
 	 * enable RX timestamping (it has no impact on performance)
 	 * and we need the RX OOB block to identify orginating endpoints
 	 * for RXed packets -- Tom
 	 */
-	writel(EP_TSCR_EN_TXTS | EP_TSCR_EN_RXTS, &ep->ep_regs->TSCR);
+	writel(EP_TSCR_EN_TXTS| EP_TSCR_EN_RXTS, &ep->ep_regs->TSCR);
 
 	writel(0
 	       | EP_ECR_PORTID_W(ep->ep_number)
@@ -189,16 +226,10 @@ int wrn_ep_open(struct net_device *dev)
 	/* Prepare the timer for link-up notifications */
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 15, 0)
 	setup_timer(&ep->ep_link_timer, wrn_ep_check_link, timerarg);
-#else
-	timer_setup(&ep->ep_link_timer, wrn_ep_check_link, 0);
 #endif
-	if (0) {
-		/* not on spec */
-		mod_timer(&ep->ep_link_timer, jiffies + WRN_LINK_POLL_INTERVAL);
-	} else {
-		/* Assume it's already on */
-		netif_carrier_on(dev);
-	}
+	/* Not on spec. On spec this part of the function is never reached
+	 * due to return in if(WR_IS_NODE) */
+	mod_timer(&ep->ep_link_timer, jiffies + WRN_LINK_POLL_INTERVAL);
 	return 0;
 }
 
@@ -206,11 +237,11 @@ int wrn_ep_close(struct net_device *dev)
 {
 	struct wrn_ep *ep = netdev_priv(dev);
 
-	if (1)
+	if (WR_IS_NODE)
 		return 0; /* No access to EP registers in the SPEC */
 	/*
 	 * Beware: the system loops in the del_timer_sync below if timer_setup
-	 * had not been called either (see "if (1)"  in ep_open above)
+	 * had not been called either (see "if (WR_IS_NODE)" in ep_open above)
 	 */
 
 	writel(0, &ep->ep_regs->ECR);
@@ -234,9 +265,40 @@ int wrn_endpoint_probe(struct net_device *dev)
 {
 	struct wrn_ep *ep = netdev_priv(dev);
 	int epnum, err;
+	static u8 wraddr[6];
 	u32 val;
 
 	epnum = ep->ep_number;
+
+	if(WR_IS_NODE) {
+		/* If address is not provided as parameter read from lm32 */
+		if (is_zero_ether_addr(wraddr)) {
+			/* on the SPEC the lm32 already configured the mac address */
+			val = readl(&ep->ep_regs->MACH);
+			put_unaligned_be16(val, wraddr);
+			val = readl(&ep->ep_regs->MACL);
+			put_unaligned_be32(val, wraddr+2);
+		}
+	}
+
+	if(WR_IS_SWITCH) {
+		/* If the MAC address is 0, then randomize the first MAC */
+		/* Do not randomize for SPEC */
+		if (is_zero_ether_addr(wraddr)) {
+			pr_warn("wr_nic: missing MAC address, randomize\n");
+			/* randomize a MAC address, so lazy users can avoid ifconfig */
+			random_ether_addr(wraddr);
+			/* Clear the MSB on fourth octect to prevent bit overflow on OUI */
+			wraddr[3] &= 0x7F;
+		}
+	}
+
+	if (ep->ep_number == 0)
+		pr_info("WR-nic: Using address %pM\n", wraddr);
+
+	/* Use wraddr as MAC */
+	memcpy(dev->dev_addr, wraddr, ETH_ALEN);
+	pr_debug("wr_nic: assign MAC %pM to wr%d\n", dev->dev_addr, ep->ep_number);
 
 	/* Check whether the ep has been sinthetized or not */
 	val = readl(&ep->ep_regs->IDCODE);
@@ -265,22 +327,16 @@ int wrn_endpoint_probe(struct net_device *dev)
 
 	/* Finally, register and succeed, or fail and undo */
 	err = register_netdev(dev);
+
+	/* Increment MAC address for next endpoint */
+	val = get_unaligned_be32(wraddr + 2);
+	put_unaligned_be32(val + 1, wraddr + 2);
+
 	if (err) {
 		netdev_err(dev, "Can't register device\n");
 		__wrn_endpoint_shutdown(ep);
 		/* ENODEV means "no more" for the caller, so avoid it */
 		return err == -ENODEV ? -EIO : err;
-	}
-
-	if (0) {
-		/* randomize a MAC address, so lazy users can avoid ifconfig */
-		random_ether_addr(dev->dev_addr);
-	} else {
-		/* on the SPEC the lm32 already configured the mac address */
-		val = readl(&ep->ep_regs->MACH);
-		put_unaligned_be16(val, dev->dev_addr);
-		val = readl(&ep->ep_regs->MACL);
-		put_unaligned_be32(val, dev->dev_addr+2);
 	}
 
 	return 0;

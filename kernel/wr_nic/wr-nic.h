@@ -25,6 +25,17 @@
 
 #ifdef __KERNEL__ /* The rest is kernel-only */
 
+/* The NIC can build for both the switch and the node. Prefer if to ifdef */
+#if defined WR_NODE
+#  define WR_IS_NODE 1
+#  define WR_IS_SWITCH 0
+#elif defined WR_SWITCH
+#  define WR_IS_NODE 0
+#  define WR_IS_SWITCH 1
+#else 
+#  error "Please define WR_NODE or WR_SWITCH"
+#endif
+
 #include <linux/interrupt.h>
 #include <linux/spinlock.h>
 #include <linux/mii.h>		/* Needed for stuct mii_if_info in wrn_dev */
@@ -33,7 +44,6 @@
 
 #include "nic-hardware.h" /* Magic numbers: please fix them as needed */
 
-#define DRV_NAME "wr-nic" /* Used in messages and device/driver names */
 #define DRV_VERSION "0.1" /* For ethtool->get_drvinfo -- FIXME: auto-vers */
 
 /*

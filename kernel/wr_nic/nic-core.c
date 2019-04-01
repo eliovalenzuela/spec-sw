@@ -21,6 +21,9 @@
 #include <asm/unaligned.h>
 
 #include "wr-nic.h"
+#if WR_IS_SWITCH
+#include "wr_pstats.h"
+#endif
 #include "nic-mem.h"
 
 #undef WRN_TRANS_UPDATE
@@ -72,6 +75,14 @@ static int wrn_open(struct net_device *dev)
 	if (!is_valid_ether_addr(dev->dev_addr))
 		return -EADDRNOTAVAIL;
 
+	if(WR_IS_SWITCH) {
+		/* MACH gets the first two bytes, MACL the rest  */
+		val = get_unaligned_be16(dev->dev_addr);
+		writel(val, &ep->ep_regs->MACH);
+		val = get_unaligned_be32(dev->dev_addr+2);
+		writel(val, &ep->ep_regs->MACL);
+	}
+
 	/* Mark it as down, and start the ep-specific polling timer */
 	clear_bit(WRN_EP_UP, &ep->ep_flags);
 	wrn_ep_open(dev);
@@ -89,7 +100,7 @@ static int wrn_open(struct net_device *dev)
 	 * malformed packets
 	 */
 	val = readl(&ep->ep_regs->RFCR) & ~EP_RFCR_MRU_MASK;
-	writel(val | EP_RFCR_MRU_W(2048), &ep->ep_regs->RFCR);
+	writel (val | EP_RFCR_MRU_W(2048), &ep->ep_regs->RFCR);
 
 	/* Most drivers call platform_set_drvdata() but we don't need it */
 	return 0;
@@ -100,8 +111,7 @@ static int wrn_close(struct net_device *dev)
 	struct wrn_ep *ep = netdev_priv(dev);
 	int ret;
 
-	ret = wrn_ep_close(dev);
-	if (ret)
+	if ( (ret = wrn_ep_close(dev)) )
 		return ret;
 
 	/* FIXME: software-only fixing at close time */
@@ -111,7 +121,7 @@ static int wrn_close(struct net_device *dev)
 	return 0;
 }
 
-static int wrn_set_mac_address(struct net_device *dev, void *vaddr)
+static int wrn_set_mac_address(struct net_device *dev, void* vaddr)
 {
 	struct wrn_ep *ep = netdev_priv(dev);
 	struct sockaddr *addr = vaddr;
@@ -193,7 +203,7 @@ static int wrn_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct wrn_ep *ep = netdev_priv(dev);
 	struct wrn_dev *wrn = ep->wrn;
 	struct skb_shared_info *info = skb_shinfo(skb);
-	//unsigned long flags;
+	unsigned long flags;
 	int desc;
 	int id;
 	int do_stamp = 0;
@@ -207,13 +217,23 @@ static int wrn_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	/* Allocate a descriptor and id (start from last allocated) */
-	//spin_lock_irqsave(&wrn->lock, flags);
+	if(WR_IS_SWITCH){
+		spin_lock_irqsave(&wrn->lock, flags);
+	}
+
 	desc = __wrn_alloc_tx_desc(wrn);
 	id = (wrn->id++) & 0xffff;
 	if (id == 0)
 		id = wrn->id++; /* 0 cannot be used in the SPEC */
 
-	//spin_unlock_irqrestore(&wrn->lock, flags);
+	if(WR_IS_SWITCH){
+		spin_unlock_irqrestore(&wrn->lock, flags);
+	}
+
+	if(WR_IS_NODE){
+		if (id == 0)
+			id = wrn->id++; /* 0 cannot be used in the SPEC */
+	}
 
 	if (desc < 0) /* error */
 		return desc;
@@ -249,13 +269,50 @@ static int wrn_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	return 0;
 }
 
+#if WR_IS_SWITCH
+int (*wr_nic_pstats_callback)(int epnum,
+			      unsigned int ctr[PSTATS_CNT_PP]);
+EXPORT_SYMBOL(wr_nic_pstats_callback);
+
+static unsigned int nic_counters[PSTATS_CNT_PP];
+static DEFINE_SPINLOCK(nic_counters_lock);
+#endif
+
 struct net_device_stats *wrn_get_stats(struct net_device *dev)
 {
 	struct wrn_ep *ep = netdev_priv(dev);
 
-	/* FIXME: we should get the RMON information from endpoint */
+#if WR_IS_SWITCH
+	if (wr_nic_pstats_callback) {
+		int i;
+
+		spin_lock(&nic_counters_lock);
+		wr_nic_pstats_callback(ep->ep_number, nic_counters);
+		if (0) {
+			/* A stupid diagnostics, happens oh so often... */
+			printk(KERN_INFO "counters for %i:", ep->ep_number);
+			for (i = 0; i < PSTATS_CNT_PP; i++)
+				printk(KERN_CONT " %u", nic_counters[i]);
+			printk(KERN_CONT "\n");
+		} else {
+			/* Recover values in the kernel structure */
+			ep->stats.rx_packets =
+				nic_counters[PSTATS_C_R_FRAME];
+			ep->stats.tx_packets =
+				nic_counters[PSTATS_C_T_FRAME];
+			ep->stats.rx_length_errors =
+				nic_counters[PSTATS_C_R_GIANT];
+			ep->stats.rx_crc_errors =
+				nic_counters[PSTATS_C_R_CRC_ERROR];
+			ep->stats.rx_fifo_errors =
+				nic_counters[PSTATS_C_R_OVERRUN];
+			ep->stats.tx_fifo_errors =
+				nic_counters[PSTATS_C_T_UNDERRUN];
+		}
+		spin_unlock(&nic_counters_lock);
+	}
+#endif
 	return &ep->stats;
-	return NULL;
 }
 
 /*
@@ -275,6 +332,7 @@ int __weak wrn_mezzanine_init(struct net_device *dev)
 
 void __weak wrn_mezzanine_exit(struct net_device *dev)
 {
+	return;
 }
 
 
@@ -407,35 +465,42 @@ static void __wrn_rx_descriptor(struct wrn_dev *wrn, int desc)
 	__wrn_copy_in(skb_put(skb, len), wrn->databuf + off, len);
 
 	/* Rewrite lenght (modified during rx) and mark it free ASAP */
-	writel((2000 << 16) | offset, &rx->rx3);
+	writel( (2000 << 16) | offset, &rx->rx3);
 	writel(NIC_RX1_D1_EMPTY, &rx->rx1);
 
 	/* RX timestamping part */
 
 	wrn_ppsg_read_time(wrn, &counter_ppsg, &utc);
 
-	if (counter_ppsg < ts_r)
-		utc--;
+	if (WR_IS_NODE)
+		if (counter_ppsg < ts_r)
+			utc--;
+
+	if (WR_IS_SWITCH)
+		if(counter_ppsg < REFCLK_FREQ/4 && ts_r > 3*REFCLK_FREQ/4)
+			utc--;
 
 	ts.tv_sec = (s32)utc & 0x7fffffff;
 	cntr_diff = (ts_r & 0xf) - ts_f;
 	/* the bit says the rising edge cnter is 1tick ahead */
-	if (cntr_diff == 1 || cntr_diff == (-0xf))
+	if(cntr_diff == 1 || cntr_diff == (-0xf))
 		ts.tv_sec |= 0x80000000;
 	ts.tv_nsec = ts_r * NSEC_PER_TICK;
 
 	pr_debug("Timestamp: %li:%li, ahead = %d\n",
-		 ts.tv_sec & 0x7fffffff,
-		 ts.tv_nsec & 0x7fffffff,
-		 ts.tv_sec & 0x80000000 ? 1 : 0);
+	       ts.tv_sec & 0x7fffffff,
+	       ts.tv_nsec & 0x7fffffff,
+	       ts.tv_sec & 0x80000000 ? 1 :0);
 
-	if (1) {
+	if(WR_IS_NODE){
 		/* SPEC: don't do the strange stuff for wr-ptp */
 		ts.tv_sec &= ~0x80000000;
 		ts.tv_nsec &= 0x7fffffff;
 	}
 
-	if (!(r1 & NIC_RX1_D1_TS_INCORRECT)) {
+	/* If the timestamp was reported as incorrect, pass 0 instead */
+	if (! (r1 & NIC_RX1_D1_TS_INCORRECT)) /* FIXME: bit name possibly? */
+	{
 		hwts = skb_hwtstamps(skb);
 		hwts->hwtstamp = timespec_to_ktime(ts);
 	}
@@ -449,7 +514,7 @@ static void __wrn_rx_descriptor(struct wrn_dev *wrn, int desc)
 	return;
 
 err_out: /* Mark it free anyways -- with its full length */
-	writel((2000 << 16) | offset, &rx->rx3);
+	writel( (2000 << 16) | offset, &rx->rx3);
 	writel(NIC_RX1_D1_EMPTY, &rx->rx1);
 
 	/* account the error to endpoint 0 -- we don't know who it is */
@@ -490,7 +555,7 @@ static void wrn_tx_interrupt(struct wrn_dev *wrn)
 	int i;
 
 	/* Loop using our tail until one is not sent */
-	while ((i = wrn->next_tx_tail) != wrn->next_tx_head) {
+	while ( (i = wrn->next_tx_tail) != wrn->next_tx_head) {
 		/* Check if this is txdone */
 		tx = wrn->txd + i;
 		reg = readl(&tx->tx1);

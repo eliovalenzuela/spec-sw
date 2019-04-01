@@ -23,20 +23,27 @@
 
 #include "wr-nic.h"
 #include "nic-mem.h"
+#if WR_IS_NODE
 #include "../spec-nic.h"
+#endif
 
 /* The remove function is used by probe, so it's not __devexit */
 static int wrn_remove(struct platform_device *pdev)
 {
+#if WR_IS_NODE
 	struct wrn_drvdata *drvdata = pdev->dev.platform_data;
 	struct wrn_dev *wrn = drvdata->wrn;
+#endif
+#if WR_IS_SWITCH
+	struct wrn_dev *wrn = pdev->dev.platform_data;
+#endif
 	int i;
 
-#if 0
-	spin_lock(&wrn->lock);
-	--wrn->use_count; /* Hmmm... looks like overkill... */
-	spin_unlock(&wrn->lock);
-#endif
+	if (WR_IS_SWITCH) {
+		spin_lock(&wrn->lock);
+		--wrn->use_count; /* Hmmm... looks like overkill... */
+		spin_unlock(&wrn->lock);
+	}
 
 	/* First of all, stop any transmission */
 	writel(0, &wrn->regs->CR);
@@ -59,7 +66,6 @@ static int wrn_remove(struct platform_device *pdev)
 	/* Unregister all interrupts that were registered */
 	for (i = 0; wrn->irq_registered; i++) {
 		static int irqs[] = WRN_IRQ_NUMBERS;
-
 		if (wrn->irq_registered & (1 << i))
 			free_irq(irqs[i], wrn);
 		wrn->irq_registered &= ~(1 << i);
@@ -73,9 +79,13 @@ static int __wrn_map_resources(struct platform_device *pdev)
 	int i;
 	struct resource *res;
 	void __iomem *ptr;
+#if WR_IS_NODE
 	struct wrn_drvdata *drvdata = pdev->dev.platform_data;
 	struct wrn_dev *wrn = drvdata->wrn;
-
+#endif
+#if WR_IS_SWITCH
+	struct wrn_dev *wrn = pdev->dev.platform_data;
+#endif
 	/*
 	 * The memory regions are mapped once for all endpoints.
 	 * We don't populate the whole array, but use the resource list
@@ -86,13 +96,13 @@ static int __wrn_map_resources(struct platform_device *pdev)
 			continue;
 		ptr = ioremap(res->start, res->end + 1 - res->start);
 		if (!ptr) {
-			dev_err(&pdev->dev, "Remap for res %i (%08lx) failed\n",
-				i, (long)res->start);
+			dev_err(&pdev->dev, "Remap for res %i (%pa) failed\n",
+				i, (void *) res->start);
 			return -ENOMEM;
 		}
 		/* Hack: find the block number and fill the array */
-		pr_debug("Remapped %08lx (block %i) to %p\n",
-			 (long)res->start, i, ptr);
+		pr_debug("Remapped %pa (block %i) to %p\n",
+			 (void *) res->start, i, ptr);
 		wrn->bases[i] = ptr;
 	}
 	return 0;
@@ -102,32 +112,35 @@ static int wrn_probe(struct platform_device *pdev)
 {
 	struct net_device *netdev;
 	struct wrn_ep *ep;
+#if WR_IS_NODE
 	struct wrn_drvdata *drvdata = pdev->dev.platform_data;
 	struct wrn_dev *wrn = drvdata->wrn;
+#endif
+#if WR_IS_SWITCH
+	struct wrn_dev *wrn = pdev->dev.platform_data;
+#endif
 	int i, err = 0;
 
-#if 0
 	/* Lazily: irqs are not in the resource list */
 	static int irqs[] = WRN_IRQ_NUMBERS;
 	static char *irq_names[] = WRN_IRQ_NAMES;
 	static irq_handler_t irq_handlers[] = WRN_IRQ_HANDLERS;
-#endif
-
 
 	/* No need to lock_irq: we only protect count and continue unlocked */
-#if 0
-	spin_lock(&wrn->lock);
-	if (++wrn->use_count != 1) {
-		--wrn->use_count;
+	if (WR_IS_SWITCH) {
+		spin_lock(&wrn->lock);
+		if (++wrn->use_count != 1) {
+			--wrn->use_count;
+			spin_unlock(&wrn->lock);
+			return -EBUSY;
+		}
 		spin_unlock(&wrn->lock);
 		dev_err(&pdev->dev, "use count %i\n", wrn->use_count);
 		return -EBUSY;
 	}
-	spin_unlock(&wrn->lock);
-#endif
+
 	/* Map our resource list and instantiate the shortcut pointers */
-	err = __wrn_map_resources(pdev);
-	if (err)
+	if ( (err = __wrn_map_resources(pdev)) )
 		goto out;
 	wrn->regs = wrn->bases[WRN_FB_NIC];
 	wrn->txtsu_regs = wrn->bases[WRN_FB_TS];
@@ -140,16 +153,16 @@ static int wrn_probe(struct platform_device *pdev)
 		dev_info(&pdev->dev, "regs %p, txd %p, rxd %p, buffer %p\n",
 			 wrn->regs, wrn->txd, wrn->rxd, wrn->databuf);
 
-#if 0
-	/* Register the interrupt handlers (not shared) */
-	for (i = 0; i < ARRAY_SIZE(irq_names); i++) {
-		err = request_irq(irqs[i], irq_handlers[i],
-			      IRQF_TRIGGER_LOW, irq_names[i], wrn);
-		if (err)
-			goto out;
-		wrn->irq_registered |= 1 << i;
+	if (WR_IS_SWITCH) {
+		/* Register the interrupt handlers (not shared) */
+		for (i = 0; i < ARRAY_SIZE(irq_names); i++) {
+			err = request_irq(irqs[i], irq_handlers[i],
+					  IRQF_TRIGGER_LOW, irq_names[i], wrn);
+			if (err) goto out;
+			wrn->irq_registered |= 1 << i;
+		}
 	}
-#endif
+
 	/* Reset the device, just to be sure, before making anything */
 	writel(0, &wrn->regs->CR);
 	mdelay(10);
@@ -184,15 +197,14 @@ static int wrn_probe(struct platform_device *pdev)
 		wrn->dev[i] = netdev;
 		err = wrn_mezzanine_init(netdev);
 		if (err)
-			dev_err(&pdev->dev,
-				"Init mezzanine code: error %i\n", err);
+			dev_err(&pdev->dev, "Init mezzanine code: "
+				"error %i\n", err);
 	}
 	if (i == 0)
 		return -ENODEV; /* no endpoints */
 
 	for (i = 0; i < WRN_NR_TXDESC; i++) { /* Clear all tx descriptors */
 		struct wrn_txd *tx;
-
 		tx = wrn->txd + i;
 		writel(0, &tx->tx1);
 	}
@@ -204,7 +216,7 @@ static int wrn_probe(struct platform_device *pdev)
 
 		rx = wrn->rxd + i;
 		offset = __wrn_desc_offset(wrn, WRN_DDIR_RX, i);
-		writel((2000 << 16) | offset, &rx->rx3);
+		writel( (2000 << 16) | offset, &rx->rx3);
 		writel(NIC_RX1_D1_EMPTY, &rx->rx1);
 	}
 
