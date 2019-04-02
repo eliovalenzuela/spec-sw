@@ -23,8 +23,12 @@
 static char *macaddr = "00:00:00:00:00:00";
 module_param(macaddr, charp, 0444);
 
-/* Copied from kernel 3.6 net/utils.c, it converts from MAC string to u8 array */
+/* Copied from kernel net/utils.c, it converts from MAC string to u8 array */
+#if LINUX_VERSION_CODE < KERNEL_VERSION(3,17,0)
 __weak int mac_pton(const char *s, u8 *mac)
+#else
+__weak bool mac_pton(const char *s, u8 *mac)
+#endif
 {
 	int i;
 
