@@ -230,6 +230,8 @@ int wrn_ep_open(struct net_device *dev)
 	/* Prepare the timer for link-up notifications */
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 15, 0)
 	setup_timer(&ep->ep_link_timer, wrn_ep_check_link, timerarg);
+#else
+	timer_setup(&ep->ep_link_timer, wrn_ep_check_link, 0);
 #endif
 	/* Not on spec. On spec this part of the function is never reached
 	 * due to return in if(WR_IS_NODE) */
