@@ -22,6 +22,14 @@ module_param_named(test_irq, spec_test_irq, int, 0444);
 static int spec_show_sdb;
 module_param_named(show_sdb, spec_show_sdb, int, 0444);
 
+/**
+ * IRQ domain to be used. This is static here but in general it should be
+ * a module parameter or somehow configurable. For the time being we keep
+ * it hard-coded here.
+ */
+static const char *irqdomain_name = "htvic-spec.0";
+static struct irq_domain *irqdomain;
+
 /* The main role of this file is offering the fmc_operations for the spec */
 
 static int spec_validate(struct fmc_device *fmc, struct fmc_driver *drv)
@@ -57,15 +65,12 @@ static int spec_reprogram_raw(struct fmc_device *fmc, struct fmc_driver *drv,
 
 	fmc_free_sdb_tree(fmc);
 
-	fmc->flags &= ~FMC_DEVICE_HAS_GOLDEN;
-
 	ret = spec_load_fpga(spec, gw, len);
 	if (ret < 0) {
 		dev_err(dev, "writing firmware: error %i\n", ret);
 		return ret;
 	}
 
-	fmc->flags |= FMC_DEVICE_HAS_CUSTOM;
 	return 0;
 }
 
@@ -102,69 +107,12 @@ static int spec_reprogram(struct fmc_device *fmc, struct fmc_driver *drv,
 		goto out;
 	}
 
-	if (gw == spec_fw_name)
-		fmc->flags |= FMC_DEVICE_HAS_GOLDEN;
-
 out:
 	release_firmware(fw);
 	return ret;
 }
 
-/* Low-level IRQ request function: set up handler, with or without the VIC */
-static int spec_shared_irq_request(struct fmc_device *fmc,
-				   irq_handler_t handler, char *name, int flags)
-{
-	struct spec_dev *spec = fmc->carrier_data;
-	int ret;
-	u32 value;
-
-	ret = request_irq(spec->pdev->irq, handler, flags, name, fmc);
-	if (ret)
-		return ret;
-
-	if (spec_use_msi) {
-		/* A check and a hack, but doesn't work on all computers */
-		value = gennum_readl(spec, GNPPCI_MSI_CONTROL);
-		if ((value & 0x810000) != 0x810000)
-			dev_err(&spec->pdev->dev,
-				"invalid msi control: 0x%04x\n",
-				value >> 16);
-		value = 0xa50000 | (value & 0xffff);
-		gennum_writel(spec, value, GNPPCI_MSI_CONTROL);
-	}
-
-	/* Interrupts are enabled by the driver, with gpio_config() */
-	return 0;
-}
-
 static void spec_shared_irq_ack(struct fmc_device *fmc);
-
-static irqreturn_t spec_vic_irq_handler(int id, void *data)
-{
-	struct fmc_device *fmc = (struct fmc_device *)data;
-	struct spec_dev *spec = (struct spec_dev *)fmc->carrier_data;
-	irqreturn_t rv;
-
-	/*
-	 * Lock to avoid to remove the VIC or the handler itself while
-	 * it's running
-	 */
-	spin_lock(&spec->irq_lock);
-	rv = spec_vic_irq_dispatch(spec);
-
-	/*
-	 * We ack the GN4124 **before** the VIC. The other way around makes the
-	 * interrupt handling timing dependent. For instance. When the VIC
-	 * VIC_CTL_EMU_LEN_W is too short it may happens that the VIC asserts
-	 * the interrupt **before** the GN4124 is acked; then, so do not receive
-	 * interrupts anymore from the GN4124 because it misses the VIC edge.
-	 */
-	spec_shared_irq_ack(fmc);
-	spec_vic_irq_ack(spec, 0);
-	spin_unlock(&spec->irq_lock);
-
-	return IRQ_HANDLED;
-}
 
 static struct fmc_gpio spec_vic_gpio_cfg[] = {
 	{
@@ -184,38 +132,45 @@ static int spec_irq_request(struct fmc_device *fmc, irq_handler_t handler,
 			    char *name, int flags)
 {
 	struct spec_dev *spec = fmc->carrier_data;
-	int rv, first_time;
+	int rv;
+	static int first_time = 1;
+	int fmc_irq = fmc->irq;
+	int irq;
+	uint32_t value;
 
-	/* VIC mode interrupt */
-	if (!(flags & IRQF_SHARED)) {
-		/*
-		 * Lock to serialize request/free and have a consistent status
-		 * during these operations
-		 */
-		spin_lock(&spec->irq_lock);
-		first_time = !spec->vic;
+	/* on first IRQ, configure VIC "master" handler and GPIO too */
+	if (first_time) {
 
-		/* configure the VIC */
-		rv = spec_vic_irq_request(spec, fmc, fmc->irq, handler);
-		spin_unlock(&spec->irq_lock);
-		if (rv)
-			return rv;
-
-		/* on first IRQ, configure VIC "master" handler and GPIO too */
-		if (first_time) {
-			rv = spec_shared_irq_request(fmc, spec_vic_irq_handler,
-						     "spec-vic", IRQF_SHARED);
-			if (rv)
-				return rv;
-
-			fmc->op->gpio_config(fmc, spec_vic_gpio_cfg,
-					     ARRAY_SIZE(spec_vic_gpio_cfg));
+		irqdomain = irq_find_host((struct device_node *)irqdomain_name);
+		if (!irqdomain) {
+			dev_err(&spec->pdev->dev, "The IRQ domain %s does not exist\n",
+				irqdomain_name);
+			return -EINVAL;
 		}
-	} else {
-		rv = spec_shared_irq_request(fmc, handler, name, flags);
-		pr_debug("Requesting irq '%s' in shared mode (rv %d)\n", name,
-		       rv);
+
+		first_time = 0;
 	}
+
+	irq = irq_find_mapping(irqdomain, fmc_irq);
+	/* Update the fmc->irq */
+	fmc->irq = irq;
+	rv = request_irq(irq, handler, flags, name, fmc);
+	if (rv)
+		return rv;
+
+	if (spec_use_msi) {
+		/* A check and a hack, but doesn't work on all computers */
+		value = gennum_readl(spec, GNPPCI_MSI_CONTROL);
+		if ((value & 0x810000) != 0x810000)
+			dev_err(&spec->pdev->dev,
+				"invalid msi control: 0x%04x\n",
+				value >> 16);
+		value = 0xa50000 | (value & 0xffff);
+		gennum_writel(spec, value, GNPPCI_MSI_CONTROL);
+	}
+
+	fmc->op->gpio_config(fmc, spec_vic_gpio_cfg,
+				 ARRAY_SIZE(spec_vic_gpio_cfg));
 
 	if (!rv)
 		spec->flags |= SPEC_FLAG_IRQS_REQUESTED;
@@ -237,42 +192,23 @@ static void spec_shared_irq_ack(struct fmc_device *fmc)
 
 static void spec_irq_ack(struct fmc_device *fmc)
 {
-	struct spec_dev *spec = fmc->carrier_data;
+	//struct spec_dev *spec = fmc->carrier_data;
 
-	if (!spec->vic)
-		spec_shared_irq_ack(fmc);
-
-	/* Nothing for VIC here, all irqs are acked by master VIC handler */
+	spec_shared_irq_ack(fmc);
 }
 
 static void spec_shared_irq_free(struct fmc_device *fmc)
 {
-	struct spec_dev *spec = fmc->carrier_data;
+	//struct spec_dev *spec = fmc->carrier_data;
 
-	gennum_writel(spec, 0xffff, GNGPIO_INT_MASK_SET);	/* disable */
-	free_irq(spec->pdev->irq, fmc);
+	free_irq(fmc->irq, fmc);
 }
 
 static int spec_irq_free(struct fmc_device *fmc)
 {
-	struct spec_dev *spec = fmc->carrier_data;
+	//struct spec_dev *spec = fmc->carrier_data;
 
-	/*
-	 * Lock to serialize request/free and have a consistent status
-	 * during these operations. And, to avoid to run VIC handler while
-	 * it is going to desappear
-	 */
-	spin_lock(&spec->irq_lock);
-	if (spec->vic)
-		spec_vic_irq_free(spec, fmc->irq);
-
-	/*
-	 * If we were not using the VIC, or we released all the VIC handler,
-	 * then release the PCI IRQ handler
-	 */
-	if (!spec->vic)
-		spec_shared_irq_free(fmc);
-	spin_unlock(&spec->irq_lock);
+	spec_shared_irq_free(fmc);
 	return 0;
 }
 
@@ -391,16 +327,12 @@ static int spec_gpio_config(struct fmc_device *fmc, struct fmc_gpio *gpio,
 /* The engines for this live in spec-i2c.c, we only shape arguments */
 static int spec_read_ee(struct fmc_device *fmc, int pos, void *data, int len)
 {
-	if (!(fmc->flags & FMC_DEVICE_HAS_GOLDEN))
-		return -ENOTSUPP;
 	return spec_eeprom_read(fmc, pos, data, len);
 }
 
 static int spec_write_ee(struct fmc_device *fmc, int pos,
 			 const void *data, int len)
 {
-	if (!(fmc->flags & FMC_DEVICE_HAS_GOLDEN))
-		return -ENOTSUPP;
 	return spec_eeprom_write(fmc, pos, data, len);
 }
 
@@ -443,7 +375,6 @@ static int spec_irq_init(struct fmc_device *fmc)
 	uint32_t value;
 	int i;
 
-	spin_lock_init(&spec->irq_lock);
 	if (spec_use_msi) {
 		/*
 		 * Enable multiple-msi to work around a chip design bug.
@@ -496,42 +427,54 @@ static void spec_irq_exit(struct fmc_device *fmc)
 	struct spec_dev *spec = fmc->carrier_data;
 	int i;
 
+	gennum_writel(spec, 0xffff, GNGPIO_INT_MASK_SET);	/* disable */
 	for (i = 0; i < 7; i++)
 		gennum_writel(spec, 0, GNINT_CFG(i));
 	fmc->op->irq_ack(fmc); /* just to be safe */
-
-	WARN(spec->vic, "A Mezzanine driver didn't release all its IRQ handlers\n");
 }
 
-static int check_golden(struct fmc_device *fmc)
+// FIXME: Move these constants...
+#define SDB_MAGIC 0x5344422d
+#define SDB_CERN_VID 0x0000ce42
+#define SDB_SYSCON_PID 0xff07fc47
+#define SDB_ENTRY_GOLDEN 0x100
+static int spec_fmc_sdb_scan(struct fmc_device *fmc)
 {
 	struct spec_dev *spec = fmc->carrier_data;
+	unsigned long sdb_entry = spec->sdb_entry;
 	int ret;
 
 	/* poor man's SDB */
-	if (fmc_readl(fmc, 0x100) != 0x5344422d) {
+	if (fmc_readl(fmc, sdb_entry) != SDB_MAGIC) {
 		dev_err(&spec->pdev->dev, "Can't find SDB magic\n");
 		return -ENODEV;
 	}
 
-	ret = fmc_scan_sdb_tree(fmc, 0x100);
+	ret = fmc_scan_sdb_tree(fmc, sdb_entry);
 	if (ret < 0)
 		return -ENODEV;
 
-	if (fmc_readl(fmc, 0x15c) != 0x0000ce42) {
-		dev_err(&spec->pdev->dev, "unsexpected vendor in SDB\n");
+	spec->syscon_addr = fmc_find_sdb_device(fmc->sdb,
+			SDB_CERN_VID, SDB_SYSCON_PID,
+			&spec->syscon_size);
+	if(spec->syscon_addr < 0)
 		return -ENODEV;
-	}
-	if (fmc_readl(fmc, 0x160) != 0xff07fc47) {
-		dev_err(&spec->pdev->dev, "unsexpected device in SDB\n");
-		return -ENODEV;
-	}
+
 	if (spec_show_sdb)
 		fmc_show_sdb_tree(fmc);
+
+	/* It is not a golden gateware, mark it. */
+	if(sdb_entry != SDB_ENTRY_GOLDEN)
+		fmc->flags |= FMC_DEVICE_HAS_CUSTOM;
 	return 0;
 }
 
-
+// FIXME: Move these constants... (Update bitstream names with the latest gateware)
+#define DIO_GW_NAME "fmc/wr_nic_dio.bin"
+#define SDB_NIC_DIO_ENTRY 0x63000
+#define NIC_GW_NAME "fmc/wr_nic_dio.bin"
+#define SDB_NIC_ENTRY 0x63000
+#define DIO_FMC_ID_NAME "FmcDio5cha"
 int spec_fmc_create(struct spec_dev *spec, struct fmc_gateware *gw)
 {
 	struct fmc_device *fmc;
@@ -563,11 +506,10 @@ int spec_fmc_create(struct spec_dev *spec, struct fmc_gateware *gw)
 	pdev = spec->pdev;
 	fmc->device_id = (pdev->bus->number << 8) | pdev->devfn;
 
-	/* Check that the golden binary is actually correct */
-	ret = check_golden(fmc);
+	/* Scan the SDB information from the FPGA memory space */
+	ret = spec_fmc_sdb_scan(fmc);
 	if (ret)
 		goto out_free;
-	fmc->flags = FMC_DEVICE_HAS_GOLDEN;
 
 	ret = spec_i2c_init(fmc);
 	if (ret)
@@ -579,6 +521,28 @@ int spec_fmc_create(struct spec_dev *spec, struct fmc_gateware *gw)
 	if (ret)
 		goto out_irq;
 	spec_gpio_init(fmc); /* May fail, we don't care */
+
+	/* ------> Here, the party starts... */
+	if (!(fmc->flags &= FMC_DEVICE_HAS_CUSTOM)) {
+		fmc_free_sdb_tree(fmc);
+		if(!strcmp(fmc->id.product_name,DIO_FMC_ID_NAME)) {
+			spec->sdb_entry = SDB_NIC_DIO_ENTRY;
+			ret = spec_load_fpga_file(spec,DIO_GW_NAME);
+		} else {
+			spec->sdb_entry = SDB_NIC_ENTRY;
+			ret = spec_load_fpga_file(spec,NIC_GW_NAME);
+		}
+
+		ret = spec_fmc_sdb_scan(fmc);
+			if (ret)
+				goto out_irq;
+	}
+
+	ret = spec_sdb_fpga_dev_register_all(fmc);
+	if(ret)
+		goto out_irq;
+
+	/* ------> END */
 
 	spec->flags |= SPEC_FLAG_FMC_REGISTERED;
 	return ret;
@@ -596,6 +560,7 @@ void spec_fmc_destroy(struct spec_dev *spec)
 	if (!(spec->flags & SPEC_FLAG_FMC_REGISTERED))
 		return;
 	/* undo the things in the reverse order, but pin the device first */
+	spec_sdb_fpga_dev_release_all(spec->fmc);
 	get_device(&spec->fmc->dev);
 	spec_gpio_exit(spec->fmc);
 	fmc_device_unregister(spec->fmc);

@@ -42,6 +42,8 @@ struct spec_dev {
 
 	char                    name[SPEC_NAME_LEN];
 	unsigned int sdb_entry;
+	unsigned long syscon_addr;
+	unsigned long syscon_size;
 };
 
 #define SPEC_FLAG_FAKE_EEPROM		0x00000001
@@ -152,5 +154,8 @@ extern int spec_eeprom_write(struct fmc_device *fmc, uint32_t offset,
 extern int spec_gpio_init(struct fmc_device *fmc);
 extern void spec_gpio_exit(struct fmc_device *fmc);
 
+/* Functions in spec-sdb-scan.c */
+extern int spec_sdb_fpga_dev_register_all(struct fmc_device *fmc);
+extern void spec_sdb_fpga_dev_release_all(struct fmc_device *fmc);
 
 #endif /* __SPEC_H__ */

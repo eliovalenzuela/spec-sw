@@ -47,25 +47,32 @@ static void dumpstruct(char *name, void *ptr, int size)
 
 static void set_sda(struct fmc_device *fmc, int val)
 {
+	struct spec_dev *spec = fmc->carrier_data;
+	unsigned long syscon_addr = spec->syscon_addr;
 	if (val)
-		fmc_writel(fmc, SYSC_GPSR_FMC_SDA, SYSC_REG_GPSR);
+		fmc_writel(fmc, SYSC_GPSR_FMC_SDA, syscon_addr+SYSC_REG_GPSR);
 	else
-		fmc_writel(fmc, SYSC_GPCR_FMC_SDA, SYSC_REG_GPCR);
+		fmc_writel(fmc, SYSC_GPCR_FMC_SDA, syscon_addr+SYSC_REG_GPCR);
 	ndelay(1250); /* 400kHz -> 2.5us/loop */
 }
 
 static void set_scl(struct fmc_device *fmc, int val)
 {
+	struct spec_dev *spec = fmc->carrier_data;
+	unsigned long syscon_addr = spec->syscon_addr;
+
 	if (val)
-		fmc_writel(fmc, SYSC_GPSR_FMC_SCL, SYSC_REG_GPSR);
+		fmc_writel(fmc, SYSC_GPSR_FMC_SCL, syscon_addr+SYSC_REG_GPSR);
 	else
-		fmc_writel(fmc, SYSC_GPCR_FMC_SCL, SYSC_REG_GPCR);
+		fmc_writel(fmc, SYSC_GPCR_FMC_SCL, syscon_addr+SYSC_REG_GPCR);
 	ndelay(1250); /* 400kHz -> 2.5us/loop */
 }
 
 static int get_sda(struct fmc_device *fmc)
 {
-	return fmc_readl(fmc, SYSC_REG_GPSR) & SYSC_GPSR_FMC_SDA ? 1 : 0;
+	struct spec_dev *spec = fmc->carrier_data;
+	unsigned long syscon_addr = spec->syscon_addr;
+	return fmc_readl(fmc, syscon_addr+SYSC_REG_GPSR) & SYSC_GPSR_FMC_SDA ? 1 : 0;
 };
 
 static void mi2c_start(struct fmc_device *fmc)
