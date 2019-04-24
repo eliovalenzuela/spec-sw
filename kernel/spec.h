@@ -38,8 +38,6 @@ struct spec_dev {
 	int			irq_count;	/* for mezzanine use too */
 	struct completion	compl;
 	struct gpio_chip	*gpio;
-	struct vic_irq_controller *vic;
-	spinlock_t		irq_lock;
 	struct miscdevice       mdev;
 
 	char                    name[SPEC_NAME_LEN];
@@ -153,13 +151,5 @@ extern int spec_eeprom_write(struct fmc_device *fmc, uint32_t offset,
 extern int spec_gpio_init(struct fmc_device *fmc);
 extern void spec_gpio_exit(struct fmc_device *fmc);
 
-/* Functions in spec-vic.c */
-/* NOTE: these functions must be called while holding irq_lock */
-int spec_vic_irq_request(struct spec_dev *spec, struct fmc_device *fmc,
-			 unsigned long id, irq_handler_t handler);
-void spec_vic_irq_free(struct spec_dev *spec, unsigned long id);
-irqreturn_t spec_vic_irq_dispatch(struct spec_dev *spec);
-extern void spec_vic_irq_ack(struct spec_dev *spec, unsigned long id);
-extern int vic_is_managed(struct vic_irq_controller *vic, unsigned long id);
 
 #endif /* __SPEC_H__ */
