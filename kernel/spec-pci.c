@@ -34,14 +34,21 @@ static char *spec_fw_name_150t = "fmc/spec-init-150T.bin";
 char *spec_fw_name = "";
 module_param_named(fw_name, spec_fw_name, charp, 0444);
 
+unsigned int spec_fw_sdb_entry = 0x100;
+module_param_named(sdb_entry, spec_fw_sdb_entry, int, 0444);
+
 int spec_use_msi = 0;
 module_param_named(use_msi, spec_use_msi, int, 0444);
 
 /**
  * According to the PCI device ID, load different golden
  */
-static char *spec_golden_name_get(unsigned int device_id)
+static char *spec_golden_name_get(struct spec_dev *dev)
 {
+	unsigned int device_id = dev->pdev->device;
+
+	dev->sdb_entry = spec_fw_sdb_entry;
+
 	if (strlen(spec_fw_name) > 0)
 		return spec_fw_name;
 	switch (device_id) {
@@ -125,7 +132,7 @@ static int spec_reconfigure(struct spec_dev *spec, struct fmc_gateware *gw)
 
 	/* Load the golden FPGA binary to read the eeprom */
 	ret = spec_load_fpga_file(spec,
-				  spec_golden_name_get(spec->pdev->device));
+				  spec_golden_name_get(spec));
 	if (ret)
 		return ret;
 

@@ -41,6 +41,7 @@ struct spec_dev {
 	struct miscdevice       mdev;
 
 	char                    name[SPEC_NAME_LEN];
+	unsigned int sdb_entry;
 };
 
 #define SPEC_FLAG_FAKE_EEPROM		0x00000001
